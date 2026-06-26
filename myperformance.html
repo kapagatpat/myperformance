@@ -23388,16 +23388,17 @@ function openMonthlyCoachingModal(){
     eTrack.classList.remove('mcd-off');eTrack.classList.add('mcd-on','mcd-locked');
     eTrack.onclick=function(){};eLockNote.style.display='';
     document.getElementById('mcd-e-tog-lbl').textContent='Included';_mcd.togE=true;
-    // Per-SW AHT commit rows
-    var eCommitHtml='<div class="mcd-rlbl" id="mcd-e-commit-lbl">Committed AHT by SW</div>';
+    // Per-SW AHT commit rows — compact 2-col grid
+    var eCommitHtml='<div class="mcd-rlbl" id="mcd-e-commit-lbl">Committed AHT by SW</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px">';
     overAHT.forEach(function(x,i){
-      eCommitHtml+='<div style="display:flex;align-items:center;gap:6px;padding:2px 0">'
-        +'<div class="mcd-commit-dot" style="background:var(--amber);flex-shrink:0"></div>'
-        +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+mcdEsc(x.sw)+' <span style="color:var(--tm)">(now: '+x.actual+'s)</span></span>'
-        +'<input class="mcd-commit-inp" type="text" id="mcd-commit-e-'+i+'" value="'+x.target+'s" style="width:64px" />'
+      eCommitHtml+='<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;background:var(--sa);border:1px solid var(--border);border-radius:var(--r-xs)">'
+        +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+mcdEsc(x.sw)+'">'+mcdEsc(x.sw)+'</span>'
+        +'<span style="font-size:9px;color:var(--tm);white-space:nowrap;flex-shrink:0">'+x.actual+'s→</span>'
+        +'<input class="mcd-commit-inp" type="text" id="mcd-commit-e-'+i+'" value="'+x.target+'s" style="width:52px;font-size:10px" />'
         +'</div>';
     });
-    eCommitHtml+='<div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.</div>';
+    eCommitHtml+='</div><div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.</div>';
     var eBody=document.getElementById('mcd-e-body');
     // Replace the last child (commit block) with the per-SW version
     var eCommitBlock=eBody?eBody.querySelector('.mcd-commit-row'):null;
