@@ -14704,10 +14704,12 @@ function generateReviewerMonthlyDoc(mcdConfig) {
             // Build commit table rows
             let commitHtml = '';
             if(commitRows && Array.isArray(commitRows) && commitRows.length){
-                commitHtml = commitRows.map(cr=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:${lightGray};border-radius:7px;border:1px solid ${borderColor};margin-bottom:5px">
-                  <span style="font-size:11px;color:${textSec};flex:1">${mcdEsc(cr.sw)} · Current: ${mcdEsc(cr.errors)+' error'+(cr.errors!==1?'s':'')} · ${mcdEsc(cr.acc)}</span>
+                commitHtml = commitRows.map(cr=>{
+                  const prStr=cr.prec&&cr.rec?` · <span style="color:${textMuted}">P:${mcdEsc(cr.prec)} R:${mcdEsc(cr.rec)}</span>`:'';
+                  return`<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:${lightGray};border-radius:7px;border:1px solid ${borderColor};margin-bottom:5px">
+                  <span style="font-size:11px;color:${textSec};flex:1">${mcdEsc(cr.sw)} · ${mcdEsc(cr.errors)+' error'+(cr.errors!==1?'s':'')} · ${mcdEsc(cr.acc)}${prStr}</span>
                   <span style="font-size:13px;font-weight:700;font-family:${mono};color:${blue}">Committed: ${mcdEsc(cr.commit)}</span>
-                </div>`).join('');
+                </div>`}).join('');
             } else if(ahtRows && Array.isArray(ahtRows) && ahtRows.length){
                 commitHtml = ahtRows.map(ar=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:${lightGray};border-radius:7px;border:1px solid ${borderColor};margin-bottom:5px">
                   <span style="font-size:11px;color:${textSec};flex:1">${mcdEsc(ar.sw)} · Current: ${ar.actual}s · Target: ${ar.target}s</span>
@@ -23263,11 +23265,16 @@ function openMonthlyCoachingModal(){
   var swQuality=[];
   swList.forEach(function(sw){
     var sr=currRows.filter(function(r){return r.sw===sw});
-    var t=0,f=0;sr.forEach(function(r){t+=r.tpa+r.tna;f+=r.fpa+r.fna;});
+    var t=0,f=0,fp=0,fn=0,tp=0;
+    sr.forEach(function(r){t+=r.tpa+r.tna;f+=r.fpa+r.fna;fp+=r.fpa||0;fn+=r.fna||0;tp+=r.tpa||0;});
     var swAcc=t+f>0?t/(t+f):null;
-    var swErrors=sr.reduce(function(s,r){return s+r.fpa+r.fna;},0);
+    var swErrors=f;
     var tgt=(typeof SW_TARGETS!=='undefined'&&SW_TARGETS[sw]&&SW_TARGETS[sw].acc)?SW_TARGETS[sw].acc:0.96;
-    if(swAcc!==null&&swAcc<tgt) swQuality.push({sw:sw,acc:swAcc,errors:swErrors,target:tgt});
+    if(swAcc!==null&&swAcc<tgt){
+      var prec=tp+fp>0?tp/(tp+fp):null;
+      var rec=tp+fn>0?tp/(tp+fn):null;
+      swQuality.push({sw:sw,acc:swAcc,errors:swErrors,target:tgt,prec:prec,rec:rec});
+    }
   });
 
   // ── Per-SW AHT — ALL over-target SWs ─────────────────────────────────────
@@ -23328,7 +23335,15 @@ function openMonthlyCoachingModal(){
   }else{document.getElementById('mcd-psp-banner').style.display='none';}
 
   // ── Quality card ──────────────────────────────────────────────────────────
-  var qTitle=totalErrors>0?(topPolStr+' \xb7 '+totalErrors+' total error'+(totalErrors!==1?'s':'')+' \xb7 '+_mcd.accStr+' vs 96% target'):('No active errors \u2014 '+_mcd.accStr+' on target');
+  var swPRStr='';
+  if(swQuality.length>0){
+    swPRStr=swQuality.map(function(sq){
+      var p=sq.prec!==null?(sq.prec*100).toFixed(1)+'%':'—';
+      var r=sq.rec!==null?(sq.rec*100).toFixed(1)+'%':'—';
+      return sq.sw+' P:'+p+' R:'+r;
+    }).join(' · ');
+  }
+  var qTitle=totalErrors>0?(topPolStr+' \xb7 '+totalErrors+' total error'+(totalErrors!==1?'s':'')+' \xb7 '+_mcd.accStr+' vs 96% target'+(swPRStr?' \xb7 '+swPRStr:'')):('No active errors \u2014 '+_mcd.accStr+' on target');
   document.getElementById('mcd-q-title').textContent=qTitle;
 
   // Lock quality toggle when failing
@@ -23350,9 +23365,11 @@ function openMonthlyCoachingModal(){
     var qRowsHtml='';
     if(swQuality.length>0){
       swQuality.forEach(function(sq,i){
+        var p=sq.prec!==null?(sq.prec*100).toFixed(1)+'%':'—';
+        var r=sq.rec!==null?(sq.rec*100).toFixed(1)+'%':'—';
         qRowsHtml+='<div style="display:flex;align-items:center;gap:6px;padding:2px 0">'
           +'<div class="mcd-commit-dot" style="background:var(--text-danger);flex-shrink:0"></div>'
-          +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+mcdEsc(sq.sw)+' <span style="color:var(--tm)">('+sq.errors+' err • '+(sq.acc*100).toFixed(1)+'%)</span></span>'
+          +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+mcdEsc(sq.sw)+' <span style="color:var(--tm)">('+sq.errors+' err · '+(sq.acc*100).toFixed(1)+'% · P:'+p+' R:'+r+')</span></span>'
           +'<input class="mcd-commit-inp" type="text" id="mcd-commit-q-'+i+'" value="0 errors" style="width:64px" />'
           +'</div>';
       });
@@ -23460,10 +23477,10 @@ function mcdToggle(area){
 
 function mcdEomDate(){
   var now=new Date();
-  var eom=new Date(now.getFullYear(),now.getMonth()+1,0);
-  var mm=String(eom.getMonth()+1).padStart(2,'0');
-  var dd=String(eom.getDate()).padStart(2,'0');
-  return eom.getFullYear()+'-'+mm+'-'+dd;
+  now.setDate(now.getDate()+7);
+  var mm=String(now.getMonth()+1).padStart(2,'0');
+  var dd=String(now.getDate()).padStart(2,'0');
+  return now.getFullYear()+'-'+mm+'-'+dd;
 }
 function mcdFmtDate(iso){
   if(!iso)return'';
@@ -23507,7 +23524,7 @@ function mcdGenerate(){
   if(_mcd.swQuality&&_mcd.swQuality.length>0){
     _mcd.swQuality.forEach(function(sq,i){
       var el=document.getElementById('mcd-commit-q-'+i);
-      commitQRows.push({sw:sq.sw,errors:sq.errors,acc:(sq.acc*100).toFixed(2)+'%',commit:el?el.value:'0 errors'});
+      commitQRows.push({sw:sq.sw,errors:sq.errors,acc:(sq.acc*100).toFixed(2)+'%',commit:el?el.value:'0 errors',prec:sq.prec!==null?(sq.prec*100).toFixed(1)+'%':'—',rec:sq.rec!==null?(sq.rec*100).toFixed(1)+'%':'—'});
     });
   }else{
     var el0=document.getElementById('mcd-commit-q-0');
