@@ -23010,7 +23010,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
   <div class="mcd-hdr">
     <div>
       <div class="mcd-title" id="mcd-title">Monthly coaching doc</div>
-      <div class="mcd-sub" id="mcd-sub">Loading...</div>
+
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <div class="mcd-steps">
@@ -23024,10 +23024,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
   </div>
 
   <div class="mcd-body">
-    <div class="mcd-infobar">
-      <span style="font-size:13px;flex-shrink:0">ℹ</span>
-      <span>Defaults pre-filled from this period's data. Toggle off any area to exclude. Min 1 action per side, max 3.</span>
-    </div>
+
 
 
 
@@ -23161,17 +23158,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
               <button class="mcd-add-btn" onclick="document.getElementById('mcd-pk-tl-e').focus()">+ Add TL action</button>
             </div>
           </div>
-          <div>
-            <div class="mcd-rlbl">Committed score — AHT</div>
-            <div class="mcd-commit-row">
-              <div class="mcd-commit-dot" style="background:var(--amber)"></div>
-              <span class="mcd-commit-lbl" id="mcd-e-commit-lbl">AHT — enter SW target</span>
-              <span class="mcd-commit-cur" id="mcd-cur-e">—</span>
-              <span class="mcd-commit-arr">→</span>
-              <input class="mcd-commit-inp" type="text" id="mcd-commit-e" placeholder="e.g. 180s" />
-            </div>
-            <div class="mcd-commit-hint">Pre-filled to SW target if detected. Adjust as needed.</div>
-          </div>
+
         </div>
       </div>
 
@@ -23328,7 +23315,6 @@ function openMonthlyCoachingModal(){
   var fmtM=typeof fmtMonth==='function'?fmtMonth(currMonth):currMonth;
   var rvShort=typeof sn==='function'?sn(rv):rv;
   document.getElementById('mcd-title').textContent='Monthly coaching doc \u2014 '+rvShort;
-  document.getElementById('mcd-sub').textContent=fmtM+' \xb7 '+(_mcd.sw);
 
   // ── PSP banner ────────────────────────────────────────────────────────────
   if(isPSP){
@@ -23508,8 +23494,7 @@ function mcdGenerate(){
       commitERows.push({sw:x.sw,actual:x.actual,target:x.target,commit:el?el.value:x.target+'s'});
     });
   }else{
-    var elE=document.getElementById('mcd-commit-e');
-    commitERows=[{sw:'',actual:null,target:null,commit:elE?elE.value:'\u2014'}];
+    commitERows=[{sw:'',actual:null,target:null,commit:'\u2014'}];
   }
   var config={
     togQ:_mcd.togQ,togE:_mcd.togE,togA:_mcd.togA,
