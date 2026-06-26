@@ -413,8 +413,8 @@ tr:hover td{background:#F8F9FB}
         <span class="flbl">TL</span>
         <select id="g-tl" multiple data-label="TLs" onchange="handleSWChange()"></select>
 
-        <div class="fdiv dyn-item dyn-reviewer"></div>
-        <span class="flbl dyn-item dyn-reviewer">Reviewer</span>
+        <div class="fdiv dyn-item dyn-reviewer" style="display:none!important"></div>
+        <span class="flbl dyn-item dyn-reviewer" style="display:none!important">Reviewer</span>
         <select id="g-reviewer" class="dyn-item dyn-reviewer" onchange="renderActiveTab()"></select>
 
         <div class="fdiv"></div>
@@ -22985,12 +22985,12 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
 .mcd-add-btn:hover{border-color:var(--blue);background:var(--bbg)}
 .mcd-act-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
 .mcd-act-col-hdr{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ts);margin-bottom:5px}
-.mcd-commit-row{display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--sa);border:1px solid var(--border);border-radius:var(--r);margin-top:2px}
-.mcd-commit-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.mcd-commit-lbl{font-size:11px;color:var(--ts);flex:1;min-width:0}
+.mcd-commit-row{display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--sa);border:1px solid var(--border);border-radius:var(--r);margin-top:2px}
+.mcd-commit-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.mcd-commit-lbl{font-size:10px;color:var(--ts);flex:1;min-width:0}
 .mcd-commit-cur{font-size:11px;font-family:var(--m);font-weight:700;color:var(--tm);flex-shrink:0}
 .mcd-commit-arr{font-size:13px;color:var(--tm);flex-shrink:0}
-.mcd-commit-inp{width:88px;font-size:11px;font-family:var(--m);padding:4px 7px;border-radius:var(--r-xs);border:1.5px solid var(--bbd);background:var(--bbg);color:var(--blue);text-align:right;font-weight:700}
+.mcd-commit-inp{width:72px;font-size:10px;font-family:var(--m);padding:2px 5px;border-radius:var(--r-xs);border:1.5px solid var(--bbd);background:var(--bbg);color:var(--blue);text-align:right;font-weight:700}
 .mcd-commit-inp:focus{outline:none;border-color:var(--blue)}
 .mcd-commit-hint{font-size:10px;color:var(--tm);margin-top:3px;line-height:1.4}
 .mcd-notes{width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:8px 11px;font-family:var(--f);font-size:12px;color:var(--text);background:var(--surface);resize:vertical;line-height:1.6;min-height:52px}
@@ -23080,12 +23080,25 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
               <div class="mcd-act-col-hdr">🔎 TL <span class="mcd-cnt" id="mcd-cnt-tl-q">0 / 3</span></div>
               <select class="mcd-picker" id="mcd-pk-tl-q" onchange="mcdAddAction('tl-q',this)">
                 <option value="">— select action —</option>
+                <optgroup label="Toolkit Intervention Tools">
+                <option value="Knowledge Transfer — re-teach the policy clause directly; reviewer to explain threshold in their own words before next session">Knowledge Transfer — re-teach clause; reviewer explains in own words</option>
+                <option value="Model Call — TL narrates a live job on the flagged SW, making every decision step explicit">Model Call — TL narrates live job, making decision steps explicit</option>
+                <option value="Coach Call — reviewer makes decisions in real time with TL observing and correcting on the spot">Coach Call — reviewer decides in real time, TL corrects live</option>
+                <option value="Self-Monitor — reviewer re-reviews their own past error jobs and narrates their reasoning aloud to surface blind spots">Self-Monitor — reviewer narrates reasoning on own past errors</option>
+                <option value="Monits Comparison — two near-identical jobs with different correct answers; reviewer must articulate why">Monits Comparison — two near-identical jobs, reviewer explains difference</option>
+                <option value="SCA Drills — repeated exposure to the flagged signal pattern to build recognition before next shift">SCA Drills — repeated signal exposure to build pattern recognition</option>
+                <option value="Role Play — test reviewer judgment on novel scenarios not yet encountered in live queue">Role Play — test judgment on novel scenarios</option>
+                <option value="GROW — structured conversation: reviewer knows policy but not applying consistently; explore motivation and commitment">GROW — explore why policy not being applied consistently</option>
+                <option value="Analogy — reviewer understands technically but not connecting to impact; reframe why the standard exists">Analogy — reframe why the standard matters</option>
+                </optgroup>
+                <optgroup label="Standard TL Actions">
                 <option value="Pull 3 error jobs and run a side-by-side walkthrough before mid-month">Side-by-side walkthrough on error jobs before mid-month</option>
                 <option value="Check error pattern at 2 weeks — random across policies = conduct; clustered = knowledge gap">Check error pattern at 2 weeks — random vs clustered</option>
                 <option value="Schedule calibration session on flagged policy this month">Schedule calibration session on flagged policy</option>
                 <option value="Spot-check 5 decisions on flagged SW at mid-month — document outcomes">Spot-check 5 decisions on flagged SW at mid-month</option>
                 <option value="Escalate to supervisor by end of month if no measurable improvement — document all sessions">Escalate to supervisor if no improvement by EOMonth</option>
                 <option value="Discuss coaching plan with supervisor before session — PSP and coaching actions are linked">Discuss plan with supervisor before session (PSP)</option>
+                </optgroup>
               </select>
               <div class="mcd-act-list" id="mcd-list-tl-q"></div>
               <button class="mcd-add-btn" onclick="document.getElementById('mcd-pk-tl-q').focus()">+ Add TL action</button>
@@ -23128,11 +23141,21 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
               <div class="mcd-act-col-hdr">🔎 TL <span class="mcd-cnt" id="mcd-cnt-tl-e">0 / 3</span></div>
               <select class="mcd-picker" id="mcd-pk-tl-e" onchange="mcdAddAction('tl-e',this)">
                 <option value="">— select action —</option>
+                <optgroup label="Toolkit Intervention Tools">
+                <option value="Model Call — TL narrates a live job on the flagged SW, making pacing decisions and process steps explicit">Model Call — TL narrates live job, making pacing steps explicit</option>
+                <option value="Coach Call — reviewer works jobs in real time with TL observing; TL calls out re-checks and hesitation in the moment">Coach Call — reviewer works live, TL flags re-checks in real time</option>
+                <option value="Self-Monitor — reviewer tracks where time goes on flagged SW for 1 week and presents findings at next 1:1">Self-Monitor — reviewer tracks own time on flagged SW for 1 week</option>
+                <option value="Monits Comparison — two jobs on flagged SW requiring different process paths; reviewer articulates why">Monits Comparison — two jobs, reviewer explains process difference</option>
+                <option value="GROW — reviewer understands pacing expectation but not improving; explore what is getting in the way">GROW — explore why pacing not improving despite awareness</option>
+                <option value="Analogy — reframe AHT target as process discipline, not speed; connect to decision quality">Analogy — reframe AHT as process discipline, not rushing</option>
+                </optgroup>
+                <optgroup label="Standard TL Actions">
                 <option value="Side-by-side on flagged SW — observe and count re-checks after initial decision is formed">Side-by-side on flagged SW — count re-checks after decision</option>
                 <option value="No AHT targets this month — quality targets only; AHT stabilizes as process discipline improves">No AHT targets this period — quality targets only</option>
                 <option value="Check AHT at 2 weeks — confirm stabilizing toward target without a quality trade-off">Check AHT at 2 weeks — confirm stabilizing</option>
                 <option value="Identify top-pacing reviewer on the flagged SW and schedule a process-sharing session">Benchmark top pacer — schedule process-sharing session</option>
                 <option value="If prior AHT coaching created rushing behavior, acknowledge it explicitly in the session">Acknowledge if prior AHT coaching created rushing</option>
+                </optgroup>
               </select>
               <div class="mcd-act-list" id="mcd-list-tl-e"></div>
               <button class="mcd-add-btn" onclick="document.getElementById('mcd-pk-tl-e').focus()">+ Add TL action</button>
