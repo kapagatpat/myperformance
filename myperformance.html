@@ -14696,7 +14696,8 @@ function generateReviewerMonthlyDoc(mcdConfig) {
     let coachingSection = '';
     if(mcdConfig) {
         const mcdEsc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const mcdActList = (acts) => acts.map(a=>`<div style="padding:5px 0;border-bottom:0.5px solid ${borderColor};font-size:13px;color:${textSec};line-height:1.5">→ ${mcdEsc(a)}</div>`).join('');
+        const mcdFmtDocDate=(iso)=>{if(!iso)return'';const p=iso.split('-');if(p.length<3)return iso;const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return mn[parseInt(p[1],10)-1]+' '+parseInt(p[2],10);};
+        const mcdActList = (acts) => acts.map(a=>{const txt=typeof a==='object'?a.text:a;const dt=typeof a==='object'&&a.date?` <span style="font-size:11px;color:${textMuted};font-style:italic">(by ${mcdFmtDocDate(a.date)})</span>`:'';return`<div style="padding:5px 0;border-bottom:0.5px solid ${borderColor};font-size:13px;color:${textSec};line-height:1.5">→ ${mcdEsc(txt)}${dt}</div>`}).join('');
         const mcdFABlock = (badgeColor, badgeBg, label, title, rvKey, tlKey, commitRows, curVal, commitVal, ahtRows) => {
             const rvActs = mcdConfig.actions[rvKey]||[];
             const tlActs = mcdConfig.actions[tlKey]||[];
@@ -22981,6 +22982,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
 .mcd-act-txt{flex:1}
 .mcd-act-rm{font-size:13px;color:var(--tm);cursor:pointer;flex-shrink:0;font-weight:800;padding:0 2px;line-height:1}
 .mcd-act-rm:hover{color:var(--coral)}
+.mcd-act-date{border:1px solid var(--border);border-radius:4px;font-size:10px;padding:1px 4px;background:var(--surface);color:var(--ts);flex-shrink:0;width:118px;cursor:pointer}
 .mcd-add-btn{width:100%;border:1.5px dashed var(--border);border-radius:var(--r-xs);padding:5px;font-family:var(--f);font-size:11px;color:var(--blue);background:transparent;cursor:pointer;text-align:center;margin-top:2px;transition:all .15s}
 .mcd-add-btn:hover{border-color:var(--blue);background:var(--bbg)}
 .mcd-act-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
@@ -23397,12 +23399,15 @@ function openMonthlyCoachingModal(){
     if(eBody)eBody.style.display='';
     document.getElementById('mcd-fa-efficiency').classList.remove('mcd-excluded');
   }else{
-    document.getElementById('mcd-e-title').textContent='AHT on target across all SWs';
-    eTrack.classList.remove('mcd-on','mcd-locked');eTrack.classList.add('mcd-off');
-    eTrack.onclick=function(){mcdToggle('e');};eLockNote.style.display='none';
-    document.getElementById('mcd-e-tog-lbl').textContent='Excluded';_mcd.togE=false;
+    document.getElementById('mcd-e-title').textContent='AHT on target across all SWs — maintain';
+    eTrack.classList.remove('mcd-off');eTrack.classList.add('mcd-on','mcd-locked');
+    eTrack.onclick=function(){};eLockNote.style.display='';
+    eLockNote.textContent='On target \u2014 maintain actions auto-added';
+    document.getElementById('mcd-e-tog-lbl').textContent='Included';_mcd.togE=true;
+    _mcd.actions['rv-e']=['AHT on target \u2014 maintain process discipline across all SWs'];
+    _mcd.actions['tl-e']=['AHT on target \u2014 monitor weekly to confirm no regression'];
     var eBody2=document.getElementById('mcd-e-body');if(eBody2)eBody2.style.display='none';
-    document.getElementById('mcd-fa-efficiency').classList.add('mcd-excluded');
+    document.getElementById('mcd-fa-efficiency').classList.remove('mcd-excluded');
   }
 
   // ── Attendance card ───────────────────────────────────────────────────────
@@ -23418,11 +23423,14 @@ function openMonthlyCoachingModal(){
     var aBody=document.getElementById('mcd-a-body');if(aBody)aBody.style.display='';
     document.getElementById('mcd-fa-attendance').classList.remove('mcd-excluded');
   }else{
-    aTrack.classList.remove('mcd-on','mcd-locked');aTrack.classList.add('mcd-off');
-    aTrack.onclick=function(){mcdToggle('a');};aLockNote.style.display='none';
-    document.getElementById('mcd-a-tog-lbl').textContent='Excluded';_mcd.togA=false;
+    aTrack.classList.remove('mcd-off');aTrack.classList.add('mcd-on','mcd-locked');
+    aTrack.onclick=function(){};aLockNote.style.display='';
+    aLockNote.textContent='On target \u2014 maintain actions auto-added';
+    document.getElementById('mcd-a-tog-lbl').textContent='Included';_mcd.togA=true;
+    _mcd.actions['rv-a']=['Attendance within target \u2014 maintain \u22645% absenteeism rate'];
+    _mcd.actions['tl-a']=['Attendance on target \u2014 continue monitoring monthly'];
     var aBody2=document.getElementById('mcd-a-body');if(aBody2)aBody2.style.display='none';
-    document.getElementById('mcd-fa-attendance').classList.add('mcd-excluded');
+    document.getElementById('mcd-fa-attendance').classList.remove('mcd-excluded');
   }
 
   // ── PSP pre-load TL action ────────────────────────────────────────────────
@@ -23450,17 +23458,36 @@ function mcdToggle(area){
   else{track.classList.remove('mcd-off');track.classList.add('mcd-on');document.getElementById(lm[area]).textContent='Included';document.getElementById(bm[area]).style.display='';document.getElementById(cm[area]).classList.remove('mcd-excluded');_mcd[sm[area]]=true;}
 }
 
+function mcdEomDate(){
+  var now=new Date();
+  var eom=new Date(now.getFullYear(),now.getMonth()+1,0);
+  var mm=String(eom.getMonth()+1).padStart(2,'0');
+  var dd=String(eom.getDate()).padStart(2,'0');
+  return eom.getFullYear()+'-'+mm+'-'+dd;
+}
+function mcdFmtDate(iso){
+  if(!iso)return'';
+  var p=iso.split('-');if(p.length<3)return iso;
+  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[parseInt(p[1],10)-1]+' '+parseInt(p[2],10);
+}
 function mcdAddAction(key,sel){
   if(!sel.value)return;
   var list=_mcd.actions[key];
   if(list.length>=3){sel.value='';alert('Maximum 3 actions per side.');return;}
-  if(list.indexOf(sel.value)>=0){sel.value='';return;}
-  list.push(sel.value);mcdRenderList(key);mcdUpdateCount(key);sel.value='';
+  if(list.findIndex(function(x){return x.text===sel.value;})>=0){sel.value='';return;}
+  list.push({text:sel.value,date:mcdEomDate()});mcdRenderList(key);mcdUpdateCount(key);sel.value='';
 }
 function mcdRemoveAction(key,idx){_mcd.actions[key].splice(idx,1);mcdRenderList(key);mcdUpdateCount(key);}
+function mcdUpdateActionDate(key,idx,val){if(_mcd.actions[key][idx])_mcd.actions[key][idx].date=val;}
 function mcdRenderList(key){
   var el=document.getElementById('mcd-list-'+key);if(!el)return;
-  el.innerHTML=_mcd.actions[key].map(function(a,i){return '<div class="mcd-act-item"><span class="mcd-act-txt">'+mcdEsc(a)+'</span><span class="mcd-act-rm" onclick="mcdRemoveAction(\''+key+'\','+i+')">×</span></div>';}).join('');
+  el.innerHTML=_mcd.actions[key].map(function(a,i){
+    var txt=typeof a==='object'?a.text:a;
+    var dt=typeof a==='object'&&a.date?a.date:'';
+    var dateEl=dt?'<input type="date" class="mcd-act-date" value="'+mcdEsc(dt)+'" onchange="mcdUpdateActionDate(\''+key+'\','+i+',this.value)" />':'';
+    return '<div class="mcd-act-item"><span class="mcd-act-txt">'+mcdEsc(txt)+'</span>'+dateEl+'<span class="mcd-act-rm" onclick="mcdRemoveAction(\''+key+'\','+i+')">×</span></div>';
+  }).join('');
 }
 function mcdUpdateCount(key){
   var el=document.getElementById('mcd-cnt-'+key);if(!el)return;
