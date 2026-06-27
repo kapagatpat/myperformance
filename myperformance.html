@@ -15091,14 +15091,12 @@ function copyFocusForForm(btnElem) {
 }
 
 function generateCoachingDoc() {
-    try { _generateCoachingDocInner(); }
-    catch(err) {
-        const msg = 'Weekly Review Doc error:\n\n' + err.message + '\n\nStack:\n' + (err.stack||'').split('\n').slice(0,5).join('\n');
-        alert(msg);
-        console.error('[generateCoachingDoc]', err);
-    }
+    const rv = document.getElementById('g-reviewer') ? document.getElementById('g-reviewer').value : '';
+    if(!rv) { alert('Please select a reviewer first.'); return; }
+    _mcd._mode = 'weekly';
+    openMonthlyCoachingModal();
 }
-function _generateCoachingDocInner() {
+function _generateCoachingDocInner(mcdConfig) {
     const rv = document.getElementById('g-reviewer').value;
     if(!rv) { alert('Please select a reviewer first.'); return; }
 
@@ -15571,7 +15569,7 @@ function _generateCoachingDocInner() {
     }
 
         // ── REVIEWER DOC ──────────────────────────────────────────────────────────
-    function buildReviewerDoc() {
+    function buildReviewerDoc(mcdConfig) {
         const topPol = polErrorsDisplay[0];
         const secPol = polErrorsDisplay[1];
 
@@ -16037,7 +16035,38 @@ function _generateCoachingDocInner() {
             : [`AHT on target across all sub-workflows this period — maintain your current pace and flag any unusual job types to your TL.`];
         const _ahtCommit = _topAHTSW2 ? `${_topAHTSW2} AHT ≤${_topAHTMTD.tgt}s for WE ${fmtW(_cdLastBakedWk||'next week')}` : null;
 
-        const focusCard = `<div style="border:1px solid ${borderColor};border-radius:8px;padding:14px 16px">
+        const focusCard = mcdConfig ? (()=>{
+            // Build focus card from MCD modal inputs
+            const mcdFARow = (accentColor, accentBg, label, rvActs, tlActs, commitRows, commitTxt) => {
+                if(!rvActs.length && !tlActs.length) return '';
+                const actLine = (act) => {
+                    const txt = typeof act === 'object' ? act.text||act : act;
+                    const dt  = typeof act === 'object' && act.date ? ` <span style="font-size:10px;color:${textMuted}">(by ${act.date})</span>` : '';
+                    return `<div style="font-size:11px;color:${textPri};line-height:1.5;padding:5px 9px;background:${lightGray};border-radius:5px;border-left:2px solid ${accentColor};margin-bottom:3px">${txt}${dt}</div>`;
+                };
+                const commitBlock = commitRows && commitRows.length ? commitRows.map(r=>`<div style="font-size:10px;color:${accentColor};padding:3px 9px;border-left:2px solid ${accentColor};margin-top:2px;font-style:italic">Commit (${r.sw||'Overall'}): ${r.commit}</div>`).join('') : commitTxt ? `<div style="font-size:10px;color:${accentColor};padding:3px 9px;border-left:2px solid ${accentColor};margin-top:2px;font-style:italic">Commit: ${commitTxt}</div>` : '';
+                return `<div style="margin-bottom:10px">
+                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${accentColor};margin-bottom:5px">${label}</div>
+                  ${rvActs.length ? `<div style="font-size:8px;font-weight:600;text-transform:uppercase;color:${textMuted};margin-bottom:3px">Reviewer actions</div>${rvActs.map(actLine).join('')}` : ''}
+                  ${tlActs.length ? `<div style="font-size:8px;font-weight:600;text-transform:uppercase;color:${textMuted};margin-top:5px;margin-bottom:3px">TL actions</div>${tlActs.map(actLine).join('')}` : ''}
+                  ${commitBlock}
+                </div>`;
+            };
+            const qBlock = mcdConfig.togQ ? mcdFARow(red, redBg, `Quality — ${mcdConfig.qTitle||'Focus area'}`, mcdConfig.actions['rv-q']||[], mcdConfig.actions['tl-q']||[], mcdConfig.commitQRows, null) : '';
+            const eBlock = mcdConfig.togE ? mcdFARow(amber, amberBg, `Efficiency — ${mcdConfig.eTitle||'Focus area'}`, mcdConfig.actions['rv-e']||[], mcdConfig.actions['tl-e']||[], null, mcdConfig.commitERows && mcdConfig.commitERows[0] ? mcdConfig.commitERows.map(r=>`${r.sw||'Overall'}: ${r.commit}`).join(' · ') : null) : '';
+            const aBlock = mcdConfig.togA ? mcdFARow(green, greenBg, `Attendance — ${mcdConfig.aTitle||'Focus area'}`, mcdConfig.actions['rv-a']||[], mcdConfig.actions['tl-a']||[], null, mcdConfig.commitA||null) : '';
+            const notesBlock = mcdConfig.notes ? `<div style="margin-top:8px;padding:9px 12px;background:${lightGray};border-radius:6px;border:1px solid ${borderColor};font-size:11px;color:${textSec};line-height:1.6;font-style:italic">${mcdConfig.notes}</div>` : '';
+            const divider2 = `<div style="height:0.5px;background:${divider};margin:8px 0"></div>`;
+            return `<div style="border:1px solid ${borderColor};border-radius:8px;padding:14px 16px">
+              ${qBlock}${qBlock&&eBlock?divider2:''}${eBlock}${(qBlock||eBlock)&&aBlock?divider2:''}${aBlock}
+              ${notesBlock}
+              <div style="height:0.5px;background:${divider};margin:12px 0 10px"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                <div style="border-top:1.5px solid ${textPri};padding-top:5px;font-size:10px;color:${textMuted}">Reviewer signature &amp; date</div>
+                <div style="border-top:1.5px solid ${textPri};padding-top:5px;font-size:10px;color:${textMuted}">TL signature &amp; date</div>
+              </div>
+            </div>`;
+        })() : `<div style="border:1px solid ${borderColor};border-radius:8px;padding:14px 16px">
             ${_focusRow(red, redBg, 'Quality focus', _qualItems, _qualCommit)}
             <div style="height:0.5px;background:${divider};margin:8px 0"></div>
             ${_focusRow(amber, amberBg, 'AHT focus', _ahtItems, _ahtCommit)}
@@ -16189,7 +16218,7 @@ function _generateCoachingDocInner() {
             }).join('')}</tbody>
         </table>`;
     }
-    const docHTML = docType==='tl' ? buildTLDoc() : buildReviewerDoc();
+    const docHTML = docType==='tl' ? buildTLDoc() : buildReviewerDoc(mcdConfig);
     const title = `${docType==='tl'?'TL Coaching Record':'Weekly Review'} — ${rv} — ${periodLabel}`;
 
     const fullHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -16219,10 +16248,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#F0F2F5;padding:40px 
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    // Auto-open Monthly Coaching Modal after weekly reviewer doc, same as Monthly flow
-    if(docType === 'reviewer') {
-        setTimeout(() => { try { openMonthlyCoachingModal(); } catch(e){} }, 300);
-    }
 }
 // ─── END COACHING DOC EXPORT ──────────────────────────────────────────────────
 
@@ -23009,7 +23034,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
 
 <script>
 // ─── MONTHLY COACHING MODAL ───────────────────────────────────────────────────
-var _mcd={rv:'',month:'',sw:'',accPct:null,accStr:'',isPSP:false,pspTraj:'',totalErrors:0,togQ:true,togE:true,togA:false,actions:{'rv-q':[],'tl-q':[],'rv-e':[],'tl-e':[],'rv-a':[],'tl-a':[]}};
+var _mcd={rv:'',month:'',sw:'',accPct:null,accStr:'',isPSP:false,pspTraj:'',totalErrors:0,togQ:true,togE:true,togA:false,_mode:'monthly',actions:{'rv-q':[],'tl-q':[],'rv-e':[],'tl-e':[],'rv-a':[],'tl-a':[]}};
 
 function openMonthlyCoachingModal(){
   var rv=document.getElementById('g-reviewer')?document.getElementById('g-reviewer').value:'';
@@ -23108,7 +23133,8 @@ function openMonthlyCoachingModal(){
 
   var fmtM=typeof fmtMonth==='function'?fmtMonth(currMonth):currMonth;
   var rvShort=typeof sn==='function'?sn(rv):rv;
-  document.getElementById('mcd-title').textContent='Monthly coaching doc \u2014 '+rvShort;
+  var _docLabel = _mcd._mode==='weekly' ? 'Weekly coaching doc' : 'Monthly coaching doc';
+  document.getElementById('mcd-title').textContent=_docLabel+' \u2014 '+rvShort;
 
   // ── PSP banner ────────────────────────────────────────────────────────────
   if(isPSP){
@@ -23341,7 +23367,16 @@ function mcdGenerate(){
     swQuality:_mcd.swQuality,overAHT:_mcd.overAHT,absFailing:_mcd.absFailing,absStr:_mcd.absStr
   };
   closeMcdModal();
-  generateReviewerMonthlyDoc(config);
+  if(_mcd._mode === 'weekly') {
+    _mcd._mode = 'monthly'; // reset
+    try { _generateCoachingDocInner(config); }
+    catch(err) {
+        const msg = 'Weekly Review Doc error:\n\n' + err.message + '\n\nStack:\n' + (err.stack||'').split('\n').slice(0,5).join('\n');
+        alert(msg); console.error('[generateCoachingDoc]', err);
+    }
+  } else {
+    generateReviewerMonthlyDoc(config);
+  }
 }
 // ─── END MONTHLY COACHING MODAL ──────────────────────────────────────────────
 </script>
