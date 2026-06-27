@@ -14709,6 +14709,20 @@ function generateReviewerMonthlyDoc(mcdConfig) {
           </div>
         </div>`;
 
+    // ── Policy error breakdown for focus areas ────────────────────────────────
+    const _polC = {};
+    currRows.forEach(r => {
+        if(!r.pol || (r.fpa||0)+(r.fna||0)===0) return;
+        if(!_polC[r.pol]) _polC[r.pol] = {fp:0, fn:0, sw:r.sw, lastWk:r.week};
+        _polC[r.pol].fp += r.fpa||0;
+        _polC[r.pol].fn += r.fna||0;
+        if(r.week > _polC[r.pol].lastWk) _polC[r.pol].lastWk = r.week;
+    });
+    const sortedPolRows = Object.entries(_polC)
+        .map(([pol,d]) => ({pol, fp:d.fp, fn:d.fn, total:d.fp+d.fn, sw:d.sw, lastWk:d.lastWk, type:d.fn>=d.fp?'FN':'FP'}))
+        .filter(p => p.total>0)
+        .sort((a,b) => b.total-a.total);
+
     // Quality focus
     const topErrPol = sortedPolRows[0];
     const qualFocusTitle = topErrPol
