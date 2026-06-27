@@ -14315,10 +14315,11 @@ function generateReviewerMonthlyDoc(mcdConfig) {
     // Per-month absenteeism from WFM_LOOKUP
     // Map week → month so we can bucket sched/actual per month
     const moAbsRate = {};
+    const moMSV = {};
     if(typeof WFM_LOOKUP!=='undefined'){
         const wkToMo = {};
         allRvRows.forEach(r=>{ if(r.week&&r.month) wkToMo[r.week]=r.month; });
-        const moAbs = {};
+        const moAbs = {}, moMsvAcc = {};
         Object.entries(WFM_LOOKUP).forEach(([key,w])=>{
             const parts=key.split('|'); if(parts.length!==2) return;
             const rvKey=parts[0], wk=parts[1];
@@ -14326,10 +14327,14 @@ function generateReviewerMonthlyDoc(mcdConfig) {
             const mo=wkToMo[wk]; if(!mo) return;
             if(!moAbs[mo]) moAbs[mo]={sched:0,actual:0};
             moAbs[mo].sched+=w.sched||0; moAbs[mo].actual+=w.actual||0;
+            if(!moMsvAcc[mo]) moMsvAcc[mo]={n:0,d:0};
+            moMsvAcc[mo].n+=w.msvN||0; moMsvAcc[mo].d+=w.msvD||0;
         });
         last6Months.forEach(mo=>{
             const a=moAbs[mo];
             moAbsRate[mo]=a&&a.sched>0?Math.max(0,(a.sched-a.actual)/a.sched):null;
+            const m=moMsvAcc[mo];
+            moMSV[mo]=m&&m.d>0?m.n/m.d:null;
         });
     }
 
@@ -14353,6 +14358,14 @@ function generateReviewerMonthlyDoc(mcdConfig) {
           }
         },
         { lbl:'NHT %',       fn: s=>s.dht+s.nht>0?s.nht/(s.dht+s.nht):null, fmt: pct, tgt:null, higher:null, arGate:null },
+        { lbl:'MSV',         fn: (s,mo)=>moMSV[mo]??null, fmt: v=>(v*100).toFixed(1)+'%', tgt:0.98, higher:true, arGate:null,
+          cellFn: (v) => {
+              if(v===null) return {bg:'transparent',c:textMuted,fw:'400'};
+              if(v>=0.98) return {bg:'#DCFCE7',c:green,fw:'700'};
+              if(v>=0.95) return {bg:'#FEF3C7',c:amber,fw:'700'};
+              return {bg:'#FEF2F2',c:red,fw:'700'};
+          }
+        },
         { lbl:'Absent %',    fn: (s,mo)=>moAbsRate[mo]??null, fmt: v=>(v*100).toFixed(1)+'%', tgt:0.05, higher:false, arGate:null,
           cellFn: (v) => {
               if(v===null) return {bg:'transparent',c:textMuted,fw:'400'};
@@ -14495,21 +14508,38 @@ function generateReviewerMonthlyDoc(mcdConfig) {
     const failingSWs = swsWithData.filter(sw=>swMTDStatus(sw)==='fail').sort((a,b)=>swCurrDec(b)-swCurrDec(a));
     const meetingSWs = swsWithData.filter(sw=>swMTDStatus(sw)!=='fail').sort((a,b)=>swCurrDec(b)-swCurrDec(a));
 
+    // Build sw→workflow map from all rows
+    const swToWf = {};
+    allRvRows.forEach(r=>{ if(r.sw&&r.workflow) swToWf[r.sw]=r.workflow; });
+    RAW_ROWS.forEach(r=>{ if(r.sw&&r.workflow&&!swToWf[r.sw]) swToWf[r.sw]=r.workflow; });
+
+    // Group swsWithQA by workflow, sorted workflow then sw alphabetically
+    const wfOrder = [...new Set(swsWithQA.map(sw=>swToWf[sw]||'').filter(Boolean))].sort();
+    if(swsWithQA.some(sw=>!swToWf[sw])) wfOrder.push('');
+    const swsByWf = {};
+    wfOrder.forEach(wf=>{ swsByWf[wf]=swsWithQA.filter(sw=>(swToWf[sw]||'')=== wf).sort(); });
+
     const errTable = swsWithQA.length === 0
         ? `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No QA data found for this reviewer in the last 3 months.</div>`
-        : `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
-          <table style="width:100%;min-width:580px;border-collapse:collapse;font-size:11px">
+        : (() => {
+        // Column counts: SW label + Targets + (3 cols per month)
+        const totalCols = 2 + last3Months.length * 3;
+        const moColW = `${Math.round(76 / last3Months.length / 3)}%`;
+        return `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
+          <table style="width:100%;min-width:600px;border-collapse:collapse;font-size:10px">
             <colgroup>
-              <col style="width:22%">
-              ${last3Months.map(()=>`<col style="width:10%"><col style="width:10%"><col style="width:9%">`).join('')}
+              <col style="width:18%">
+              <col style="width:10%">
+              ${last3Months.map(()=>`<col style="width:${moColW}"><col style="width:${moColW}"><col style="width:${moColW}%">`).join('')}
             </colgroup>
             <thead>
               <tr style="background:${lightGray}">
-                <th rowspan="2" style="padding:5px 10px;text-align:left;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em;vertical-align:bottom;white-space:nowrap">Sub-workflow</th>
+                <th rowspan="2" style="padding:5px 8px;text-align:left;font-size:9px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em;vertical-align:bottom;white-space:nowrap">Sub-workflow</th>
+                <th rowspan="2" style="padding:5px 6px;text-align:center;font-size:9px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.04em;vertical-align:bottom;border-left:1px solid ${borderColor}">Target</th>
                 ${last3Months.map((mo) => {
                     const isCurr=mo===currMonth;
                     const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
-                    return `<th colspan="3" style="padding:4px 8px;text-align:center;font-size:10px;font-weight:700;color:${isCurr?textPri:textSec};${isCurr?'background:#EEF2FF;':''}border-left:1px solid ${borderColor};border-bottom:0.5px solid ${divider};white-space:nowrap">${fmtMonth(mo)} <span style="font-size:9px;font-weight:400;color:${textMuted}">${moHighAR?'P&R':'Acc'}</span></th>`;
+                    return `<th colspan="3" style="padding:4px 6px;text-align:center;font-size:9px;font-weight:700;color:${isCurr?textPri:textSec};${isCurr?'background:#EEF2FF;':''}border-left:1px solid ${borderColor};border-bottom:0.5px solid ${divider};white-space:nowrap">${fmtMonth(mo)} <span style="font-size:8px;font-weight:400;color:${textMuted}">${moHighAR?'P&R':'Acc'}</span></th>`;
                 }).join('')}
               </tr>
               <tr style="background:${lightGray}">
@@ -14517,46 +14547,59 @@ function generateReviewerMonthlyDoc(mcdConfig) {
                     const isCurr=mo===currMonth;
                     const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
                     const lbls=moHighAR?['P','R']:['Acc',''];
-                    return `<th style="padding:3px 5px;text-align:center;font-size:9px;font-weight:600;color:${textMuted};border-left:1px solid ${borderColor}${isCurr?';background:#EEF2FF':''}">${lbls[0]}</th>`
-                          +`<th style="padding:3px 5px;text-align:center;font-size:9px;font-weight:600;color:${textMuted}${isCurr?';background:#EEF2FF':''}">${lbls[1]}</th>`
-                          +`<th style="padding:3px 5px;text-align:center;font-size:9px;font-weight:600;color:${textMuted}${isCurr?';background:#ECEEF2':''};font-style:italic">AHT</th>`;
+                    return `<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};border-left:1px solid ${borderColor}${isCurr?';background:#EEF2FF':''}">${lbls[0]}</th>`
+                          +`<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted}${isCurr?';background:#EEF2FF':''}">${lbls[1]}</th>`
+                          +`<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted}${isCurr?';background:#ECEEF2':''};font-style:italic">AHT</th>`;
                 }).join('')}
               </tr>
             </thead>
             <tbody>
-              ${swsWithQA.map((sw, idx) => {
-                  const isLast=idx===swsWithQA.length-1;
-                  return `<tr style="border-bottom:${isLast?'none':'0.5px solid '+divider}">
-                    <td style="padding:6px 10px;font-size:11px;font-weight:600;white-space:nowrap">${sw}</td>
-                    ${last3Months.map((mo) => {
-                        const cs=qaCell(sw,mo);
-                        const isCurr=mo===currMonth;
-                        const bl=`border-left:1px solid ${borderColor};`;
-                        const qaStyle=`padding:5px 5px;text-align:center;font-family:${mono};font-size:11px;font-weight:${cs.fw};color:${cs.c};background:${cs.bg};`;
-                        const v1=cs.moHighAR?cs.prec:cs.acc;
-                        const v2=cs.moHighAR?cs.rec:'';
-                        // AHT cell
-                        const ahtD=swAHTByMonth[sw]?.[mo];
-                        const ahtDec=ahtD?.dec||0;
-                        const ahtV=ahtD&&ahtDec>=1?Math.round((ahtD.dht+ahtD.nht)/ahtDec):null;
-                        const ahtTgt=SW_TARGETS?.[sw]?.aht||null;
-                        const ahtCs=ahtDec>=5&&ahtTgt?ahtCellStyle(ahtV,ahtTgt,isCurr):{bg:isCurr?'#ECEEF2':'transparent',c:textMuted,fw:'400',txt:ahtV!==null?String(ahtV):'\u2014'};
-                        if(!ahtCs.txt) ahtCs.txt=ahtV!==null?String(ahtV):'\u2014';
-                        return `<td style="${qaStyle}${bl}">${v1}</td><td style="${qaStyle}">${v2}</td>`
-                             + `<td style="padding:5px 5px;text-align:center;font-family:${mono};font-size:11px;font-weight:${ahtCs.fw};color:${ahtCs.c};background:${ahtCs.bg};font-style:italic">${ahtCs.txt}</td>`;
-                    }).join('')}
-                  </tr>`;
+              ${wfOrder.map(wf => {
+                  const swList = swsByWf[wf];
+                  if(!swList||!swList.length) return '';
+                  const wfLabel = wf || 'Other';
+                  return `<tr>
+                    <td colspan="${totalCols}" style="padding:4px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${textSec};background:${lightGray};border-top:1px solid ${borderColor};border-bottom:0.5px solid ${divider}">${wfLabel}</td>
+                  </tr>` +
+                  swList.map((sw, idx) => {
+                      const isLast = idx===swList.length-1 && wf===wfOrder[wfOrder.length-1];
+                      const swTgt = SW_TARGETS[sw];
+                      const accTgt = swTgt?.acc ? (swTgt.acc*100).toFixed(0)+'%' : (ACC_TGT*100).toFixed(0)+'%';
+                      const ahtTgt = swTgt?.aht ? swTgt.aht+'s' : '\u2014';
+                      const tgtCell = `<div style="font-size:8.5px;font-weight:600;color:${textSec};line-height:1.4">${accTgt}</div><div style="font-size:8px;color:${textMuted};font-style:italic">${ahtTgt}</div>`;
+                      return `<tr style="border-bottom:${isLast?'none':'0.5px solid '+divider}">
+                        <td style="padding:5px 8px;font-size:10px;font-weight:600;white-space:nowrap;padding-left:12px">${sw}</td>
+                        <td style="padding:5px 6px;text-align:center;border-left:1px solid ${borderColor};background:${lightGray}">${tgtCell}</td>
+                        ${last3Months.map((mo) => {
+                            const cs=qaCell(sw,mo);
+                            const isCurr=mo===currMonth;
+                            const bl=`border-left:1px solid ${borderColor};`;
+                            const qaStyle=`padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${cs.fw};color:${cs.c};background:${cs.bg};`;
+                            const v1=cs.moHighAR?cs.prec:cs.acc;
+                            const v2=cs.moHighAR?cs.rec:'';
+                            const ahtD=swAHTByMonth[sw]?.[mo];
+                            const ahtDec=ahtD?.dec||0;
+                            const ahtV=ahtD&&ahtDec>=1?Math.round((ahtD.dht+ahtD.nht)/ahtDec):null;
+                            const ahtTgtV=swTgt?.aht||null;
+                            const ahtCs=ahtDec>=5&&ahtTgtV?ahtCellStyle(ahtV,ahtTgtV,isCurr):{bg:isCurr?'#ECEEF2':'transparent',c:textMuted,fw:'400',txt:ahtV!==null?String(ahtV):'\u2014'};
+                            if(!ahtCs.txt) ahtCs.txt=ahtV!==null?String(ahtV):'\u2014';
+                            return `<td style="${qaStyle}${bl}">${v1}</td><td style="${qaStyle}">${v2}</td>`
+                                 + `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${ahtCs.fw};color:${ahtCs.c};background:${ahtCs.bg};font-style:italic">${ahtCs.txt}</td>`;
+                        }).join('')}
+                      </tr>`;
+                  }).join('');
               }).join('')}
             </tbody>
             <tfoot><tr style="background:${lightGray};border-top:1px solid ${borderColor}">
-              <td colspan="${1+last3Months.length*3}" style="padding:5px 10px;font-size:10px;color:${textMuted}">
-                <span style="margin-right:10px"><span style="display:inline-block;width:7px;height:7px;border-radius:1px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:3px"></span>QA met target</span>
-                <span style="margin-right:10px"><span style="display:inline-block;width:7px;height:7px;border-radius:1px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:3px"></span>Below target</span>
-                <span style="color:${textMuted}">AHT: green \u2264 target \u00b7 amber within 5% \u00b7 red over target (\u22655 decisions)</span>
+              <td colspan="${totalCols}" style="padding:5px 8px;font-size:9px;color:${textMuted}">
+                <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:2px"></span>Met target</span>
+                <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:2px"></span>Below target</span>
+                <span>AHT: green \u2264 target \u00b7 amber within 5% \u00b7 red over (\u22655 decisions)</span>
               </td>
             </tr></tfoot>
           </table>
         </div>`;
+        })();
 
 
 
@@ -14842,9 +14885,7 @@ function generateReviewerMonthlyDoc(mcdConfig) {
 
     const docHTML = `<div style="max-width:860px;font-family:${sans};color:${textPri}">
 
-      ${secHead('How you performed this month', green, true)}${sec1}
-      ${divSection}
-      ${secHead('Wins this month', green)}${winsHTMLFinal}
+      ${secHead('Wins this month', green, true)}${winsHTMLFinal}
       ${divSection}
       ${secHead('Overall performance \u2014 last 6 months', blue)}${qualTrendTable}
       ${divSection}
