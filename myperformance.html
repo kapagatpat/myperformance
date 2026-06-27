@@ -14528,9 +14528,7 @@ function generateReviewerMonthlyDoc(mcdConfig) {
     const swsByWf = {};
     wfOrder.forEach(wf=>{ swsByWf[wf]=swsWithQA.filter(sw=>(swToWf[sw]||'')=== wf).sort(); });
 
-    const errTable = swsWithQA.length === 0
-        ? `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No QA data found for this reviewer in the last 3 months.</div>`
-        : (() => {
+    const errTable = (() => {
         // 4 data cols per month: Acc, P, R, AHT
         const totalCols = 1 + last3Months.length * 4;
         return `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
@@ -14558,7 +14556,9 @@ function generateReviewerMonthlyDoc(mcdConfig) {
               </tr>
             </thead>
             <tbody>
-              ${wfOrder.map(wf => {
+              ${swsWithQA.length === 0
+                ? '<tr><td colspan="' + totalCols + '" style="padding:14px 12px;font-size:11px;color:'+textMuted+';font-style:italic;text-align:center">No QA data found for this reviewer in the last 3 months.</td></tr>'
+                : wfOrder.map(wf => {
                   const swList = swsByWf[wf];
                   if(!swList||!swList.length) return '';
                   const wfLabel = wf || 'Other';
@@ -15575,278 +15575,499 @@ function _generateCoachingDocInner() {
         const topPol = polErrorsDisplay[0];
         const secPol = polErrorsDisplay[1];
 
-        // ── Section heading helper (reuse TL doc style) ───────────────────────
+        // ── Section heading helper ─────────────────────────────────────────────
         const rvSecHead = (label, accentColor, isFirst) =>
-            `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;${isFirst?'':'margin-top:20px'}">
+            `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;${isFirst?'':'margin-top:22px'}">
               <div style="width:3px;height:18px;border-radius:2px;background:${accentColor};flex-shrink:0"></div>
-              <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${textPri}">${label}</div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${textPri}">${label}</div>
             </div>`;
 
-        // ── Per-SW top policy breakdown — last 60 days (matches swStats quality source) ──
-        const swPolMap = {};
-        const msDay60sw = 86400000;
-        const latestWkSW = WEEKS.length ? WEEKS[WEEKS.length-1] : allRvRows.map(r=>r.week).sort().pop();
-        allRvRows.filter(r => ((new Date(latestWkSW)-new Date(r.week))/msDay60sw)<=60).forEach(r => {
-            if(!r.sw || !r.pol) return;
-            if(!swPolMap[r.sw]) swPolMap[r.sw] = {};
-            if(!swPolMap[r.sw][r.pol]) swPolMap[r.sw][r.pol] = {fp:0, fn:0};
-            swPolMap[r.sw][r.pol].fp += r.fpa||0;
-            swPolMap[r.sw][r.pol].fn += r.fna||0;
-        });
-        // For each SW get sorted policy drivers (errors only)
-        function swTopPolicies(sw) {
-            const polData = swPolMap[sw] || {};
-            return Object.entries(polData)
-                .map(([pol, d]) => ({ pol, fp:d.fp, fn:d.fn, total:d.fp+d.fn }))
-                .filter(p => p.total > 0)
-                .sort((a,b) => b.total - a.total)
-                .slice(0, 3);
-        }
+        const divSection = `<div style="height:0.5px;background:${divider};margin:20px 0"></div>`;
 
-        // ── Accuracy target label ──────────────────────────────────────────────
-        const targetLabel = `${Math.round(ACC_TARGET*100)}%`;
+        // ── Last 5 baked weeks + current (display) ────────────────────────────
+        const last6W = last6Weeks; // already computed above (allRvWeeks.slice(-6))
+        const last5W = last6W.slice(-5); // 5 weeks for display
+        const today = new Date();
+        const latestWkDate = last6W.length ? new Date(last6W[last6W.length-1]) : null;
+        const _isInProgress = latestWkDate && latestWkDate >= today;
+        const displayWks = last5W; // always show last 5 weeks
+        const currMoLabel = currMonth ? (()=>{ const p=currMonth.split('-'); const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return mo[+p[1]-1]+' '+p[0]; })() : '';
 
-        // ── Occupancy baseline per week (team, +-0.5 SD as range) ─────────────
-        const occByWeek = {};
-        Object.entries(WFM_LOOKUP).forEach(([key, w]) => {
-            const wk = key.split('|')[1];
-            if(!wk || !w.avail || w.avail===0) return;
-            const occ = w.rev / w.avail;
-            if(!occByWeek[wk]) occByWeek[wk] = [];
-            occByWeek[wk].push(occ);
+        // Group display weeks by month for banded headers
+        const wkMoGroups = []; // [{mo, wks:[]}]
+        displayWks.forEach(wk => {
+            const mo = wk.slice(0,7);
+            const moLbl = (()=>{ const p=mo.split('-'); const ml=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return ml[+p[1]-1]+' '+p[0]; })();
+            const last = wkMoGroups[wkMoGroups.length-1];
+            if(last && last.mo===mo) last.wks.push(wk);
+            else wkMoGroups.push({mo, moLbl, wks:[wk]});
         });
-        const occBaseline = {};
-        Object.entries(occByWeek).forEach(([wk, vals]) => {
-            if(vals.length < 2) return;
-            const sorted = [...vals].sort((a,b)=>a-b);
-            const q3 = sorted[Math.floor(sorted.length*0.75)];
-            const q4 = sorted[sorted.length-1];
-            // Use actual P75 and max for the top-25% range
-            const p75 = (() => { const i=(sorted.length-1)*0.75, lo=Math.floor(i), hi=Math.ceil(i); return lo===hi?sorted[lo]:sorted[lo]*(hi-i)+sorted[hi]*(i-lo); })();
-            const p100 = sorted[sorted.length-1];
-            occBaseline[wk] = { lo: Math.round(p75*1000)/10, hi: Math.round(p100*1000)/10 };
-        });
-        const rvOccByWeek = {};
-        last6Weeks.forEach(wk => {
-            const key = rv.trim()+'|'+wk;
-            const w = WFM_LOOKUP[key];
-            if(w && w.avail > 0) rvOccByWeek[wk] = w.rev / w.avail;
-        });
-        const periodOccVals = Object.values(occByWeek).filter(v=>v.length>=2).flatMap(v=>v).sort((a,b)=>a-b);
-        const _pctile = (arr, p) => { if(!arr.length) return null; const i=(arr.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i); return lo===hi?arr[lo]:arr[lo]*(hi-i)+arr[hi]*(i-lo); };
-        const occRangeLo = periodOccVals.length ? Math.round(_pctile(periodOccVals, 0.75)*1000)/10 : null;
-        const occRangeHi = periodOccVals.length ? Math.round(_pctile(periodOccVals, 1.00)*1000)/10 : null;
-        // Reviewer period occ — derived from WFM_LOOKUP directly (not global _wfmAgg)
-        const _rvWfmP = { avail:0, rev:0 };
-        last6Weeks.forEach(wk => {
-            const _wk = WFM_LOOKUP[rv.trim()+'|'+wk];
-            if(_wk){ _rvWfmP.avail += _wk.avail||0; _rvWfmP.rev += _wk.rev||0; }
-        });
-        const rvOcc = _rvWfmP.avail > 0 ? _rvWfmP.rev / _rvWfmP.avail : null;
-        const occInRange = rvOcc!==null && occRangeLo!==null && (rvOcc*100) >= occRangeLo; // within top 25% range
+        const isFirstWkInMonth = (wk) => {
+            const mo = wk.slice(0,7);
+            return !displayWks.slice(0, displayWks.indexOf(wk)).some(w => w.slice(0,7)===mo);
+        };
 
-        // ── Win signals ────────────────────────────────────────────────────────
-        let accStreak = 0;
-        for(let i=weekTrend.length-1;i>=0;i--){ if(weekTrend[i].acc>=ACC_TARGET) accStreak++; else break; }
-        const winAccSustained = accStreak >= 3;
+        // ── Per-week overall stats ─────────────────────────────────────────────
+        const wkStats = {}; // wk -> {tpa,fpa,fna,tna,dec,dht,nht,msvN,msvD,enfTpa,enfFpa,enfFna,enfTna,labTpa,labFpa,labFna,labTna}
+        const wkMSV = {}; // wk -> {n,d}
+        displayWks.forEach(wk => { wkStats[wk]={tpa:0,fpa:0,fna:0,tna:0,dec:0,dht:0,nht:0,enfTpa:0,enfFpa:0,enfFna:0,enfTna:0,labTpa:0,labFpa:0,labFna:0,labTna:0}; wkMSV[wk]={n:0,d:0}; });
+        allRvRows.filter(r=>displayWks.includes(r.week)).forEach(r=>{
+            const s=wkStats[r.week]; if(!s) return;
+            s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0;
+            s.dec+=r.decisions||0; s.dht+=r.dht||0; s.nht+=r.nht||0;
+            const rt=(r.reviewType||'').trim();
+            if(rt==='Enforcement'){s.enfTpa+=r.tpa||0;s.enfFpa+=r.fpa||0;s.enfFna+=r.fna||0;s.enfTna+=r.tna||0;}
+            else if(rt==='Labeling'){s.labTpa+=r.tpa||0;s.labFpa+=r.fpa||0;s.labFna+=r.fna||0;s.labTna+=r.tna||0;}
+        });
+        // MSV from WFM_LOOKUP
+        Object.entries(WFM_LOOKUP).forEach(([key,w])=>{
+            const parts=key.split('|'); if(parts.length!==2) return;
+            if(parts[0].trim()!==rv.trim()) return;
+            const wk=parts[1]; if(!displayWks.includes(wk)) return;
+            wkMSV[wk].n+=w.msvN||0; wkMSV[wk].d+=w.msvD||0;
+        });
 
-        const winAHTImproving = (() => {
-            const results = [];
-            Object.keys(swWeekAHT).forEach(sw => {
-                const wks = last6Weeks.filter(wk => swWeekAHT[sw]?.[wk]?.dec >= 3);
-                if(wks.length < 3) return;
-                const last3 = wks.slice(-3).map(wk => { const d=swWeekAHT[sw][wk]; return Math.round((d.dht+d.nht)/d.dec); });
-                const drop = last3[0] - last3[last3.length-1];
-                if(drop >= 15) results.push({sw, from:last3[0], to:last3[last3.length-1], drop, tgt:SW_TARGETS[sw]?.aht||null});
+        // MTD stats (current month)
+        const mtdRows = allRvRows.filter(r=>r.month===currMonth);
+        const mtd={tpa:0,fpa:0,fna:0,tna:0,dec:0,dht:0,nht:0,enfTpa:0,enfFpa:0,enfFna:0,enfTna:0,labTpa:0,labFpa:0,labFna:0,labTna:0};
+        const mtdMSV={n:0,d:0};
+        mtdRows.forEach(r=>{
+            mtd.tpa+=r.tpa||0; mtd.fpa+=r.fpa||0; mtd.fna+=r.fna||0; mtd.tna+=r.tna||0;
+            mtd.dec+=r.decisions||0; mtd.dht+=r.dht||0; mtd.nht+=r.nht||0;
+            const rt=(r.reviewType||'').trim();
+            if(rt==='Enforcement'){mtd.enfTpa+=r.tpa||0;mtd.enfFpa+=r.fpa||0;mtd.enfFna+=r.fna||0;mtd.enfTna+=r.tna||0;}
+            else if(rt==='Labeling'){mtd.labTpa+=r.tpa||0;mtd.labFpa+=r.fpa||0;mtd.labFna+=r.fna||0;mtd.labTna+=r.tna||0;}
+        });
+        Object.entries(WFM_LOOKUP).forEach(([key,w])=>{
+            const parts=key.split('|'); if(parts.length!==2) return;
+            if(parts[0].trim()!==rv.trim()) return;
+            // bucket by month
+            const wkToMo = allRvRows.find(r=>r.week===parts[1])?.month;
+            if(wkToMo===currMonth){ mtdMSV.n+=w.msvN||0; mtdMSV.d+=w.msvD||0; }
+        });
+
+        const safeAcc = (tpa,fpa,fna,tna) => { const t=tpa+fpa+fna+tna; return t>0?(tpa+tna)/t:null; };
+        const safePrec = (tpa,fpa) => (tpa+fpa)>0?tpa/(tpa+fpa):null;
+        const safeRec  = (tpa,fna) => (tpa+fna)>0?tpa/(tpa+fna):null;
+        const safeAHT  = (dht,nht,dec) => dec>0?Math.round((dht+nht)/dec):null;
+        const safeMSV  = (n,d) => d>0?n/d:null;
+        const safeAR   = (tpa,fpa,fna,tna) => { const t=tpa+fpa+fna+tna; return t>0?(tpa+fpa)/t:null; };
+        const fmt1 = v => v===null?'—':(v*100).toFixed(1)+'%';
+        const fmtAHT = v => v===null?'—':String(v);
+        const fmtDec = v => v===null?'—':v.toLocaleString();
+
+        // ── Has E/L split? ────────────────────────────────────────────────────
+        const hasEnf = displayWks.some(wk=>wkStats[wk]&&(wkStats[wk].enfTpa+wkStats[wk].enfFpa+wkStats[wk].enfFna+wkStats[wk].enfTna)>0) || (mtd.enfTpa+mtd.enfFpa+mtd.enfFna+mtd.enfTna)>0;
+        const hasLab = displayWks.some(wk=>wkStats[wk]&&(wkStats[wk].labTpa+wkStats[wk].labFpa+wkStats[wk].labFna+wkStats[wk].labTna)>0) || (mtd.labTpa+mtd.labFpa+mtd.labFna+mtd.labTna)>0;
+        const hasEL = hasEnf || hasLab;
+
+        // ── Table cell color helpers ───────────────────────────────────────────
+        const qcBg = (met, hasData) => !hasData?'transparent':met?'#DCFCE7':'#FEF2F2';
+        const qcC  = (met, hasData) => !hasData?textMuted:met?green:red;
+        const qcFw = (hasData) => hasData?'700':'400';
+        const ahtBgFn = (aht,tgt) => { if(!aht||!tgt) return 'transparent'; if(aht<=tgt) return '#DCFCE7'; if(aht<=tgt*1.05) return '#FEF3C7'; return '#FEF2F2'; };
+        const ahtCFn  = (aht,tgt) => { if(!aht||!tgt) return textMuted; if(aht<=tgt) return green; if(aht<=tgt*1.05) return amber; return red; };
+
+        // ── Wins block ────────────────────────────────────────────────────────
+        let accStreak=0;
+        weekTrend.forEach((w,i,arr)=>{ if(i===arr.length-1-(accStreak)||w.acc>=ACC_TARGET) accStreak++; else accStreak=0; });
+        accStreak=0;
+        for(let i=weekTrend.length-1;i>=0;i--){ if(weekTrend[i]&&weekTrend[i].acc>=ACC_TARGET) accStreak++; else break; }
+        const winErrRecovery2 = (() => {
+            const polsSeen={}, latestWkR=WEEKS.length?WEEKS[WEEKS.length-1]:allRvRows.map(r=>r.week).sort().pop(), msD=86400000;
+            allRvRows.forEach(r=>{ if(!r.pol||(r.fpa+r.fna)===0) return; const days=(new Date(latestWkR)-new Date(r.week))/msD; if(!polsSeen[r.pol]) polsSeen[r.pol]={recentErr:0,oldErr:0}; if(days<=35) polsSeen[r.pol].recentErr++; else if(days<=120) polsSeen[r.pol].oldErr++; });
+            return Object.entries(polsSeen).filter(([,v])=>v.recentErr===0&&v.oldErr>0).map(([pol])=>pol);
+        })();
+        const winAHTImp2 = (() => {
+            const res=[];
+            Object.keys(swWeekAHT).forEach(sw=>{
+                const wks=last6W.filter(wk=>swWeekAHT[sw]?.[wk]?.dec>=3);
+                if(wks.length<3) return;
+                const last3=wks.slice(-3).map(wk=>{const d=swWeekAHT[sw][wk]; return Math.round((d.dht+d.nht)/d.dec);});
+                const drop=last3[0]-last3[last3.length-1];
+                if(drop>=15) res.push({sw,drop});
             });
-            return results.sort((a,b)=>b.drop-a.drop);
+            return res.sort((a,b)=>b.drop-a.drop);
         })();
 
-        const winAHTConsistent = (() => {
-            const results = [];
-            Object.keys(swWeekAHT).forEach(sw => {
-                const tgt = SW_TARGETS[sw]?.aht||null; if(!tgt) return;
-                const scored = last6Weeks.filter(wk => swWeekAHT[sw]?.[wk]?.dec >= 3);
-                if(scored.length < 4) return;
-                if(scored.every(wk => { const d=swWeekAHT[sw][wk]; return Math.round((d.dht+d.nht)/d.dec)<=tgt; }))
-                    results.push({sw, weeks:scored.length});
-            });
-            return results;
+        const winLines=[];
+        if(accStreak>=3) winLines.push({area:'Quality',txt:`Accuracy on target for <strong>${accStreak} straight week${accStreak!==1?'s':''}</strong> — no cap, keep it locked.`});
+        if(winErrRecovery2.length>0) winLines.push({area:'Quality',txt:`Zero new <strong>${winErrRecovery2.slice(0,2).join(', ')}</strong> errors in 5 weeks. Great recovery.`});
+        if(winAHTImp2.length>0) winLines.push({area:'AHT',txt:`<strong>${winAHTImp2[0].sw}</strong> AHT dropped ${winAHTImp2[0].drop}s over 3 weeks. Great momentum.`});
+
+        const winsBlock2 = winLines.length===0
+            ? `<div style="padding:10px 14px;border-radius:8px;border:1px solid ${borderColor};font-size:12px;color:${textMuted};font-style:italic">No standout wins to highlight this period — focus areas below.</div>`
+            : `<div style="background:#F0FDF4;border-left:3px solid #86EFAC;border-radius:0 8px 8px 0;padding:10px 14px">
+                ${[...new Set(winLines.map(w=>w.area))].map(area=>`
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#166534;margin-bottom:5px${area!==winLines[0].area?';margin-top:10px':''}">${area}</div>
+                  ${winLines.filter(w=>w.area===area).map(w=>`<div style="font-size:12px;color:#166534;line-height:1.5;margin-bottom:3px">● ${w.txt}</div>`).join('')}
+                `).join('')}
+              </div>`;
+
+        // ── Overall performance table ──────────────────────────────────────────
+        // Week header row 1: month bands
+        const moHdrCols = wkMoGroups.map((g,gi)=>{
+            const bl = gi===0 ? `border-left:2px solid ${borderColor};` : `border-left:2px solid ${borderColor};`;
+            return `<th colspan="${g.wks.length}" style="padding:3px 5px;text-align:center;font-size:8px;font-weight:500;color:${textMuted};background:${lightGray};${bl}border-bottom:0.5px solid ${divider}">${g.moLbl}</th>`;
+        }).join('') + `<th style="padding:3px 5px;text-align:center;font-size:8px;font-weight:600;color:#4F46E5;background:#EEF2FF;border-left:2px solid #C7D2FE;border-bottom:0.5px solid ${divider}">MTD</th>`;
+
+        // Week header row 2: dates
+        const wkHdrCols = displayWks.map((wk,wi)=>{
+            const isCurr=wi===displayWks.length-1;
+            const isFirst=isFirstWkInMonth(wk);
+            const bl=isFirst?'border-left:2px solid '+borderColor+';':'border-left:0.5px solid '+divider+';';
+            const bg=isCurr?'background:#EEF2FF;':'background:'+lightGray+';';
+            const c=isCurr?textPri:textMuted;
+            return `<th style="padding:4px 5px;text-align:center;font-size:9px;font-weight:600;color:${c};${bg}${bl}border-bottom:0.5px solid ${divider};white-space:nowrap">${fmtW(wk)}${isCurr?' ←':''}</th>`;
+        }).join('') + `<th style="padding:4px 5px;text-align:center;font-size:9px;font-weight:600;color:#4F46E5;background:#EEF2FF;border-left:2px solid #C7D2FE;border-bottom:0.5px solid ${divider};white-space:nowrap">${currMoLabel}</th>`;
+
+        // Build a metric row
+        const metricRow = (lbl, vals, isLast, leftAccent) => {
+            const borderB = isLast?'none':'0.5px solid '+divider;
+            const leftBorderStyle = leftAccent?`border-left:2px solid ${leftAccent};`:'';
+            const cells = vals.map((v,vi)=>{
+                const isFirst=vi<displayWks.length&&isFirstWkInMonth(displayWks[vi]);
+                const isMTD = vi===vals.length-1;
+                const bl = isMTD?'border-left:2px solid #C7D2FE;':isFirst?'border-left:2px solid '+borderColor+';':'border-left:0.5px solid '+divider+';';
+                const bg = isMTD?'background:#EEF2FF;':vi===displayWks.length-1?'background:#F5F7FF;':'';
+                const {txt,bg:cellBg,c,fw} = v;
+                return `<td style="padding:5px 5px;text-align:center;font-family:${mono};font-size:10px;font-weight:${fw};color:${c};background:${cellBg||bg.replace('background:','').replace(';','')};${bl}border-bottom:${borderB}">${txt}</td>`;
+            }).join('');
+            return `<tr><td style="padding:5px 10px;font-size:11px;font-weight:500;color:${textSec};border-bottom:${borderB};${leftBorderStyle}white-space:nowrap">${lbl}</td>${cells}</tr>`;
+        };
+
+        // Helper to build a cell value object
+        const qCell = (val, tgt, active, fmtFn) => {
+            if(val===null) return {txt:'—',c:textMuted,fw:'400'};
+            const txt = fmtFn ? fmtFn(val) : fmt1(val);
+            if(!active) return {txt,c:textSec,fw:'400'};
+            const met = tgt!==null && val>=tgt;
+            return {txt, bg:tgt!==null?qcBg(met,true):undefined, c:tgt!==null?qcC(met,true):textSec, fw:tgt!==null?qcFw(true):'400'};
+        };
+        const plainCell = (txt) => ({txt:txt==='—'?txt:txt, c:textSec, fw:'400'});
+        const msvCell = (v) => {
+            if(v===null) return {txt:'—',c:textMuted,fw:'400'};
+            const txt=fmt1(v);
+            if(v>=0.98) return {txt,bg:'#DCFCE7',c:green,fw:'700'};
+            if(v>=0.95) return {txt,bg:'#FEF3C7',c:amber,fw:'700'};
+            return {txt,bg:'#FEF2F2',c:red,fw:'700'};
+        };
+        const arCell = (v) => {
+            if(v===null) return {txt:'—',c:textMuted,fw:'400'};
+            return {txt:fmt1(v),c:v>=0.10?textPri:textMuted,fw:v>=0.10?'700':'400'};
+        };
+
+        // Build rows — detect per-week AR to pick active metric
+        const overallRows = (() => {
+            const rows = [];
+            // helper: per-week AR
+            const wkAR = wk => safeAR(wkStats[wk]?.tpa||0,wkStats[wk]?.fpa||0,wkStats[wk]?.fna||0,wkStats[wk]?.tna||0);
+            const mtdAR = safeAR(mtd.tpa,mtd.fpa,mtd.fna,mtd.tna);
+
+            if(!hasEL) {
+                // Simple: no E/L split
+                const accVals = [...displayWks.map(wk=>{ const ar=wkAR(wk); const v=safeAcc(wkStats[wk]?.tpa||0,wkStats[wk]?.fpa||0,wkStats[wk]?.fna||0,wkStats[wk]?.tna||0); return qCell(v,ACC_TARGET,!(ar!==null&&ar>=0.10),fmt1); }), qCell(safeAcc(mtd.tpa,mtd.fpa,mtd.fna,mtd.tna),ACC_TARGET,!(mtdAR!==null&&mtdAR>=0.10),fmt1)];
+                const precVals = [...displayWks.map(wk=>{ const ar=wkAR(wk); const v=safePrec(wkStats[wk]?.tpa||0,wkStats[wk]?.fpa||0); return qCell(v,ACC_TARGET,ar!==null&&ar>=0.10,fmt1); }), qCell(safePrec(mtd.tpa,mtd.fpa),ACC_TARGET,mtdAR!==null&&mtdAR>=0.10,fmt1)];
+                const recVals  = [...displayWks.map(wk=>{ const ar=wkAR(wk); const v=safeRec(wkStats[wk]?.tpa||0,wkStats[wk]?.fna||0); return qCell(v,ACC_TARGET,ar!==null&&ar>=0.10,fmt1); }), qCell(safeRec(mtd.tpa,mtd.fna),ACC_TARGET,mtdAR!==null&&mtdAR>=0.10,fmt1)];
+                rows.push({lbl:'Accuracy',vals:accVals});
+                rows.push({lbl:'Precision',vals:precVals});
+                rows.push({lbl:'Recall',vals:recVals});
+            } else {
+                // E/L split for Acc; P & R only for Enforcement
+                const enfAccVals = [...displayWks.map(wk=>{ const ar=wkAR(wk); const s=wkStats[wk]; const v=safeAcc(s?.enfTpa||0,s?.enfFpa||0,s?.enfFna||0,s?.enfTna||0); const hasD=(s?.enfTpa+s?.enfFpa+s?.enfFna+s?.enfTna)>0; return hasD?qCell(v,ACC_TARGET,!(ar!==null&&ar>=0.10),fmt1):{txt:'—',c:textMuted,fw:'400'}; }), (()=>{ const v=safeAcc(mtd.enfTpa,mtd.enfFpa,mtd.enfFna,mtd.enfTna); const hasD=(mtd.enfTpa+mtd.enfFpa+mtd.enfFna+mtd.enfTna)>0; return hasD?qCell(v,ACC_TARGET,!(mtdAR!==null&&mtdAR>=0.10),fmt1):{txt:'—',c:textMuted,fw:'400'}; })()];
+                const labAccVals = [...displayWks.map(wk=>{ const ar=wkAR(wk); const s=wkStats[wk]; const v=safeAcc(s?.labTpa||0,s?.labFpa||0,s?.labFna||0,s?.labTna||0); const hasD=(s?.labTpa+s?.labFpa+s?.labFna+s?.labTna)>0; return hasD?qCell(v,ACC_TARGET,!(ar!==null&&ar>=0.10),fmt1):{txt:'—',c:textMuted,fw:'400'}; }), (()=>{ const v=safeAcc(mtd.labTpa,mtd.labFpa,mtd.labFna,mtd.labTna); const hasD=(mtd.labTpa+mtd.labFpa+mtd.labFna+mtd.labTna)>0; return hasD?qCell(v,ACC_TARGET,!(mtdAR!==null&&mtdAR>=0.10),fmt1):{txt:'—',c:textMuted,fw:'400'}; })()];
+                const precVals   = [...displayWks.map(wk=>{ const ar=wkAR(wk); const s=wkStats[wk]; const v=safePrec(s?.enfTpa||0,s?.enfFpa||0); const hasD=(s?.enfTpa+s?.enfFpa)>0; return hasD?qCell(v,ACC_TARGET,ar!==null&&ar>=0.10,fmt1):{txt:'—',c:textMuted,fw:'400'}; }), (()=>{ const v=safePrec(mtd.enfTpa,mtd.enfFpa); const hasD=(mtd.enfTpa+mtd.enfFpa)>0; return hasD?qCell(v,ACC_TARGET,mtdAR!==null&&mtdAR>=0.10,fmt1):{txt:'—',c:textMuted,fw:'400'}; })()];
+                const recVals    = [...displayWks.map(wk=>{ const ar=wkAR(wk); const s=wkStats[wk]; const v=safeRec(s?.enfTpa||0,s?.enfFna||0); const hasD=(s?.enfTpa+s?.enfFna)>0; return hasD?qCell(v,ACC_TARGET,ar!==null&&ar>=0.10,fmt1):{txt:'—',c:textMuted,fw:'400'}; }), (()=>{ const v=safeRec(mtd.enfTpa,mtd.enfFna); const hasD=(mtd.enfTpa+mtd.enfFna)>0; return hasD?qCell(v,ACC_TARGET,mtdAR!==null&&mtdAR>=0.10,fmt1):{txt:'—',c:textMuted,fw:'400'}; })()];
+                if(hasEnf) rows.push({lbl:'Accuracy <span style="font-size:8px;font-weight:600;padding:1px 5px;border-radius:8px;background:#EBF5FF;color:#0C447C;margin-left:4px">E</span>',vals:enfAccVals,accent:'#A4CAFE'});
+                if(hasLab) rows.push({lbl:'Accuracy <span style="font-size:8px;font-weight:600;padding:1px 5px;border-radius:8px;background:#EEEDFE;color:#3C3489;margin-left:4px">L</span>',vals:labAccVals,accent:'#C4B5FD'});
+                if(hasEnf) rows.push({lbl:'Precision <span style="font-size:8px;font-weight:600;padding:1px 5px;border-radius:8px;background:#EBF5FF;color:#0C447C;margin-left:4px">E</span>',vals:precVals,accent:'#A4CAFE'});
+                if(hasEnf) rows.push({lbl:'Recall <span style="font-size:8px;font-weight:600;padding:1px 5px;border-radius:8px;background:#EBF5FF;color:#0C447C;margin-left:4px">E</span>',vals:recVals,accent:'#A4CAFE'});
+            }
+
+            // AR, AHT, Decisions, MSV — always single row
+            const arVals  = [...displayWks.map(wk=>arCell(wkAR(wk))), arCell(mtdAR)];
+            const ahtVals = [...displayWks.map(wk=>{
+                const v=safeAHT(wkStats[wk]?.dht||0,wkStats[wk]?.nht||0,wkStats[wk]?.dec||0);
+                return v!==null?plainCell(String(v)):{txt:'—',c:textMuted,fw:'400'};
+            }), (()=>{ const v=safeAHT(mtd.dht,mtd.nht,mtd.dec); return v!==null?plainCell(String(v)):{txt:'—',c:textMuted,fw:'400'}; })()];
+            const decVals = [...displayWks.map(wk=>{ const v=wkStats[wk]?.dec||0; return {txt:v>0?v.toLocaleString():'—',c:textMuted,fw:'400'}; }), {txt:mtd.dec>0?mtd.dec.toLocaleString():'—',c:textMuted,fw:'400'}];
+            const msvVals = [...displayWks.map(wk=>msvCell(safeMSV(wkMSV[wk]?.n||0,wkMSV[wk]?.d||0))), msvCell(safeMSV(mtdMSV.n,mtdMSV.d))];
+
+            rows.push({lbl:'Action rate',vals:arVals});
+            rows.push({lbl:'AHT (s)',vals:ahtVals});
+            rows.push({lbl:'Decisions',vals:decVals});
+            rows.push({lbl:'MSV',vals:msvVals});
+            return rows;
         })();
 
-        const winErrRecovery = (() => {
-            const results = [], latestWkR=WEEKS.length?WEEKS[WEEKS.length-1]:allRvRows.map(r=>r.week).sort().pop(), msD=86400000, polsSeen={};
-            allRvRows.forEach(r => {
-                if(!r.pol||(r.fpa+r.fna)===0) return;
-                const days=(new Date(latestWkR)-new Date(r.week))/msD;
-                if(!polsSeen[r.pol]) polsSeen[r.pol]={recentErr:0,oldErr:0};
-                if(days<=35) polsSeen[r.pol].recentErr++; else if(days<=120) polsSeen[r.pol].oldErr++;
-            });
-            Object.entries(polsSeen).forEach(([pol,v]) => { if(v.recentErr===0&&v.oldErr>0) results.push({pol,oldErr:v.oldErr}); });
-            return results;
-        })();
+        const overallTable = `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
+          <table style="width:100%;min-width:520px;border-collapse:collapse;font-size:11px">
+            <colgroup>
+              <col style="width:18%">
+              ${displayWks.map(()=>`<col style="width:${Math.round(64/displayWks.length)}%">`).join('')}
+              <col style="width:12%">
+            </colgroup>
+            <thead>
+              <tr style="background:${lightGray}">
+                <th style="padding:4px 10px;text-align:left;font-size:9px;font-weight:600;color:${textMuted};text-transform:uppercase;letter-spacing:.05em;border-bottom:0.5px solid ${divider}" rowspan="2">Metric</th>
+                ${moHdrCols}
+              </tr>
+              <tr style="background:${lightGray}">${wkHdrCols}</tr>
+            </thead>
+            <tbody>
+              ${overallRows.map((r,i)=>metricRow(r.lbl,r.vals,i===overallRows.length-1,r.accent||null)).join('')}
+            </tbody>
+            <tfoot><tr style="background:${lightGray};border-top:1px solid ${borderColor}">
+              <td colspan="${2+displayWks.length}" style="padding:5px 10px;font-size:9px;color:${textMuted}">
+                <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:2px"></span>Met</span>
+                <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:2px"></span>Below</span>
+                <span>AR ≥10%: P &amp; R colored · AR &lt;10%: Acc colored · thick border = new month</span>
+              </td>
+            </tr></tfoot>
+          </table>
+        </div>`;
 
-        const winOccGood = rvOcc!==null && occRangeLo!==null && (rvOcc*100) >= occRangeLo;
+        // ── QA & AHT — last 5 weeks + MTD by sub-workflow ────────────────────
+        // Build per-SW per-week QA + AHT data
+        const swWkQA = {}; // sw -> wk -> {tpa,fpa,fna,tna}
+        const swWkAHT2 = {}; // sw -> wk -> {dht,nht,dec}
+        allRvRows.filter(r=>displayWks.includes(r.week)&&r.sw).forEach(r=>{
+            if(!swWkQA[r.sw]) swWkQA[r.sw]={};
+            if(!swWkQA[r.sw][r.week]) swWkQA[r.sw][r.week]={tpa:0,fpa:0,fna:0,tna:0};
+            const q=swWkQA[r.sw][r.week];
+            q.tpa+=r.tpa||0; q.fpa+=r.fpa||0; q.fna+=r.fna||0; q.tna+=r.tna||0;
+            if(!swWkAHT2[r.sw]) swWkAHT2[r.sw]={};
+            if(!swWkAHT2[r.sw][r.week]) swWkAHT2[r.sw][r.week]={dht:0,nht:0,dec:0};
+            const a=swWkAHT2[r.sw][r.week];
+            a.dht+=r.dht||0; a.nht+=r.nht||0; a.dec+=r.decisions||0;
+        });
+        // MTD per SW
+        const swMTDQA={}, swMTDAHT={};
+        allRvRows.filter(r=>r.month===currMonth&&r.sw).forEach(r=>{
+            if(!swMTDQA[r.sw]) swMTDQA[r.sw]={tpa:0,fpa:0,fna:0,tna:0};
+            const q=swMTDQA[r.sw]; q.tpa+=r.tpa||0; q.fpa+=r.fpa||0; q.fna+=r.fna||0; q.tna+=r.tna||0;
+            if(!swMTDAHT[r.sw]) swMTDAHT[r.sw]={dht:0,nht:0,dec:0};
+            const a=swMTDAHT[r.sw]; a.dht+=r.dht||0; a.nht+=r.nht||0; a.dec+=r.decisions||0;
+        });
 
-        const winTag = (emoji, label) => label + ': ';
-        const winRow = (tag, text) =>
-            '<p style="font-size:12px;color:#166534;font-weight:500;line-height:1.5;margin-bottom:5px;font-family:'+sans+'">'+tag+text+'</p>';
-        const winsBlock = (rows) => rows.length === 0 ? '' :
-            '<div style="margin-top:8px;margin-bottom:10px;font-family:'+sans+'">'
-            +'<p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#166534;margin-bottom:5px">Wins this period</p>'
-            +rows.join('')+'</div>';
+        // SWs with any QA or AHT data in last 5 weeks or MTD
+        const swsAll = [...new Set([...Object.keys(swWkQA),...Object.keys(swWkAHT2),...Object.keys(swMTDQA)])].sort();
 
-        return `<div style="max-width:700px;font-family:${sans};color:${textPri}">
-        <!-- Section 1: Performance data -->
+        // sw→workflow map
+        const swToWfWPR = {};
+        allRvRows.forEach(r=>{ if(r.sw&&r.workflow) swToWfWPR[r.sw]=r.workflow; });
+        RAW_ROWS.forEach(r=>{ if(r.sw&&r.workflow&&!swToWfWPR[r.sw]) swToWfWPR[r.sw]=r.workflow; });
+
+        // Group by workflow
+        const wfOrderWPR = [...new Set(swsAll.map(sw=>swToWfWPR[sw]||'').filter(Boolean))].sort();
+        if(swsAll.some(sw=>!swToWfWPR[sw])) wfOrderWPR.push('');
+        const swsByWfWPR = {};
+        wfOrderWPR.forEach(wf=>{ swsByWfWPR[wf]=swsAll.filter(sw=>(swToWfWPR[sw]||'')=== wf).sort(); });
+
+        // Week column count: 1 SW + 5 weeks (each = Acc/AHT) + MTD (QA+AHT) = 1 + 5*2 + 2 = 13
+        const totalColsWPR = 1 + displayWks.length*2 + 2;
+
+        // Week sub-headers
+        const wkSubHdr = displayWks.map((wk,wi)=>{
+            const isFirst=isFirstWkInMonth(wk);
+            const isCurr=wi===displayWks.length-1;
+            const bl=isFirst?'border-left:2px solid '+borderColor+';':'border-left:0.5px solid '+divider+';';
+            const bg=isCurr?'background:#EEF2FF;':'background:'+lightGray+';';
+            return `<th colspan="2" style="padding:4px 5px;text-align:center;font-size:9px;font-weight:600;color:${isCurr?textPri:textMuted};${bg}${bl}border-bottom:0.5px solid ${divider};white-space:nowrap">${fmtW(wk)}${isCurr?' ←':''}</th>`;
+        }).join('') + `<th colspan="2" style="padding:4px 5px;text-align:center;font-size:9px;font-weight:600;color:#4F46E5;background:#EEF2FF;border-left:2px solid #C7D2FE;border-bottom:0.5px solid ${divider};white-space:nowrap">MTD ${currMoLabel}</th>`;
+
+        const colSubHdr = displayWks.map((wk,wi)=>{
+            const isFirst=isFirstWkInMonth(wk);
+            const isCurr=wi===displayWks.length-1;
+            const bl=isFirst?'border-left:2px solid '+borderColor+';':'border-left:0.5px solid '+divider+';';
+            const bg=isCurr?'background:#EEF2FF;':'background:'+lightGray+';';
+            return `<th style="padding:2px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${bg}${bl}">QA</th><th style="padding:2px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${bg}">AHT</th>`;
+        }).join('') + `<th style="padding:2px 4px;text-align:center;font-size:8px;font-weight:600;color:#4F46E5;background:#EEF2FF;border-left:2px solid #C7D2FE">QA</th><th style="padding:2px 4px;text-align:center;font-size:8px;font-weight:600;color:#4F46E5;background:#EEF2FF">AHT</th>`;
+
+        const buildSwRow2 = (sw, isLast) => {
+            const swTgt = SW_TARGETS[sw];
+            const accTgtV = swTgt?.acc ? (swTgt.acc*100).toFixed(0)+'%' : (ACC_TARGET*100).toFixed(0)+'%';
+            const precTgtV = swTgt?.prec ? (swTgt.prec*100).toFixed(0)+'%' : accTgtV;
+            const recTgtV  = swTgt?.rec  ? (swTgt.rec*100).toFixed(0)+'%'  : accTgtV;
+            const ahtTgtV  = swTgt?.aht  ? swTgt.aht+'s' : '\u2014';
+            const prSame = precTgtV===accTgtV && recTgtV===accTgtV;
+            const tgtLine = prSame ? `Acc/P&R ${accTgtV} \u00b7 AHT ${ahtTgtV}` : `Acc ${accTgtV} \u00b7 P ${precTgtV} \u00b7 R ${recTgtV} \u00b7 AHT ${ahtTgtV}`;
+
+            const wkCells = displayWks.map((wk,wi)=>{
+                const isFirst=isFirstWkInMonth(wk);
+                const isCurr=wi===displayWks.length-1;
+                const bl=isFirst?'border-left:2px solid '+borderColor+';':'border-left:0.5px solid '+divider+';';
+                const baseBg=isCurr?'background:#F5F7FF;':'';
+                const q=swWkQA[sw]?.[wk]; const aD=swWkAHT2[sw]?.[wk];
+                const tot=q?q.tpa+q.fpa+q.fna+q.tna:0;
+                // Determine AR for this week at overall level
+                const wkARv = safeAR(wkStats[wk]?.tpa||0,wkStats[wk]?.fpa||0,wkStats[wk]?.fna||0,wkStats[wk]?.tna||0);
+                const highAR = wkARv!==null&&wkARv>=0.10;
+                let qaTxt='—', qaBg='transparent', qaC=textMuted, qaFw='400';
+                if(tot>0){
+                    const acc2=safeAcc(q.tpa,q.fpa,q.fna,q.tna);
+                    const prec2=safePrec(q.tpa,q.fpa);
+                    const rec2=safeRec(q.tpa,q.fna);
+                    const accTgt2=swTgt?.acc||ACC_TARGET;
+                    const precTgt2=swTgt?.prec||ACC_TARGET;
+                    const recTgt2=swTgt?.rec||ACC_TARGET;
+                    if(highAR){
+                        const met2=(prec2!==null&&prec2>=precTgt2)&&(rec2!==null&&rec2>=recTgt2);
+                        qaTxt=prec2!==null?(prec2*100).toFixed(0)+'%':'—';
+                        qaBg=met2?'#DCFCE7':'#FEF2F2'; qaC=met2?green:red; qaFw='700';
+                    } else {
+                        const met2=acc2!==null&&acc2>=accTgt2;
+                        qaTxt=acc2!==null?(acc2*100).toFixed(0)+'%':'—';
+                        qaBg=met2?'#DCFCE7':'#FEF2F2'; qaC=met2?green:red; qaFw='700';
+                    }
+                }
+                const ahtV2=aD&&aD.dec>=1?Math.round((aD.dht+aD.nht)/aD.dec):null;
+                const ahtTgtN=swTgt?.aht||null;
+                let ahtBg2='transparent',ahtC2=textMuted,ahtFw2='400';
+                if(ahtV2!==null&&aD.dec>=3&&ahtTgtN){ ahtBg2=ahtBgFn(ahtV2,ahtTgtN); ahtC2=ahtCFn(ahtV2,ahtTgtN); ahtFw2='700'; }
+                const ahtTxt2=ahtV2!==null?String(ahtV2):'—';
+                return `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${qaFw};color:${qaC};background:${qaBg};${bl}border-bottom:0.5px solid ${divider}">${qaTxt}</td>`
+                     + `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${ahtFw2};color:${ahtC2};background:${ahtBg2};border-bottom:0.5px solid ${divider}">${ahtTxt2}</td>`;
+            }).join('');
+
+            // MTD cells
+            const qM=swMTDQA[sw], aM=swMTDAHT[sw];
+            const mtdTot=qM?qM.tpa+qM.fpa+qM.fna+qM.tna:0;
+            const mtdARv=safeAR(mtd.tpa,mtd.fpa,mtd.fna,mtd.tna);
+            const mtdHighAR=mtdARv!==null&&mtdARv>=0.10;
+            let mtdQATxt='—',mtdQABg='transparent',mtdQAC=textMuted,mtdQAFw='400';
+            if(mtdTot>0){
+                const acc2=safeAcc(qM.tpa,qM.fpa,qM.fna,qM.tna);
+                const prec2=safePrec(qM.tpa,qM.fpa); const rec2=safeRec(qM.tpa,qM.fna);
+                const accTgt2=swTgt?.acc||ACC_TARGET; const precTgt2=swTgt?.prec||ACC_TARGET; const recTgt2=swTgt?.rec||ACC_TARGET;
+                if(mtdHighAR){ const met2=(prec2!==null&&prec2>=precTgt2)&&(rec2!==null&&rec2>=recTgt2); mtdQATxt=prec2!==null?(prec2*100).toFixed(0)+'%':'—'; mtdQABg=met2?'#DCFCE7':'#FEF2F2'; mtdQAC=met2?green:red; mtdQAFw='700'; }
+                else { const met2=acc2!==null&&acc2>=accTgt2; mtdQATxt=acc2!==null?(acc2*100).toFixed(0)+'%':'—'; mtdQABg=met2?'#DCFCE7':'#FEF2F2'; mtdQAC=met2?green:red; mtdQAFw='700'; }
+            }
+            const mtdAHTv=aM&&aM.dec>=1?Math.round((aM.dht+aM.nht)/aM.dec):null;
+            const mtdAHTtgt=swTgt?.aht||null;
+            let mtdAHTbg='transparent',mtdAHTc=textMuted,mtdAHTfw='400';
+            if(mtdAHTv!==null&&aM.dec>=5&&mtdAHTtgt){ mtdAHTbg=ahtBgFn(mtdAHTv,mtdAHTtgt); mtdAHTc=ahtCFn(mtdAHTv,mtdAHTtgt); mtdAHTfw='700'; }
+            const mtdAHTtxt=mtdAHTv!==null?String(mtdAHTv):'—';
+            const mtdBL='border-left:2px solid #C7D2FE;';
+            const mtdBd=isLast?'none':'0.5px solid '+divider;
+
+            return `<tr style="border-bottom:${isLast?'none':'0.5px solid '+divider}">
+              <td style="padding:5px 8px 5px 12px;vertical-align:middle;border-bottom:${isLast?'none':'0.5px solid '+divider}">
+                <div style="font-size:10px;font-weight:600;white-space:nowrap;color:${textPri}">${sw}</div>
+                <div style="font-size:8px;color:${textMuted};margin-top:1px;white-space:nowrap">${tgtLine}</div>
+              </td>
+              ${wkCells}
+              <td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${mtdQAFw};color:${mtdQAC};background:${mtdQABg};${mtdBL}border-bottom:${mtdBd}">${mtdQATxt}</td>
+              <td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${mtdAHTfw};color:${mtdAHTc};background:${mtdAHTbg};border-bottom:${mtdBd}">${mtdAHTtxt}</td>
+            </tr>`;
+        };
+
+        const swTable2 = (swsAll.length===0)
+            ? `<div style="padding:10px 14px;border-radius:8px;border:1px solid ${borderColor};font-size:12px;color:${textMuted};font-style:italic">No sub-workflow data in the last 5 weeks.</div>`
+            : `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
+              <table style="width:100%;min-width:580px;border-collapse:collapse;font-size:10px">
+                <colgroup>
+                  <col style="width:20%">
+                  ${displayWks.map(()=>`<col style="width:${Math.round(58/displayWks.length/2)}%"><col style="width:${Math.round(58/displayWks.length/2)}%">`).join('')}
+                  <col style="width:8%"><col style="width:7%">
+                </colgroup>
+                <thead>
+                  <tr style="background:${lightGray}">
+                    <th rowspan="2" style="padding:5px 8px 5px 12px;text-align:left;font-size:9px;font-weight:600;color:${textMuted};text-transform:uppercase;letter-spacing:.06em;vertical-align:bottom;border-bottom:0.5px solid ${divider}">Sub-workflow</th>
+                    ${wkSubHdr}
+                  </tr>
+                  <tr style="background:${lightGray}">${colSubHdr}</tr>
+                </thead>
+                <tbody>
+                  ${wfOrderWPR.map(wf=>{
+                    const swList=swsByWfWPR[wf]; if(!swList||!swList.length) return '';
+                    return `<tr><td colspan="${totalColsWPR}" style="padding:4px 8px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:${textSec};background:${lightGray};border-top:0.5px solid ${borderColor};border-bottom:0.5px solid ${divider}">${wf||'Other'}</td></tr>`
+                         + swList.map((sw,i)=>buildSwRow2(sw,i===swList.length-1&&wf===wfOrderWPR[wfOrderWPR.length-1])).join('');
+                  }).join('')}
+                </tbody>
+                <tfoot><tr style="background:${lightGray};border-top:1px solid ${borderColor}">
+                  <td colspan="${totalColsWPR}" style="padding:5px 8px;font-size:9px;color:${textMuted}">
+                    <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:2px"></span>Met</span>
+                    <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:2px"></span>Below</span>
+                    <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#FEF3C7;border:0.5px solid #FCD34D;vertical-align:middle;margin-right:2px"></span>AHT warn</span>
+                    <span>QA shows active metric (Acc or P) · thick border = new month · AHT ≥3 decisions</span>
+                  </td>
+                </tr></tfoot>
+              </table>
+            </div>`;
+
+        // ── What happens next — coaching focus card ───────────────────────────
+        // Derive quality and AHT focus signals (reuse existing logic)
+        const _latestWkE = WEEKS.length ? WEEKS[WEEKS.length-1] : allRvRows.map(r=>r.week).sort().pop();
+        const _errPolMap2 = {};
+        allRvRows.forEach(r=>{ if(!r.pol) return; if(!_errPolMap2[r.pol]) _errPolMap2[r.pol]={pol:r.pol,active:0,watch:0}; const days=(new Date(_latestWkE)-new Date(r.week))/86400000; if(days<=60) _errPolMap2[r.pol].active++; else if(days<=120) _errPolMap2[r.pol].watch++; });
+        const _activeErrs2 = Object.values(_errPolMap2).filter(p=>p.active>0).sort((a,b)=>b.active-a.active);
+        const _watchErrs2  = Object.values(_errPolMap2).filter(p=>p.active===0&&p.watch>0).sort((a,b)=>b.watch-a.watch);
+        const _topErrPol2  = _activeErrs2[0]||_watchErrs2[0]||null;
+        const _getMTD2 = sw => { const tgt=SW_TARGETS[sw]?.aht||null; if(!tgt) return null; const d=swMTDAHT[sw]; if(!d||d.dec<1) return null; return {aht:Math.round((d.dht+d.nht)/d.dec),tgt}; };
+        const _flaggedAHT2 = Object.keys(swMTDAHT).filter(sw=>{ const m=_getMTD2(sw); return m&&m.aht>m.tgt; }).sort((a,b)=>{ const ma=_getMTD2(a),mb=_getMTD2(b); return (mb.aht/mb.tgt)-(ma.aht/ma.tgt); });
+        const _topAHTSW2 = _flaggedAHT2[0]||null;
+        const _isClean2 = !_topErrPol2 && !_topAHTSW2;
+
+        const _focusRow = (accentColor, accentBg, label, items, commitTxt) =>
+            `<div style="margin-bottom:10px">
+               <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${accentColor};margin-bottom:5px">${label}</div>
+               ${items.map(it=>`<div style="font-size:12px;color:${textPri};line-height:1.5;padding:7px 10px;background:${lightGray};border-radius:6px;border-left:2px solid ${accentColor};margin-bottom:4px">${it}</div>`).join('')}
+               ${commitTxt?`<div style="font-size:11px;color:${accentColor};padding:4px 10px;border-left:2px solid ${accentColor};margin-top:2px;font-style:italic">Commit: ${commitTxt}</div>`:''}
+             </div>`;
+
+        const _qualItems = _topErrPol2
+            ? [`Review all <strong>${_topErrPol2.pol}</strong> errors from the last session — identify the common decision pattern before next week.`,
+               `Complete 1 self-drill on <strong>${_topErrPol2.pol}</strong> using IPB/CCVE anchors. Flag any grey areas to your TL.`]
+            : [`Zero active error policies right now — maintain your current decision quality and keep checking IPB for policy updates.`];
+        const _qualCommit = _topErrPol2 ? `Zero new ${_topErrPol2.pol} errors for WE ${fmtW(_cdLastBakedWk||'next week')}` : null;
+
+        const _topAHTMTD = _topAHTSW2 ? _getMTD2(_topAHTSW2) : null;
+        const _ahtItems = _topAHTSW2
+            ? [`<strong>${_topAHTSW2}</strong> MTD AHT is ${_topAHTMTD.aht}s vs ${_topAHTMTD.tgt}s target. Track time on complex cases — identify where the seconds are going.`,
+               `Flag any jobs over ${Math.round(_topAHTMTD.tgt*1.5)}s to your TL so they can check for routing or tool issues.`]
+            : [`AHT on target across all sub-workflows this period — maintain your current pace and flag any unusual job types to your TL.`];
+        const _ahtCommit = _topAHTSW2 ? `${_topAHTSW2} AHT ≤${_topAHTMTD.tgt}s for WE ${fmtW(_cdLastBakedWk||'next week')}` : null;
+
+        const focusCard = `<div style="border:1px solid ${borderColor};border-radius:8px;padding:14px 16px">
+            ${_focusRow(red, redBg, 'Quality focus', _qualItems, _qualCommit)}
+            <div style="height:0.5px;background:${divider};margin:8px 0"></div>
+            ${_focusRow(amber, amberBg, 'AHT focus', _ahtItems, _ahtCommit)}
+            <div style="height:0.5px;background:${divider};margin:10px 0 12px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+              <div style="border-top:1.5px solid ${textPri};padding-top:5px;font-size:10px;color:${textMuted}">Reviewer signature &amp; date</div>
+              <div style="border-top:1.5px solid ${textPri};padding-top:5px;font-size:10px;color:${textMuted}">TL signature &amp; date</div>
+            </div>
+          </div>`;
+
+        // ── Assemble doc ──────────────────────────────────────────────────────
+        return `<div style="max-width:860px;font-family:${sans};color:${textPri}">
+
         <div id="sec1">
-        <!-- Header removed -->
+        ${rvSecHead('Wins this period', green, true)}
+        ${winsBlock2}
 
-        <!-- 1. How you performed -->
-        ${rvSecHead('How you performed this period', blue, true)}
-        ${(()=>{
-          // team AR benchmark for this period
-          let tmEnf=0,tmViol=0,tmPrec_n=0,tmPrec_d=0,tmRec_n=0,tmRec_d=0,tmTpa=0,tmFpa=0,tmFna=0,tmTna=0;
-          teamRows.forEach(r=>{tmEnf+=r.enf||0;tmViol+=r.viol||0;tmPrec_n+=r.tpa||0;tmPrec_d+=(r.tpa||0)+(r.fpa||0);tmRec_n+=r.tpa||0;tmRec_d+=(r.tpa||0)+(r.fna||0);tmTpa+=r.tpa||0;tmFpa+=r.fpa||0;tmFna+=r.fna||0;tmTna+=r.tna||0;});
-          const tmAR   = (tmTpa+tmFpa+tmFna+tmTna)>0?(tmTpa+tmFpa)/(tmTpa+tmFpa+tmFna+tmTna):null;
-          const cardBgI=(c)=>c===green?'#F0FDF4':c===red?'#FEF2F2':c===amber?'#FFFBEB':c===blue?'#EBF5FF':'transparent';
-          const card=(label,value,sub,color)=>{
-            const _isMuted=color===textMuted||color===textSec||color===textPri;
-            const _bg=_isMuted?'transparent':cardBgI(color);
-            const _top=_isMuted?`3px solid ${borderColor}`:`3px solid ${color}`;
-            const _valC=_isMuted?textMuted:color;
-            return `<div style="background:${_bg};border:1px solid ${borderColor};border-top:${_top};border-radius:8px;padding:10px 12px">
-              <div style="font-size:10px;color:${textMuted};text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">${label}</div>
-              <div style="font-size:20px;font-weight:700;font-family:${mono};color:${_valC};line-height:1.1">${value}</div>
-              <div style="font-size:11px;color:${textSec};margin-top:3px">${sub}</div>
-            </div>`;
-          };
-          const occV = rvOcc!==null ? Math.round(rvOcc*1000)/10 : null;
-          const occC = occInRange ? green : amber;
-          const occSub = occRangeLo!==null&&occRangeHi!==null ? 'Team top 25%: '+occRangeLo+'% – '+occRangeHi+'%' : 'Time in review / available';
-          // Only show positive note — amber/negative note removed (surfaced in What happens next instead)
-          const occNote = occRangeLo!==null && occInRange
-            ? '<div style="font-size:11px;color:#166534;background:#F0FDF4;border-radius:6px;padding:6px 11px;border-left:2px solid #86EFAC;margin-bottom:10px">Your occupancy is within your teammates&#39; top 25% range ('+occRangeLo+'% – '+occRangeHi+'%) — great job staying in production! &#x1F64C;</div>'
-            : '';
-          // Absenteeism — (sched - actual) / sched from WFM_LOOKUP for this reviewer over the period weeks
-          let _rvSched=0, _rvActual=0;
-          last6Weeks.forEach(wk=>{const w=WFM_LOOKUP[rv.trim()+'|'+wk];if(w){_rvSched+=w.sched||0;_rvActual+=w.actual||0;}});
-          const absRate = _rvSched>0 ? Math.max(0,(_rvSched-_rvActual)/_rvSched) : null;
-          const ABS_TGT = 0.05;
-          const absC = absRate===null?textMuted:absRate<=ABS_TGT?green:absRate<=0.10?amber:red;
-          const absSub = absRate!==null?'Target: &lt;5%':'No schedule data';
-          return '<div style="display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:8px;margin-bottom:8px;align-items:stretch">'
-            +card('Accuracy', pct(adjAcc), 'Target: '+targetLabel, adjAR===null||adjAR<0.10?col(adjAcc):textMuted)
-            +card('Precision', pct(adjPrec), adjPrec!==null?'Target: '+pct(ACC_TARGET):'--', adjAR!==null&&adjAR>=0.10&&adjPrec!==null?col(adjPrec):textMuted)
-            +card('Recall', pct(adjRec), adjRec!==null?'Target: '+pct(ACC_TARGET):'--', adjAR!==null&&adjAR>=0.10&&adjRec!==null?col(adjRec):textMuted)
-            +card('Action Rate', adjAR!==null?pct(adjAR):'&#x2014;', tmAR!==null?'Team: '+pct(tmAR):'(TP+FP) / Total', textSec)
-            +'</div>'
-            +'<div style="display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:8px;margin-bottom:10px;align-items:stretch">'
-            +(()=>{ const _jt=calcJobTarget(allRvRows); const _wt=_jt.weightedAHTTarget; const _aa=_jt.actualAHT; const _c=_aa!==null&&_wt!==null?ahtTargetColor(_aa,_wt):(_aa!==null?blue:textMuted); const _sub=_wt!==null?'Target: '+Number(_wt).toFixed(2)+'s'+(_aa!==null?' · '+(Math.round(_aa)<=Math.round(_wt)?'&#x2713; On target':'+'+Math.round(_aa-_wt)+'s over'):''):'No blended target'; return card('Actual AHT', _aa!==null?Math.round(_aa)+'s':'&#x2014;', _sub, _c); })()
-            +(()=>{ const _jt=calcJobTarget(allRvRows); const _exp=_jt.expected!==null?Math.round(_jt.expected):null; const _c=_jt.expected!==null?jobGapColor(_jt.gap,_jt.expected):blue; const _sub=_exp!==null?'Target: '+_exp.toLocaleString()+' · Gap: '+(_jt.gap>=0?'+':'')+Math.round(_jt.gap):'Actual decisions'; return card('Decisions', _jt.actual.toLocaleString(), _sub, _c); })()
-            +card('Occupancy', occV!==null?occV+'%':'&#x2014;', occSub, occC)
-            +card('Absenteeism', absRate!==null?(absRate*100).toFixed(1)+'%':'&#x2014;', absSub, absC)
-            +'</div>'+occNote;
-        })()}
+        ${divSection}
 
-        <!-- 2. Weekly quality table -->
-        ${rvSecHead('Weekly quality', blue)}
-        <div style="font-size:11px;color:${textMuted};margin-bottom:8px;margin-top:-4px">Last 8 weeks · AR &gt;10% highlights precision &amp; recall · AR ≤10% highlights accuracy</div>
-        ${(()=>{
-          const buildWkSplit = (rtFilter, includeUntyped) => {
-            const splitRows = allRvRows.filter(r => last8Weeks.includes(r.week) && (
-              (!r.reviewType && includeUntyped) || (r.reviewType && rtFilter(r.reviewType.trim()))
-            ));
-            const sm = {};
-            splitRows.forEach(r => {
-              if(!sm[r.week]) sm[r.week]={tpa:0,fpa:0,fna:0,tna:0};
-              sm[r.week].tpa+=r.tpa||0;sm[r.week].fpa+=r.fpa||0;sm[r.week].fna+=r.fna||0;sm[r.week].tna+=r.tna||0;
-            });
-            return last8Weeks.map(wk=>{
-              const w=sm[wk]; if(!w) return null;
-              const tot=w.tpa+w.fpa+w.fna+w.tna; if(!tot) return null;
-              return {wk,acc:(w.tpa+w.tna)/tot,prec:(w.tpa+w.fpa)>0?w.tpa/(w.tpa+w.fpa):null,rec:(w.tpa+w.fna)>0?w.tpa/(w.tpa+w.fna):null,ar:tot>0?(w.tpa+w.fpa)/tot:null};
-            });
-          };
-          const enfWks = buildWkSplit(rt=>rt==='Enforcement', true);
-          const labWks = buildWkSplit(rt=>rt==='Labeling', false);
-          const hasEnf = enfWks.some(Boolean);
-          const hasLab = labWks.some(Boolean);
+        ${rvSecHead('Overall performance', blue)}
+        <div style="font-size:11px;color:${textMuted};margin-bottom:8px">Last 5 weeks + MTD · thick border = new month · AR ≥10% → P &amp; R colored · AR &lt;10% → Acc colored</div>
+        ${overallTable}
 
-          const qualTable = (rows, label, pillBg, pillTc) => {
-            const filled = rows.map((w,i)=>w||{wk:last8Weeks[i],acc:null,prec:null,rec:null,ar:null});
-            return `<div style="margin-bottom:12px">
-              <div style="display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${pillTc};padding:3px 9px;background:${pillBg};border-radius:6px;margin-bottom:4px">${label}</div>
-              <div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
-                <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:600px">
-                  <thead><tr style="background:${lightGray};border-bottom:1px solid ${borderColor}">
-                    <td style="padding:6px 10px;font-size:11px;font-weight:500;color:${textMuted};width:80px">Metric</td>
-                    ${filled.map(w=>`<th style="padding:6px 4px;text-align:center;font-size:11px;font-weight:500;color:${textMuted};white-space:nowrap">${fmtW(w.wk)}</th>`).join('')}
-                  </tr></thead>
-                  <tbody>
-                    <tr style="border-bottom:0.5px solid ${borderColor}">
-                      <td style="padding:6px 10px;font-size:11px;font-weight:500;color:${textMuted}">Accuracy</td>
-                      ${filled.map(w=>{
-                        if(w.acc===null) return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;color:${textMuted}">—</td>`;
-                        const highAR=deIsHighAR(w.ar,w.par);
-                        const onTarget=w.acc>=ACC_TARGET;
-                        const bg=highAR?'transparent':(onTarget?'#DCFCE7':'#FEF2F2');
-                        return `<td style="padding:6px 4px;text-align:center;background:${bg};font-weight:${highAR?'400':'700'};font-family:${mono};font-size:12px;color:${highAR?textMuted:(onTarget?green:red)}">${pct(w.acc)}</td>`;
-                      }).join('')}
-                    </tr>
-                    <tr style="border-bottom:0.5px solid ${borderColor}">
-                      <td style="padding:6px 10px;font-size:11px;font-weight:500;color:${textMuted}">Adj precision</td>
-                      ${filled.map(w=>{
-                        const highAR=deIsHighAR(w.ar,w.par);
-                        if(!highAR) return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;color:${textMuted}">${w.prec!==null?pct(w.prec):'—'}</td>`;
-                        const on=w.prec!==null&&w.prec>=ACC_TARGET;
-                        return `<td style="padding:6px 4px;text-align:center;background:${w.prec===null?'transparent':on?'#DCFCE7':'#FEF2F2'};font-weight:700;font-family:${mono};font-size:12px;color:${w.prec===null?textMuted:on?green:red}">${w.prec!==null?pct(w.prec):'—'}</td>`;
-                      }).join('')}
-                    </tr>
-                    <tr style="border-bottom:0.5px solid ${borderColor}">
-                      <td style="padding:6px 10px;font-size:11px;font-weight:500;color:${textMuted}">Adj recall</td>
-                      ${filled.map(w=>{
-                        const highAR=deIsHighAR(w.ar,w.par);
-                        if(!highAR) return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;color:${textMuted}">${w.rec!==null?pct(w.rec):'—'}</td>`;
-                        const on=w.rec!==null&&w.rec>=ACC_TARGET;
-                        return `<td style="padding:6px 4px;text-align:center;background:${w.rec===null?'transparent':on?'#DCFCE7':'#FEF2F2'};font-weight:700;font-family:${mono};font-size:12px;color:${w.rec===null?textMuted:on?green:red}">${w.rec!==null?pct(w.rec):'—'}</td>`;
-                      }).join('')}
-                    </tr>
-                    <tr>
-                      <td style="padding:6px 10px;font-size:11px;font-weight:500;color:${textMuted}">Action rate</td>
-                      ${filled.map(w=>{
-                        const highAR=deIsHighAR(w.ar,w.par);
-                        return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;font-weight:${highAR?'700':'400'};color:${highAR?textPri:textMuted}">${w.ar!==null?pct(w.ar):'—'}</td>`;
-                      }).join('')}
-                    </tr>
-                  </tbody>
-                  <tfoot><tr style="background:${lightGray};border-top:1px solid ${borderColor}">
-                    <td colspan="${filled.length+1}" style="padding:5px 10px;font-size:11px;color:${textMuted}">
-                      <span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px"><span style="width:9px;height:9px;border-radius:2px;background:#DCFCE7;border:0.5px solid #86EFAC;display:inline-block"></span>On target (≥96%)</span>
-                      <span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px"><span style="width:9px;height:9px;border-radius:2px;background:#FEF2F2;border:0.5px solid #FCA5A5;display:inline-block"></span>Below target</span>
-                      <span style="font-style:italic">High-AR weeks: precision &amp; recall highlighted</span>
-                    </td>
-                  </tr></tfoot>
-                </table>
-              </div>
-            </div>`;
-          };
+        ${divSection}
 
-          return (hasEnf ? qualTable(enfWks,'Enforcement','#EBF5FF','#0C447C') : '')
-               + (hasLab ? qualTable(labWks,'Labeling','#EEEDFE','#3C3489') : '')
-               + (!hasEnf && !hasLab ? qualTable(weekTrend.map((w,i)=>w||{wk:last8Weeks[i]||last8Weeks[0],acc:null,prec:null,rec:null,ar:null}),'All','#EBF5FF','#0C447C') : '');
-        })()}
-        ${(()=>{ const r=[]; if(winAccSustained) r.push(winRow(winTag('Sustained','Sustained'),'Accuracy on target for <strong>'+accStreak+' straight week'+(accStreak!==1?'s':'')+'</strong>. No cap, keep it locked.')); return winsBlock(r); })()}
+        ${rvSecHead('QA &amp; AHT by sub-workflow', purple)}
+        <div style="font-size:11px;color:${textMuted};margin-bottom:8px">Last 5 weeks + MTD · grouped by workflow · QA shows active metric · AHT always shown</div>
+        ${swTable2}
 
-        <!-- 3. Error history — all time, one row per policy -->
+        ${divSection}
+
         ${rvSecHead('Error history', red)}
         <div style="font-size:11px;color:${textMuted};margin-bottom:8px;margin-top:-4px">All time · one row per policy · sorted by most recent error</div>
         ${(()=>{
           const msD = 86400000;
           const latestWkE = WEEKS.length ? WEEKS[WEEKS.length-1] : allRvRows.map(r=>r.week).sort().pop();
-          // Group allRvErrors by policy
           const errMap = {};
-          allRvErrors.forEach(r => {
-            if(!r.pol) return;
+          allRvRows.filter(r=>r.pol&&(r.fpa+r.fna)>0).forEach(r => {
             if(!errMap[r.pol]) errMap[r.pol] = { pol:r.pol, sws:new Set(), fp:0, fn:0, active:0, watch:0, hist:0, lastWk:'' };
             const g = errMap[r.pol];
             if(r.sw) g.sws.add(r.sw);
@@ -15855,44 +16076,31 @@ function _generateCoachingDocInner() {
             if(days<=60) g.active++; else if(days<=120) g.watch++; else g.hist++;
             if(!g.lastWk || r.week > g.lastWk) g.lastWk = r.week;
           });
-          const errRows = Object.values(errMap)
-            .filter(g => g.fp+g.fn > 0)
-            .sort((a,b) => b.lastWk.localeCompare(a.lastWk));
+          const errRows = Object.values(errMap).filter(g=>g.fp+g.fn>0).sort((a,b)=>b.lastWk.localeCompare(a.lastWk));
           if(!errRows.length) return `<div style="border-radius:8px;border:1px solid ${borderColor};padding:12px 14px;font-size:12px;color:${textMuted};font-style:italic">No errors on record.</div>`;
-          const fmtLastWk = fmtW;
-          return `<div style="border-radius:8px;border:1px solid ${borderColor};overflow:hidden;margin-bottom:0">
+          return `<div style="border-radius:8px;border:1px solid ${borderColor};overflow:hidden">
             <table style="width:100%;border-collapse:collapse;font-size:12px">
               <thead><tr style="background:${lightGray};border-bottom:1px solid ${borderColor}">
                 <th style="padding:6px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Policy</th>
-                <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">SWs hit</th>
-                <th style="padding:6px 8px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Errors</th>
+                <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">SWs</th>
                 <th style="padding:6px 8px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${red}">Active</th>
                 <th style="padding:6px 8px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${amber}">Watch</th>
                 <th style="padding:6px 8px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Hist</th>
                 <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};white-space:nowrap">Last error</th>
               </tr></thead>
               <tbody>${errRows.map((g,i)=>{
-                const tot = g.fp+g.fn;
-                const isHist = g.active===0 && g.watch===0;
-                const nameC = isHist ? textMuted : textPri;
-                const nameFw = isHist ? '500' : '600';
-                const swsC = isHist ? textMuted : textSec;
-                const totC = g.active>0 ? red : g.watch>0 ? amber : textMuted;
-                const activeC = g.active>0 ? red : textMuted;
-                const watchC = g.watch>0 ? amber : textMuted;
-                const swStr = [...g.sws].join(' · ') || '—';
+                const isHist=g.active===0&&g.watch===0;
                 return `<tr style="border-bottom:${i===errRows.length-1?'none':'0.5px solid '+divider}">
-                  <td style="padding:7px 10px;font-size:12px;font-weight:${nameFw};color:${nameC}">${g.pol}</td>
-                  <td style="padding:7px 8px;font-size:11px;color:${swsC}">${swStr}</td>
-                  <td style="padding:7px 8px;text-align:center;font-family:${mono};font-weight:700;color:${totC}">${tot}</td>
-                  <td style="padding:7px 8px;text-align:center;font-family:${mono};font-weight:700;color:${activeC}">${g.active}</td>
-                  <td style="padding:7px 8px;text-align:center;font-family:${mono};color:${watchC}">${g.watch}</td>
-                  <td style="padding:7px 8px;text-align:center;font-family:${mono};color:${textMuted}">${g.hist}</td>
-                  <td style="padding:7px 8px;text-align:right;font-size:11px;color:${isHist?textMuted:textSec};white-space:nowrap">${fmtLastWk(g.lastWk)}</td>
+                  <td style="padding:6px 10px;font-size:12px;font-weight:${isHist?'500':'600'};color:${isHist?textMuted:textPri}">${g.pol}</td>
+                  <td style="padding:6px 8px;font-size:11px;color:${isHist?textMuted:textSec}">${[...g.sws].join(' \u00b7 ')||'\u2014'}</td>
+                  <td style="padding:6px 8px;text-align:center;font-family:${mono};font-weight:700;color:${g.active>0?red:textMuted}">${g.active}</td>
+                  <td style="padding:6px 8px;text-align:center;font-family:${mono};color:${g.watch>0?amber:textMuted}">${g.watch}</td>
+                  <td style="padding:6px 8px;text-align:center;font-family:${mono};color:${textMuted}">${g.hist}</td>
+                  <td style="padding:6px 8px;text-align:right;font-size:11px;color:${isHist?textMuted:textSec};white-space:nowrap">${fmtW(g.lastWk)}</td>
                 </tr>`;
               }).join('')}</tbody>
               <tfoot><tr style="background:${lightGray};border-top:1px solid ${borderColor}">
-                <td colspan="7" style="padding:5px 10px;font-size:11px;color:${textMuted}">
+                <td colspan="6" style="padding:5px 10px;font-size:11px;color:${textMuted}">
                   <span style="margin-right:14px"><strong style="color:${red}">Active</strong> — within 60 days</span>
                   <span style="margin-right:14px"><strong style="color:${amber}">Watch</strong> — 61–120 days</span>
                   <span><strong style="color:${textMuted}">Hist</strong> — 120+ days</span>
@@ -15901,613 +16109,23 @@ function _generateCoachingDocInner() {
             </table>
           </div>`;
         })()}
-        ${(()=>{
-          const r=[];
-          if(winErrRecovery.length===1) r.push(winRow(winTag('Recovery','Recovery'),'Zero new <strong>'+winErrRecovery[0].pol+'</strong> errors in 5 weeks. Great recovery, keep that clean streak going.'));
-          else if(winErrRecovery.length>1) r.push(winRow(winTag('Recovery','Recovery'),'Zero new <strong>'+winErrRecovery.map(e=>e.pol).join(', ')+'</strong> errors in 5 weeks. Great recovery, keep that clean streak going.'));
-          return winsBlock(r);
-        })()}
-
-        <!-- 4. AHT performance by sub-workflow — last 6 weeks, MTD right, month-aware highlight -->
-        ${rvSecHead('AHT performance by sub-workflow', '#6366f1')}
-        ${(()=>{
-          // Build SW list — must have AHT data in last 6 weeks, sorted by volume desc
-          const swVolMap = {};
-          allRvRows.filter(r=>last6Weeks.includes(r.week)&&r.sw).forEach(r=>{
-            if(!swVolMap[r.sw]) swVolMap[r.sw] = {vol:0, hasAHT:false};
-            swVolMap[r.sw].vol += r.decisions||0;
-            if((r.dht||0)+(r.nht||0)>0) swVolMap[r.sw].hasAHT = true;
-          });
-          const allEligible = Object.entries(swVolMap).filter(([sw,s])=>s.hasAHT);
-          if(!allEligible.length) return '<div style="font-size:12px;color:'+textMuted+';font-style:italic">No AHT data in the last 6 weeks.</div>';
-
-          // Current month — derived from latest week date
-          const latestWkDate = last6Weeks[last6Weeks.length-1];
-          const curMonth = latestWkDate ? latestWkDate.slice(0,7) : null; // YYYY-MM
-
-          // MTD AHT per SW — only current month rows with AHT data
-          const swMTD = {};
-          allRvRows.filter(r=>r.sw&&r.month&&(r.month===curMonth||(curMonth&&r.week&&r.week.slice(0,7)===curMonth))).forEach(r=>{
-            if(!swMTD[r.sw]) swMTD[r.sw] = {dht:0,nht:0,dec:0};
-            swMTD[r.sw].dht += r.dht||0;
-            swMTD[r.sw].nht += r.nht||0;
-            swMTD[r.sw].dec += r.decisions||0;
-          });
-          const getMTD = (sw) => {
-            const m = swMTD[sw];
-            if(!m||m.dec<1) return null;
-            return Math.round((m.dht+m.nht)/m.dec);
-          };
-
-          // Sort: over-MTD first (by how much over), then on-target by volume, max 10
-          const sorted = allEligible.sort((a,b)=>{
-            const [swa,,] = a; const [swb,,] = b;
-            const ta=SW_TARGETS[swa]?.aht||null, tb=SW_TARGETS[swb]?.aht||null;
-            const ma=getMTD(swa), mb=getMTD(swb);
-            const overA = ta&&ma ? ma-ta : -Infinity;
-            const overB = tb&&mb ? mb-tb : -Infinity;
-            if(overA>0&&overB<=0) return -1;
-            if(overB>0&&overA<=0) return 1;
-            if(overA>0&&overB>0) return overB-overA;
-            return b[1].vol-a[1].vol;
-          }).slice(0,10).map(([sw])=>sw);
-
-          const overSWs = sorted.filter(sw=>{ const t=SW_TARGETS[sw]?.aht||null,m=getMTD(sw); return t&&m&&m>t; });
-          const okSWs   = sorted.filter(sw=>!overSWs.includes(sw));
-
-          const fmtWkHdr = fmtW;
-
-          // Week header — highlight if in current month
-          const isCurrentMonth = (wk) => curMonth && wk && wk.slice(0,7)===curMonth;
-          const isLatestWk     = (wi)  => wi===last6Weeks.length-1;
-
-          // Week cell style
-          const wkCell = (aht, tgt, dec, wk, wi) => {
-            const isCur = isCurrentMonth(wk);
-            const isLast = isLatestWk(wi);
-            const baseBg = isLast ? '#DBEAFE' : isCur ? '#EBF5FF' : 'transparent';
-            if(!dec||dec===0) return {bg:baseBg, c:textMuted, fw:'400', pfx:''};
-            if(dec<3)         return {bg:baseBg, c:textMuted, fw:'400', pfx:'◈ '};
-            if(!tgt)          return {bg:baseBg, c:textMuted, fw:'400', pfx:''};
-            if(aht<=tgt)      return {bg:isLast?'#BBFFD4':isCur?'#DCFCE7':'#DCFCE7', c:green, fw:'700', pfx:''};
-            if(aht<=tgt*1.05) return {bg:isLast?'#FFE99A':isCur?'#FEF3C7':'#FEF3C7', c:amber, fw:'700', pfx:''};
-            return                   {bg:isLast?'#FFD5D5':isCur?'#FEF2F2':'#FEF2F2', c:red,   fw:'700', pfx:''};
-          };
-
-          // MTD cell style
-          const mtdCell = (mtd, tgt) => {
-            if(mtd===null||!tgt) return {bg:'#EEF2FF', c:'#4F46E5', fw:'400'};
-            if(mtd<=tgt)         return {bg:'#DCFCE7', c:green,     fw:'700'};
-            if(mtd<=tgt*1.05)    return {bg:'#FEF3C7', c:amber,     fw:'700'};
-            return                      {bg:'#FEF2F2', c:red,       fw:'700'};
-          };
-
-          // Build a row
-          const buildRow = (sw, isLast) => {
-            const tgt  = SW_TARGETS[sw]?.aht||null;
-            const mtd  = getMTD(sw);
-            const {bg:mtdBg, c:mtdC, fw:mtdFw} = mtdCell(mtd, tgt);
-            const wkCells = last6Weeks.map((wk,wi)=>{
-              const d = swWeekAHT[sw]?.[wk];
-              if(!d||d.dec===0){
-                const baseBg = isLatestWk(wi)?'#DBEAFE':isCurrentMonth(wk)?'#EBF5FF':'transparent';
-                return '<td style="padding:5px 6px;text-align:center;font-family:'+mono+';font-size:11px;color:'+textMuted+';background:'+baseBg+'">—</td>';
-              }
-              const aht = Math.round((d.dht+d.nht)/d.dec);
-              const {bg,c,fw,pfx} = wkCell(aht,tgt,d.dec,wk,wi);
-              return '<td style="padding:5px 6px;text-align:center;font-family:'+mono+';font-size:11px;color:'+c+';font-weight:'+fw+';background:'+bg+'">'+pfx+aht+'s</td>';
-            }).join('');
-            const mtdTd = '<td style="padding:5px 8px;text-align:center;font-family:'+mono+';font-size:11px;color:'+mtdC+';font-weight:'+mtdFw+';background:'+mtdBg+';border-left:2px solid #C7D2FE">'+(mtd!==null?mtd+'s':'—')+'</td>';
-            return '<tr style="border-bottom:'+(isLast?'none':'0.5px solid '+divider)+'">'
-              +'<td style="padding:5px 8px;font-size:12px;font-weight:600;color:'+textPri+'">'+sw+'</td>'
-              +'<td style="padding:5px 6px;text-align:right;font-family:'+mono+';font-size:11px;color:'+textMuted+'">'+(tgt?tgt+'s':'—')+'</td>'
-              +wkCells
-              +mtdTd
-              +'</tr>';
-          };
-
-          // Divider row — colspan = 2 (sw+tgt) + 6 weeks + 1 MTD
-          const divRow = (label) => '<tr><td colspan="9" style="padding:4px 8px;background:#F4F6F9;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:'+textMuted+';border-bottom:0.5px solid '+divider+';text-align:left">'+label+'</td></tr>';
-
-          // Week header cols
-          const hdrCols = last6Weeks.map((wk,wi)=>{
-            const isCur  = isCurrentMonth(wk);
-            const isLast = isLatestWk(wi);
-            const bg = isLast ? '#DBEAFE' : isCur ? '#EBF5FF' : 'transparent';
-            const c  = isLast ? '#1A56DB' : isCur ? '#3B82F6' : textMuted;
-            return '<th style="padding:5px 6px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:'+c+';white-space:nowrap;background:'+bg+'">'
-              +fmtWkHdr(wk)+(isLast?' ←':'')+'</th>';
-          }).join('');
-
-          // Build rows
-          let rows = '';
-          if(overSWs.length) {
-            rows += divRow('↑ MTD over target');
-            overSWs.forEach((sw,i)=>{ rows+=buildRow(sw, i===overSWs.length-1); });
-          }
-
-          return '<div style="overflow-x:auto;border-radius:8px;border:1px solid '+borderColor+'">'
-            +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
-            +'<thead><tr style="background:#F4F6F9;border-bottom:1px solid '+borderColor+'">'
-            +'<th style="padding:5px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:'+textMuted+';min-width:130px">Sub-workflow</th>'
-            +'<th style="padding:5px 6px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:'+textMuted+';white-space:nowrap">Tgt</th>'
-            +hdrCols
-            +'<th style="padding:5px 8px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4F46E5;white-space:nowrap;background:#EEF2FF;border-left:2px solid #C7D2FE;min-width:60px">MTD</th>'
-            +'</tr></thead>'
-            +'<tbody>'+rows+'</tbody>'
-            +'<tfoot><tr style="background:#F4F6F9;border-top:1px solid '+borderColor+'">'
-            +'<td colspan="9" style="padding:5px 10px;font-size:11px;color:'+textMuted+'">'
-            +'<span style="margin-right:12px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#B91C1C;margin-right:3px;vertical-align:middle"></span>MTD over target</span>'
-            +'<span style="margin-right:12px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22C55E;margin-right:3px;vertical-align:middle"></span>At/below target</span>'
-            +'<span style="margin-right:12px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F59E0B;margin-right:3px;vertical-align:middle"></span>Warn +1–5%</span>'
-            +'<span>◈ &lt;3 decisions — not color-coded</span>'
-            +'</td></tr></tfoot>'
-            +'</table></div>';
-        })()}
-        ${(()=>{
-          const r=[];
-          if(winAHTImproving.length===1) r.push(winRow(winTag('Improving','Improving'),'<strong>'+winAHTImproving[0].sw+'</strong> AHT dropped '+winAHTImproving[0].drop+'s in 3 weeks. Keep that momentum.'));
-          else if(winAHTImproving.length>1) r.push(winRow(winTag('Improving','Improving'),'<strong>'+winAHTImproving.map(w=>w.sw).join(', ')+'</strong> AHT trending down. Great momentum, keep pushing.'));
-          const consistentOnly = winAHTConsistent.filter(w=>!winAHTImproving.find(i=>i.sw===w.sw));
-          if(consistentOnly.length===1) r.push(winRow(winTag('Consistent','Consistent'),'<strong>'+consistentOnly[0].sw+'</strong> AHT on target all '+consistentOnly[0].weeks+' weeks. Locked in, great work.'));
-          else if(consistentOnly.length>1) r.push(winRow(winTag('Consistent','Consistent'),'<strong>'+consistentOnly.map(w=>w.sw).join(', ')+'</strong> AHT on target all period. Locked in, great work.'));
-          return winsBlock(r);
-        })()}
-
-        <!-- 5. Occupancy — last 6 weeks -->
-        ${rvSecHead('Occupancy', '#8B5CF6')}
-        ${(()=>{ const r=[]; if(winOccGood) r.push(winRow(winTag('&#128200;','On track'),'Occupancy within team range'+(occRangeLo!==null?' ('+occRangeLo+'% – '+occRangeHi+'%)':'')+' — staying engaged and keeping SLA healthy! Great job &#x1F64C;')); return winsBlock(r); })()}
-        <div style="font-size:11px;color:${textMuted};margin-bottom:8px;margin-top:-4px">Your occupancy vs team range &middot; last 6 weeks</div>
-        ${(()=>{
-          const fmtWkO = fmtW;
-          const occHdrs = last6Weeks.map((wk,wi)=>{
-            const isLast=wi===last6Weeks.length-1;
-            const bg=isLast?'#DBEAFE':'transparent', c=isLast?'#1A56DB':textMuted;
-            return '<th style="padding:5px 6px;text-align:center;font-size:10px;font-weight:500;color:'+c+';background:'+bg+';white-space:nowrap">'+fmtWkO(wk)+(isLast?' &larr;':'')+'</th>';
-          }).join('');
-          const rvOccCells = last6Weeks.map((wk,wi)=>{
-            const isLast=wi===last6Weeks.length-1;
-            const rv_occ=rvOccByWeek[wk], base=occBaseline[wk];
-            if(rv_occ===undefined) return '<td style="text-align:center;font-family:'+mono+';font-size:11px;color:'+textMuted+';background:'+(isLast?'#DBEAFE':'transparent')+';padding:5px 6px">&mdash;</td>';
-            const p=Math.round(rv_occ*1000)/10;
-            let bg,c;
-            if(!base){bg=isLast?'#DBEAFE':'transparent';c=textMuted;}
-            else if(p>=base.lo){bg=isLast?'#BBFFD4':'#DCFCE7';c='#166534';}
-            else if(p>=base.lo-3){bg=isLast?'#FFE99A':'#FEF3C7';c='#92400E';}
-            else{bg=isLast?'#FFD5D5':'#FEF2F2';c='#991B1B';}
-            return '<td style="text-align:center;font-family:'+mono+';font-size:11px;font-weight:500;color:'+c+';background:'+bg+';padding:5px 6px">'+p+'%</td>';
-          }).join('');
-          const baselineCells = last6Weeks.map((wk,wi)=>{
-            const isLast=wi===last6Weeks.length-1;
-            const base=occBaseline[wk], bg=isLast?'#C8D8F5':'#EEF2FF', c='#4338CA';
-            if(!base) return '<td style="text-align:center;font-family:'+mono+';font-size:11px;color:'+c+';background:'+bg+';padding:5px 6px">&mdash;</td>';
-            const lo=Math.round(base.lo*10)/10, hi=Math.round(base.hi*10)/10;
-            return '<td style="text-align:center;font-family:'+mono+';font-size:11px;color:'+c+';background:'+bg+';padding:5px 6px">'+lo+'&ndash;'+hi+'%</td>';
-          }).join('');
-          const ncols=last6Weeks.length+1;
-          return '<div style="overflow-x:auto;border-radius:8px;border:1px solid '+borderColor+';margin-bottom:10px">'
-            +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
-            +'<thead><tr style="background:'+lightGray+';border-bottom:1px solid '+borderColor+'">'
-            +'<th style="padding:5px 9px;text-align:left;font-size:10px;font-weight:500;color:'+textMuted+';min-width:120px">Row</th>'
-            +occHdrs+'</tr></thead>'
-            +'<tbody>'
-            +'<tr style="border-bottom:0.5px solid '+divider+'">'
-            +'<td style="padding:5px 9px;font-size:11px;font-weight:500;color:'+textPri+'">Your occupancy</td>'
-            +rvOccCells+'</tr>'
-            +'<tr>'
-            +'<td style="padding:5px 9px;font-size:11px;color:#4338CA">Top 25% range <span style="font-size:10px">(Q3–Q4)</span></td>'
-            +baselineCells+'</tr>'
-            +'</tbody>'
-            +'<tfoot><tr style="background:'+lightGray+';border-top:1px solid '+borderColor+'">'
-            +'<td colspan="'+ncols+'" style="padding:5px 9px;font-size:11px;color:'+textMuted+'">'
-            +'<span style="margin-right:12px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:3px"></span>Within range</span>'
-            +'<span style="margin-right:12px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#FEF3C7;border:0.5px solid #FDE68A;vertical-align:middle;margin-right:3px"></span>Slightly below</span>'
-            +'<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:3px"></span>Below range</span>'
-            +'</td></tr></tfoot>'
-            +'</table></div>';
-        })()}
 
         ${'<div style="text-align:right;margin:8px 0">'
         +'<button class="copy-btn" onclick="(async function(b){try{var s=document.getElementById(\'sec1\');var h=s.innerHTML;await navigator.clipboard.write([new ClipboardItem({\'text/html\':new Blob([h],{type:\'text/html\'}),\'text/plain\':new Blob([s.innerText],{type:\'text/plain\'})})]);b.textContent=\'\\u2713 Copied!\';setTimeout(()=>b.textContent=\'\\uD83D\uDCCB Copy section 1\',1500);}catch(e){b.textContent=\'\\u2717 Failed\'}})(this)">\uD83D\uDCCB Copy section 1</button>'
         +'</div>'}
         </div>
-        <!-- Section 2: What happens next -->
+
         <div id="sec2" style="margin-top:20px">
-        <!-- 6. What happens next -->
-        ${rvSecHead('What happens next', green)}
-        ${(()=>{
-          const msD = 86400000;
-          const latestWkE = WEEKS.length ? WEEKS[WEEKS.length-1] : allRvRows.map(r=>r.week).sort().pop();
-
-          // ── Error signals ─────────────────────────────────────────────────────
-          const errPolMap = {};
-          allRvErrors.forEach(r => {
-            if(!r.pol) return;
-            if(!errPolMap[r.pol]) errPolMap[r.pol] = {pol:r.pol, active:0, watch:0, hist:0};
-            const days = (new Date(latestWkE) - new Date(r.week)) / msD;
-            if(days<=60) errPolMap[r.pol].active++; else if(days<=120) errPolMap[r.pol].watch++; else errPolMap[r.pol].hist++;
-          });
-          const activeErrPols = Object.values(errPolMap).filter(p=>p.active>0).sort((a,b)=>b.active-a.active);
-          const watchErrPols  = Object.values(errPolMap).filter(p=>p.active===0&&p.watch>0).sort((a,b)=>b.watch-a.watch);
-          const hasActiveErrors = activeErrPols.length > 0;
-          const hasWatchErrors  = watchErrPols.length > 0;
-          const topErrPol  = activeErrPols[0] || null;
-          const secErrPol  = activeErrPols[1] || null;
-
-          // ── AHT signals — MTD-red OR last baked week red drives What happens next ────
-          // Weekly inconsistency stays visible in the AHT table but does NOT
-          // drive coaching actions unless MTD is over target OR last baked week is over target.
-          const _ahtToday = new Date();
-          const _ahtLatestWkEnd = last6Weeks.length ? new Date(last6Weeks[last6Weeks.length-1]) : null;
-          const _ahtIsInProgress = _ahtLatestWkEnd && _ahtLatestWkEnd >= _ahtToday;
-          const _ahtBakedWks = _ahtIsInProgress ? last6Weeks.slice(0,-1) : last6Weeks;
-          const _ahtLastBakedWk = _ahtBakedWks.length ? _ahtBakedWks[_ahtBakedWks.length-1] : null;
-
-          const _getMTDOcc = (sw) => {
-            const tgt = SW_TARGETS[sw]?.aht || null;
-            if(!tgt) return 'no-target';
-            const latestWkDate = last6Weeks[last6Weeks.length-1];
-            const curMonth = latestWkDate ? latestWkDate.slice(0,7) : null;
-            if(!curMonth) return 'no-data';
-            let dht=0, nht=0, dec=0;
-            allRvRows.filter(r => r.sw===sw && r.week && r.week.slice(0,7)===curMonth)
-              .forEach(r => { dht+=r.dht||0; nht+=r.nht||0; dec+=r.decisions||0; });
-            if(dec < 1) return 'no-data';
-            const mtd = Math.round((dht+nht)/dec);
-            if(mtd <= tgt)       return 'green';
-            if(mtd <= tgt*1.05)  return 'amber';
-            return 'red';
-          };
-          // _classifySW still used for AHT table pill display (inconsistent/bad)
-          const _classifySW = (sw) => {
-            const tgt = SW_TARGETS[sw]?.aht || null;
-            const scored = last6Weeks.map(wk => {
-              const d = swWeekAHT[sw]?.[wk];
-              if(!d || d.dec < 3) return null;
-              const aht = Math.round((d.dht+d.nht)/d.dec);
-              if(!tgt) return null;
-              return aht <= tgt ? 'green' : aht <= tgt*1.20 ? 'amber' : 'red';
-            }).filter(Boolean);
-            if(!scored.length) return 'no-data';
-            const hasRed=scored.includes('red'), hasAmber=scored.includes('amber'), hasGreen=scored.includes('green');
-            if(!hasRed&&!hasAmber) return 'good';
-            if(!hasGreen&&hasRed)  return 'bad';
-            return 'inconsistent';
-          };
-          // Get AHT status for the last baked week only
-          const _getLastBakedAHT = (sw) => {
-            if(!_ahtLastBakedWk) return 'no-data';
-            const tgt = SW_TARGETS[sw]?.aht || null;
-            if(!tgt) return 'no-target';
-            const wkData = swWeekAHT[sw]?.[_ahtLastBakedWk];
-            if(!wkData || wkData.dec < 3) return 'no-data';
-            const aht = Math.round((wkData.dht+wkData.nht)/wkData.dec);
-            if(aht <= tgt)       return 'green';
-            if(aht <= tgt*1.05)  return 'amber';
-            return 'red';
-          };
-          // What happens next: MTD-red OR last baked week red drives focus actions
-          const flaggedAHTSWs = Object.keys(swWeekAHT)
-            .filter(sw => _getMTDOcc(sw) === 'red' || _getLastBakedAHT(sw) === 'red')
-            .sort((a,b) => {
-              // Sort by how far over target MTD is
-              const tgtA=SW_TARGETS[a]?.aht||null, tgtB=SW_TARGETS[b]?.aht||null;
-              const getMTD = (sw) => {
-                const curMonth = last6Weeks[last6Weeks.length-1]?.slice(0,7);
-                if(!curMonth) return 0;
-                let dht=0,nht=0,dec=0;
-                allRvRows.filter(r=>r.sw===sw&&r.week?.slice(0,7)===curMonth)
-                  .forEach(r=>{dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;});
-                return dec>0 ? Math.round((dht+nht)/dec) : 0;
-              };
-              const overA = tgtA ? getMTD(a)/tgtA : 0;
-              const overB = tgtB ? getMTD(b)/tgtB : 0;
-              const isMTDA = _getMTDOcc(a) === 'red';
-              const isMTDB = _getMTDOcc(b) === 'red';
-              if(isMTDA && !isMTDB) return -1;
-              if(!isMTDA && isMTDB) return 1;
-              return overB - overA;
-            });
-          // Inconsistent-but-MTD-green SWs go to "also on radar" only
-          const inconsistentAHTSWs = Object.keys(swWeekAHT)
-            .filter(sw => { const c=_classifySW(sw); return (c==='inconsistent'||c==='bad') && !flaggedAHTSWs.includes(sw); });
-          const hasAHTIssues = flaggedAHTSWs.length > 0;
-          const topAHTSW = flaggedAHTSWs[0] || null;
-          const topAHTTgt = topAHTSW ? (SW_TARGETS[topAHTSW]?.aht || null) : null;
-
-          // ── Clean state? ──────────────────────────────────────────────────────
-          const isClean = !hasActiveErrors && !hasWatchErrors && !hasAHTIssues;
-
-          // ── Signal pills ──────────────────────────────────────────────────────
-          const pillStyle = (bg,c) => `font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;display:inline-flex;align-items:center;gap:5px;background:${bg};color:${c}`;
-          const dotSpan   = (c) => `<span style="width:7px;height:7px;border-radius:50%;background:${c};display:inline-block;flex-shrink:0"></span>`;
-
-          const errPillText = !hasActiveErrors && !hasWatchErrors
-            ? `Errors — clear`
-            : hasActiveErrors
-            ? `Errors — ${activeErrPols.length} active (${activeErrPols.slice(0,3).map(p=>p.pol).join(' · ')}${activeErrPols.length>3?' · …':''})`
-            : `Errors — ${watchErrPols.length} watch (${watchErrPols.slice(0,2).map(p=>p.pol).join(' · ')}${watchErrPols.length>2?' · …':''})`;
-          const errPillBg = !hasActiveErrors&&!hasWatchErrors ? redBg.replace('FEF2F2','DCFCE7') : hasActiveErrors ? redBg : amberBg;
-          const errPillC  = !hasActiveErrors&&!hasWatchErrors ? green : hasActiveErrors ? red : amber;
-          const errDotC   = errPillC;
-
-          const hasAHTInconsistent = inconsistentAHTSWs.length > 0;
-          const _ahtAnyBakedOnly = flaggedAHTSWs.length > 0 && flaggedAHTSWs.some(sw => _getMTDOcc(sw) !== 'red');
-          const ahtPillText = !hasAHTIssues && !hasAHTInconsistent
-            ? 'AHT — on target'
-            : hasAHTIssues
-              ? 'AHT — '+flaggedAHTSWs.slice(0,3).join(' · ')+(flaggedAHTSWs.length>3?' · …':'')+(_ahtAnyBakedOnly?' (last wk)':'')
-              : 'AHT — '+inconsistentAHTSWs.slice(0,2).join(' · ')+(inconsistentAHTSWs.length>2?' · …':'')+' (MTD ok)';
-          const ahtPillBg = !hasAHTIssues && !hasAHTInconsistent ? '#DCFCE7' : hasAHTIssues ? amberBg : '#F4F6F9';
-          const ahtPillC  = !hasAHTIssues && !hasAHTInconsistent ? green : hasAHTIssues ? amber : textMuted;
-
-          const occPillText = !occRangeLo ? null
-            : occInRange
-              ? 'Occupancy — within top 25%'
-              : 'Occupancy — below top 25% range';
-          const occPillBg = occInRange ? '#DCFCE7' : amberBg;
-          const occPillC  = occInRange ? green : amber;
-
-          // pills bar removed
-
-          // ── Helper: bullet row ────────────────────────────────────────────────
-          const bul = (text) => `<div style="display:flex;gap:7px;align-items:flex-start;font-size:11px;color:${textSec};line-height:1.5;margin-bottom:3px">
-            <span style="width:4px;height:4px;border-radius:50%;background:#CBD5E1;flex-shrink:0;margin-top:5px"></span>
-            <span>${text}</span>
-          </div>`;
-
-          // ── Helper: action block row ──────────────────────────────────────────
-          const actionRow = (num, iconBg, iconC, title, bullets, isLast) =>
-            `<div style="display:flex;gap:10px;align-items:flex-start;${isLast?'':'margin-bottom:8px'}">
-              <div style="width:22px;height:22px;border-radius:5px;background:${iconBg};color:${iconC};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">${num}</div>
-              <div style="flex:1;font-size:12px;color:${textSec};line-height:1.6">
-                <strong style="color:${textPri};font-weight:700">${title}</strong>
-                <div style="margin-top:4px">${bullets.map(bul).join('')}</div>
-              </div>
-            </div>`;
-
-          // ── TL bullet row ─────────────────────────────────────────────────────
-          const tlBul = (text) => `<div style="display:flex;gap:7px;align-items:flex-start;font-size:11px;color:${textSec};line-height:1.5;margin-bottom:3px">
-            <span style="width:4px;height:4px;border-radius:50%;background:#A4CAFE;flex-shrink:0;margin-top:5px"></span>
-            <span>${text}</span>
-          </div>`;
-
-          // ── CLEAN STATE ───────────────────────────────────────────────────────
-          if(isClean) {
-            return pills +
-            `<div style="border-radius:8px;border:1px solid ${borderColor};overflow:hidden;margin-bottom:8px">
-              <div style="padding:9px 13px;border-bottom:0.5px solid ${borderColor};background:${lightGray};display:flex;align-items:center;justify-content:space-between">
-                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${textMuted}">Keep it going</span>
-              </div>
-              <div style="padding:11px 13px;background:${surface}">
-                <div style="display:flex;gap:10px;align-items:flex-start">
-                  <div style="width:22px;height:22px;border-radius:5px;background:${greenBg};color:${green};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;margin-top:1px">✓</div>
-                  <div style="flex:1;font-size:12px;color:${textSec};line-height:1.6">
-                    <strong style="color:${textPri};font-weight:700">Strong performance this period — nothing to fix.</strong> Keep doing what you're doing and maintain your consistency.
-                    <div style="margin-top:4px">
-                      ${bul('Share your AHT and quality approaches in the next team meeting — your practices can help the whole team')}
-                      ${bul('Keep checking IPB and CCVE so you stay updated on the latest policy alignment')}
-                      ${bul('Flag any grey areas you encounter — your calibration input matters')}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div style="margin-top:8px">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${textMuted};margin-bottom:5px">Your TL will</div>
-              <div style="font-size:12px;color:${textSec};line-height:1.7;padding:8px 11px;background:${lightGray};border-radius:6px;border-left:2px solid ${blueBd}">
-                ${tlBul("Acknowledge your performance in your next 1:1 and discuss what’s working")}
-                ${tlBul("Tap you to share best practices in the next team calibration or team meeting")}
-              </div>
-            </div>`;
-          }
-
-          // ── ISSUES STATE — consolidated errors + consolidated AHT ──────────────
-          const actions = [];
-
-          // ── Errors: one consolidated action row ───────────────────────────────
-          if(hasActiveErrors) {
-            const polNames = activeErrPols.map(p=>p.pol);
-            const titlePols = polNames.join(' · ');
-            const multi = polNames.length > 1;
-            actions.push({
-              iconBg: redBg, iconC: red,
-              title: titlePols+' — active error '+(multi?'areas':'area')+'.',
-              bullets: [
-                'Go over '+(multi?'these policies':'this policy')+' and make sure you’re clear on where the line is — pay close attention to edge cases',
-                'Escalate any case you’re unsure about — don’t decide solo',
-                'Check IPB and CCVE for the latest alignment on '+(multi?'all of these':'this'),
-                'Consistency goal: 3 clean weeks — zero new errors on '+(multi?'any of these policies':'this policy')
-              ]
-            });
-          } else if(hasWatchErrors) {
-            const polNames = watchErrPols.map(p=>p.pol);
-            const titlePols = polNames.join(' · ');
-            const multi = polNames.length > 1;
-            actions.push({
-              iconBg: amberBg, iconC: amber,
-              title: titlePols+' — watch window. No new errors, but stay sharp.',
-              bullets: [
-                'Review '+(multi?'these policies':'this policy')+' to keep it fresh — especially edge cases',
-                'Continue flagging any uncertain jobs on '+(multi?'these':'this')
-              ]
-            });
-          }
-
-          // ── AHT: one consolidated action row ──────────────────────────────────
-          if(flaggedAHTSWs.length > 0) {
-            const swNames = flaggedAHTSWs.join(' · ');
-            const multi = flaggedAHTSWs.length > 1;
-            const _allMTD = flaggedAHTSWs.every(sw => _getMTDOcc(sw) === 'red');
-            const _allBakedOnly = flaggedAHTSWs.every(sw => _getMTDOcc(sw) !== 'red');
-            const _ahtTitleSuffix = _allMTD
-              ? ' AHT — MTD over target. Check your pacing.'
-              : _allBakedOnly
-              ? ' AHT — last complete week over target. Watch this.'
-              : ' AHT — check your pacing.';
-            const _ahtContextBullet = _allBakedOnly && _ahtLastBakedWk
-              ? 'Your most recent complete week came in over the AHT target — MTD is still ok, but watch for it carrying into this week'
-              : null;
-            // Peer benchmark — find teammate with lowest MTD AHT across most flagged SWs
-            const peerCounts = {};
-            flaggedAHTSWs.forEach(sw => {
-              const curMonth = last6Weeks[last6Weeks.length-1]?.slice(0,7);
-              if(!curMonth) return;
-              const teamAHT = {};
-              RAW_ROWS.filter(r => r.sw===sw && r.week?.slice(0,7)===curMonth && r.reviewer!==rv).forEach(r => {
-                if(!teamAHT[r.reviewer]) teamAHT[r.reviewer] = {dht:0,nht:0,dec:0};
-                teamAHT[r.reviewer].dht += r.dht||0;
-                teamAHT[r.reviewer].nht += r.nht||0;
-                teamAHT[r.reviewer].dec += r.decisions||0;
-              });
-              let best = null, bestAHT = Infinity;
-              Object.entries(teamAHT).forEach(([name, d]) => {
-                if(d.dec < 3) return;
-                const aht = Math.round((d.dht+d.nht)/d.dec);
-                if(aht < bestAHT) { bestAHT=aht; best=name; }
-              });
-              if(best) { peerCounts[best] = (peerCounts[best]||{count:0,totalAHT:0}); peerCounts[best].count++; peerCounts[best].totalAHT+=bestAHT; }
-            });
-            const peerName = Object.entries(peerCounts).sort((a,b) => b[1].count-a[1].count || a[1].totalAHT/a[1].count - b[1].totalAHT/b[1].count)[0]?.[0] || null;
-            const firstName = peerName ? peerName.split(',')[1]?.trim() || peerName.split(' ')[0] : null;
-            actions.push({
-              iconBg: amberBg, iconC: amber,
-              title: swNames+_ahtTitleSuffix,
-              bullets: [
-                ...(_ahtContextBullet ? [_ahtContextBullet] : []),
-                'Track how long your cases are taking — if you’re consistently over, review where the time is going. Are you spending too long on standard cases?',
-                'Flag early — waiting until you’re deep into a job before escalating is where the AHT cost compounds',
-                'Extended review is expected for complex jobs — but don’t slow down on standard cases. Know the difference',
-                'Your AHT clock runs from the moment you open a job. Stay focused on it once it’s open — anything pulling your attention away while a job is active adds to your handle time',
-                ...(firstName ? [firstName+' on your team has consistently low AHT on '+(multi?'these SWs':'this SW')+' — reach out and ask what’s working for them'] : []),
-                'Consistency goal: AHT on target for 3 of the next 4 weeks on '+(multi?'these SWs':'this SW')
-              ]
-            });
-          }
-
-          // ── Occupancy signal (surface only — not a coaching action) ────────────
-          // ── Three-tier occupancy signal (baked week aware) ───────────────────
-          const _today = new Date();
-          const _latestWkDate = last6Weeks[last6Weeks.length-1];
-          const _latestWkEnd  = _latestWkDate ? new Date(_latestWkDate) : null;
-          const _isInProgress = _latestWkEnd && _latestWkEnd >= _today;
-          const _bakedWks     = _isInProgress ? last6Weeks.slice(0,-1) : last6Weeks;
-          const _lastBakedWk  = _bakedWks[_bakedWks.length-1] || null;
-          const _lastBakedOcc = _lastBakedWk && rvOccByWeek[_lastBakedWk]!==undefined ? Math.round(rvOccByWeek[_lastBakedWk]*1000)/10 : null;
-          const _lastBakedBase = _lastBakedWk ? occBaseline[_lastBakedWk] : null;
-          const _lastBakedBelowQ3 = _lastBakedOcc!==null && _lastBakedBase!==null && _lastBakedOcc < _lastBakedBase.lo;
-          const _mtdBelowQ3 = rvOcc!==null && occRangeLo!==null && (rvOcc*100) < occRangeLo;
-          const _last4Baked = _bakedWks.slice(-4);
-          const _belowQ3Count = _last4Baked.filter(wk => {
-            const o=rvOccByWeek[wk]!==undefined?Math.round(rvOccByWeek[wk]*1000)/10:null, b=occBaseline[wk];
-            return o!==null&&b!==null&&o<b.lo;
-          }).length;
-          const _hasOccPattern = _belowQ3Count>=2 && !_mtdBelowQ3 && !_lastBakedBelowQ3;
-          const _ob = (text) => '<div style="display:flex;gap:7px;align-items:flex-start;font-size:11px;color:'+textSec+';line-height:1.5;margin-bottom:3px"><span style="width:4px;height:4px;border-radius:50%;background:#CBD5E1;flex-shrink:0;margin-top:5px"></span><span>'+text+'</span></div>';
-          const _ktb = _ob('Keep track of your unoccupied time &#8212; if teammates are receiving jobs and you&#39;re not, dump and switch back to production right away');
-          const _occNum = (bg,c,n) => '<div style="width:22px;height:22px;border-radius:5px;background:'+bg+';color:'+c+';display:flex;align-items:center;justify-content:center;font-size:'+(typeof n==='number'?'11px':'13px')+';font-weight:700;flex-shrink:0;margin-top:1px">'+n+'</div>';
-          const _occWrap = (icon, title, bullets) => '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">'+icon+'<div style="flex:1;font-size:12px;color:'+textSec+';line-height:1.6"><strong style="color:'+textPri+';font-weight:700">'+title+'</strong><div style="margin-top:4px">'+bullets+'</div></div></div>';
-          const occSignalBlock = (() => {
-            const num = actions.length+1;
-            if(_mtdBelowQ3) return _occWrap(
-              _occNum(amberBg,amber,num),
-              'Occupancy &#8212; your MTD is below the team&#39;s top 25% range.',
-              _ktb+_ob('Your occupancy is lower than the top 25% of your team &#8212; there may be something top performers are doing differently that&#39;s worth picking up')+_ob('Consistency goal: stay within the top 25% range for 3 of the next 4 weeks')
-            );
-            if(_lastBakedBelowQ3 && _lastBakedWk) {
-              const wkLabel = fmtW(_lastBakedWk);
-              return _occWrap(
-                _occNum('#F4F6F9','#555B67',num),
-                'Occupancy &#8212; something to keep an eye on. <span style="font-size:10px;font-weight:500;padding:1px 6px;border-radius:4px;background:#EEF2FF;color:#4338CA;font-family:'+mono+';margin-left:4px">'+wkLabel+'</span> was below the team range.',
-                _ktb+_ob('Your overall MTD looks fine &#8212; but last week dipped. Worth checking if there was a queue issue or something else going on')+_ob('If you weren&#39;t getting jobs consistently that week, flag it to your TL &#8212; they need to know')
-              );
-            }
-            if(_hasOccPattern) return _occWrap(
-              _occNum('#F4F6F9','#8E95A3','&#9873;'),
-              'Occupancy &#8212; no immediate concern, but a pattern worth noting.',
-              _ktb+_ob('You&#39;ve had a few weeks below the team range recently &#8212; your TL is keeping an eye on this and will check in')+_ob('Nothing to action right now &#8212; just stay consistent and flag any job assignment issues as they come up')
-            );
-            return '';
-          })();
-
-          // All errors and AHT are now in focus — no also-on-radar needed
-          const focusErrPols = activeErrPols.map(p=>p.pol);
-          const focusAHTSWs  = flaggedAHTSWs;
-          const alsoFlagged  = ''; // removed
-
-          // Consistency goal
-          const priGoal = topErrPol
-            ? `3 clean weeks — zero new ${topErrPol.pol} errors`
-            : topAHTSW ? `${topAHTSW} AHT on target for 3 of the next 4 weeks` : '';
-          const secGoal = actions[1]
-            ? (actions[1].iconC===red
-                ? `Zero new ${actions[1].title.split(' —')[0]} errors in the next 3 weeks`
-                : `${actions[1].title.split(' AHT')[0]} AHT on target for 3 of the next 4 weeks`)
-            : '';
-
-          const streakTag = (bg,c,lbl) => `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:${bg};color:${c};white-space:nowrap;flex-shrink:0;margin-top:2px">${lbl}</span>`;
-
-          const goalBlock = `<div style="margin-top:8px;padding:10px 13px;border-radius:8px;border:1px solid ${borderColor};background:${surface}">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${textMuted};margin-bottom:8px">Consistency goal</div>
-            ${priGoal ? `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:${secGoal?'6px':'0'}">
-              ${streakTag(redBg,red,'Primary')}
-              <span style="font-size:12px;font-weight:700;color:${textPri};line-height:1.5">${priGoal}</span>
-            </div>` : ''}
-            ${secGoal ? `<div style="display:flex;align-items:flex-start;gap:8px">
-              ${streakTag(amberBg,amber,'Secondary')}
-              <span style="font-size:12px;color:${textSec};line-height:1.5">${secGoal}</span>
-            </div>` : ''}
-            <div style="font-size:11px;color:${textMuted};margin-top:7px">Track it yourself each week. Bring your progress to your 1:1.</div>
-          </div>`;
-
-          // TL block
-          const tlLines = [
-            `Schedule a 1:1 coaching session — review the top focus area with job-level examples`,
-            `Run spot checks on decisions in ${[...focusErrPols, ...focusAHTSWs].join(' and ')||'flagged areas'} this week`,
-            `Include ${focusErrPols[0]||focusAHTSWs[0]||'top issue'} in the next team calibration session`
-          ];
-          // all items now in focus — no sequencing note needed
-          if(!occInRange && occRangeLo!==null) {
-            tlLines.push(`Review what top performers (Q3–Q4 occupancy) are doing differently and share those practices with this reviewer`);
-            tlLines.push(`Check job assignment patterns on weeks occupancy dropped — if it’s a routing or tool issue, escalate it`);
-          }
-
-          const tlBlock = `<div style="margin-top:8px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${textMuted};margin-bottom:5px">Your TL will</div>
-            <div style="font-size:12px;color:${textSec};line-height:1.7;padding:8px 11px;background:${lightGray};border-radius:6px;border-left:2px solid ${blueBd}">
-              ${tlLines.map(tlBul).join('')}
-            </div>
-          </div>`;
-
-          const focusBlock = `<div style="border-radius:8px;border:1px solid ${borderColor};overflow:hidden">
-            <div style="padding:9px 13px;border-bottom:0.5px solid ${borderColor};background:${lightGray};display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${textMuted}">This week's focus</span>
-              <span style="font-size:10px;color:${textMuted}">${actions.length} item${actions.length===1?'':'s'}</span>
-            </div>
-            <div style="padding:11px 13px;background:${surface}">
-              ${actions.map((a,i) => {
-                const sep = i < actions.length-1 ? `<div style="height:0.5px;background:${divider};margin:9px 0"></div>` : '';
-                return actionRow(i+1, a.iconBg, a.iconC, a.title, a.bullets, i===actions.length-1&&!occSignalBlock) + sep;
-              }).join('')}
-              ${occSignalBlock}
-              ${(actions.length>0||occSignalBlock) ? `<div style="height:0.5px;background:${divider};margin:9px 0"></div>` : ''}
-              <div style="margin-top:2px">
-                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${textMuted};margin-bottom:5px">Your TL will</div>
-                <div style="font-size:12px;color:${textSec};line-height:1.7;padding:8px 11px;background:${lightGray};border-radius:6px;border-left:2px solid ${blueBd}">
-                  ${tlLines.map(tlBul).join('')}
-                </div>
-              </div>
-            </div>
-          </div>`;
-
-          return focusBlock;
-        })()}
-
+        ${rvSecHead('What happens next', purple)}
+        <div style="font-size:11px;color:${textMuted};margin-bottom:8px">Agreed focus and actions for next week · signed by reviewer and TL</div>
+        ${focusCard}
         ${'<div style="text-align:right;margin:8px 0">'
         +'<button class="copy-btn" onclick="(async function(b){try{var s=document.getElementById(\'sec2\');var h=s.innerHTML;await navigator.clipboard.write([new ClipboardItem({\'text/html\':new Blob([h],{type:\'text/html\'}),\'text/plain\':new Blob([s.innerText],{type:\'text/plain\'})})]);b.textContent=\'\\u2713 Copied!\';setTimeout(()=>b.textContent=\'\\uD83D\uDCCB Copy section 2\',1500);}catch(e){b.textContent=\'\\u2717 Failed\'}})(this)">\uD83D\uDCCB Copy section 2</button>'
         +'</div>'}
+        </div>
         </div>`;
     }
+
 
     // All-time error rows for Error History table (replaces recent60 in reviewer doc)
     const allRvErrors = allRvRows.filter(r => r.pol && (r.fpa+r.fna)>0)
