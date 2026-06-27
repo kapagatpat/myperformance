@@ -2308,7 +2308,9 @@ function getSwTargets(sw, wf) {
     if(typeof sw === 'string' && sw.toUpperCase().includes('MHE')) {
         const accBand = BAND_TARGETS[sw]?.['-'] || BAND_TARGETS['Overall']?.['-'];
         return {
-            acc: accBand?.['Accuracy']?.ach || 0.95,
+            acc:  accBand?.['Accuracy']?.ach  || 0.95,
+            prec: accBand?.['Precision']?.ach || 0.97,
+            rec:  accBand?.['Recall']?.ach    || 0.95,
             aht: 15,
             accBands: accBand?.['Accuracy'] || null,
             ahtBands: {exc:10, ach:15, app:20, ni:30}
@@ -2340,12 +2342,16 @@ function getSwTargets(sw, wf) {
         return null;
     }
 
-    const accBand = resolveMetric('Accuracy');
-    const ahtBand = resolveMetric('AHT');
+    const accBand  = resolveMetric('Accuracy');
+    const precBand = resolveMetric('Precision');
+    const recBand  = resolveMetric('Recall');
+    const ahtBand  = resolveMetric('AHT');
 
     return {
-        acc:  accBand ? accBand.ach : (BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96),
-        aht:  ahtBand ? ahtBand.ach : null,
+        acc:  accBand  ? accBand.ach  : (BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach  || 0.96),
+        prec: precBand ? precBand.ach : (BAND_TARGETS['Overall']?.['-']?.['Precision']?.ach || 0.96),
+        rec:  recBand  ? recBand.ach  : (BAND_TARGETS['Overall']?.['-']?.['Recall']?.ach    || 0.96),
+        aht:  ahtBand  ? ahtBand.ach  : null,
         // Full bands for status labelling (optional use)
         accBands: accBand,
         ahtBands: ahtBand
@@ -14457,18 +14463,22 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         const tot=s.tpa+s.fpa+s.fna+s.tna;
         if(tot===0) return noData;
         const moHighAR = moARMap[mo]!==null && moARMap[mo]>=0.10;
-        const tgt = (typeof SW_TARGETS!=='undefined'&&SW_TARGETS[sw]?.acc)||ACC_TGT;
+        const swTgtObj = (typeof SW_TARGETS!=='undefined') ? SW_TARGETS[sw] : null;
+        const accTgt  = swTgtObj?.acc  || ACC_TGT;
+        const precTgt = swTgtObj?.prec || ACC_TGT;
+        const recTgt  = swTgtObj?.rec  || ACC_TGT;
         const prec=(s.tpa+s.fpa)>0?s.tpa/(s.tpa+s.fpa):null;
         const rec =(s.tpa+s.fna)>0?s.tpa/(s.tpa+s.fna):null;
         const acc =tot>0?(s.tpa+s.tna)/tot:null;
-        const met = moHighAR ? (prec!==null&&prec>=tgt&&rec!==null&&rec>=tgt) : (acc!==null&&acc>=tgt);
-        const bg  = met ? '#DCFCE7' : '#FEF2F2';
-        const c   = met ? green : red;
+        // Color-coding: AR≥10% → P&R active; AR<10% → Acc active
+        const accMet  = acc!==null  && acc>=accTgt;
+        const precMet = prec!==null && prec>=precTgt;
+        const recMet  = rec!==null  && rec>=recTgt;
         return {
-            prec: prec!==null?(prec*100).toFixed(1)+'%':'—',
-            rec:  rec!==null?(rec*100).toFixed(1)+'%':'—',
-            acc:  acc!==null?(acc*100).toFixed(1)+'%':'—',
-            bg, c, fw:'700', moHighAR, hasData:true
+            prec:    prec!==null?(prec*100).toFixed(1)+'%':'—',
+            rec:     rec!==null?(rec*100).toFixed(1)+'%':'—',
+            acc:     acc!==null?(acc*100).toFixed(1)+'%':'—',
+            accMet, precMet, recMet, moHighAR, hasData:true
         };
     };
 
@@ -14522,18 +14532,16 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         ? `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No QA data found for this reviewer in the last 3 months.</div>`
         : (() => {
         // 4 data cols per month: Acc, P, R, AHT
-        const totalCols = 2 + last3Months.length * 4;
+        const totalCols = 1 + last3Months.length * 4;
         return `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
-          <table style="width:100%;min-width:620px;border-collapse:collapse;font-size:10px">
+          <table style="width:100%;min-width:560px;border-collapse:collapse;font-size:10px">
             <colgroup>
-              <col style="width:17%">
-              <col style="width:9%">
+              <col style="width:20%">
               ${last3Months.map(()=>`<col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:7%">`).join('')}
             </colgroup>
             <thead>
               <tr style="background:${lightGray}">
                 <th rowspan="2" style="padding:5px 8px;text-align:left;font-size:9px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em;vertical-align:bottom;white-space:nowrap">Sub-workflow</th>
-                <th rowspan="2" style="padding:5px 6px;text-align:center;font-size:9px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.04em;vertical-align:bottom;border-left:1px solid ${borderColor}">Target</th>
                 ${last3Months.map((mo) => {
                     const isCurr=mo===currMonth;
                     return `<th colspan="4" style="padding:4px 6px;text-align:center;font-size:9px;font-weight:700;color:${isCurr?textPri:textSec};${isCurr?'background:#EEF2FF;':''}border-left:1px solid ${borderColor};border-bottom:0.5px solid ${divider};white-space:nowrap">${fmtMonth(mo)}</th>`;
@@ -14543,10 +14551,9 @@ function generateReviewerMonthlyDoc(mcdConfig) {
                 ${last3Months.map((mo) => {
                     const isCurr=mo===currMonth;
                     const bg=isCurr?';background:#EEF2FF':'';
-                    const bgAHT=isCurr?';background:#ECEEF2':'';
                     const bl=`border-left:1px solid ${borderColor}`;
                     const th=(lbl,extra='')=>`<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${extra}">${lbl}</th>`;
-                    return th('Acc',`${bl}${bg}`) + th('P',bg) + th('R',bg) + th('AHT',bgAHT);
+                    return th('Acc',`${bl}${bg}`) + th('P',bg) + th('R',bg) + th('AHT',bg);
                 }).join('')}
               </tr>
             </thead>
@@ -14561,39 +14568,50 @@ function generateReviewerMonthlyDoc(mcdConfig) {
                   swList.map((sw, idx) => {
                       const isLast = idx===swList.length-1 && wf===wfOrder[wfOrder.length-1];
                       const swTgt = SW_TARGETS[sw];
-                      const accTgtVal = swTgt?.acc ? (swTgt.acc*100).toFixed(0)+'%' : (ACC_TGT*100).toFixed(0)+'%';
-                      const ahtTgtVal = swTgt?.aht ? swTgt.aht+'s' : '\u2014';
-                      // Target cell: Acc & P&R share same threshold; show both labels clearly
-                      const tgtCell = `<div style="font-size:8px;color:${textMuted};margin-bottom:1px">Acc / P&R</div>`
-                                    + `<div style="font-size:8.5px;font-weight:700;color:${textSec}">${accTgtVal}</div>`
-                                    + `<div style="font-size:8px;color:${textMuted};margin-top:2px">AHT</div>`
-                                    + `<div style="font-size:8.5px;font-weight:700;color:${textSec}">${ahtTgtVal}</div>`;
+                      const accTgtVal  = swTgt?.acc  ? (swTgt.acc*100).toFixed(0)+'%'  : (ACC_TGT*100).toFixed(0)+'%';
+                      const precTgtVal = swTgt?.prec ? (swTgt.prec*100).toFixed(0)+'%' : accTgtVal;
+                      const recTgtVal  = swTgt?.rec  ? (swTgt.rec*100).toFixed(0)+'%'  : accTgtVal;
+                      const ahtTgtVal  = swTgt?.aht  ? swTgt.aht+'s' : '\u2014';
+                      // Show separate P&R targets if they differ from Acc
+                      const prSame = precTgtVal===accTgtVal && recTgtVal===accTgtVal;
+                      const tgtLine = prSame
+                          ? `Acc/P&R ${accTgtVal} · AHT ${ahtTgtVal}`
+                          : `Acc ${accTgtVal} · P ${precTgtVal} · R ${recTgtVal} · AHT ${ahtTgtVal}`;
                       return `<tr style="border-bottom:${isLast?'none':'0.5px solid '+divider}">
-                        <td style="padding:5px 8px 5px 12px;font-size:10px;font-weight:600;white-space:nowrap">${sw}</td>
-                        <td style="padding:4px 6px;text-align:center;border-left:1px solid ${borderColor};background:${lightGray};vertical-align:middle">${tgtCell}</td>
+                        <td style="padding:5px 8px 5px 12px;vertical-align:middle">
+                          <div style="font-size:10px;font-weight:600;white-space:nowrap;color:${textPri}">${sw}</div>
+                          <div style="font-size:8.5px;color:${textMuted};margin-top:1px;white-space:nowrap">${tgtLine}</div>
+                        </td>
                         ${last3Months.map((mo) => {
                             const cs = qaCell(sw, mo);
                             const isCurr = mo===currMonth;
                             const bl = `border-left:1px solid ${borderColor};`;
-                            // QA cells: color only when hasData, else plain muted
-                            const qaBg = cs.hasData ? cs.bg : 'transparent';
-                            const qaC  = cs.hasData ? cs.c  : textMuted;
-                            const qaFw = cs.hasData ? cs.fw : '400';
-                            const qaStyle = (extra='') => `padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${qaFw};color:${qaC};background:${qaBg};${extra}`;
-                            // AHT cell: color only when hasData (dec>=5 and target exists)
-                            const ahtD = swAHTByMonth[sw]?.[mo];
+                            // Helper: cell bg/color based on active metric and hasData
+                            const qc = (met, active) => {
+                                if(!cs.hasData) return {bg:'transparent',c:textMuted,fw:'400'};
+                                if(!active) return {bg:'transparent',c:textSec,fw:'400'};
+                                return met ? {bg:'#DCFCE7',c:green,fw:'700'} : {bg:'#FEF2F2',c:red,fw:'700'};
+                            };
+                            const highAR = cs.moHighAR;
+                            const accSt  = qc(cs.accMet,  !highAR);
+                            const precSt = qc(cs.precMet,  highAR);
+                            const recSt  = qc(cs.recMet,   highAR);
+                            const td = (val, st, extra='') =>
+                                `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${st.fw};color:${st.c};background:${st.bg};${extra}">${val}</td>`;
+                            // AHT
+                            const ahtD   = swAHTByMonth[sw]?.[mo];
                             const ahtDec = ahtD?.dec||0;
-                            const ahtV = ahtD&&ahtDec>=1 ? Math.round((ahtD.dht+ahtD.nht)/ahtDec) : null;
+                            const ahtV   = ahtD&&ahtDec>=1 ? Math.round((ahtD.dht+ahtD.nht)/ahtDec) : null;
                             const ahtTgtV = swTgt?.aht||null;
                             let ahtBg='transparent', ahtC=textMuted, ahtFw='400';
                             if(ahtV!==null && ahtDec>=5 && ahtTgtV) {
-                                const cs2 = ahtCellStyle(ahtV, ahtTgtV, false);
-                                ahtBg=cs2.bg; ahtC=cs2.c; ahtFw=cs2.fw;
+                                const a = ahtCellStyle(ahtV, ahtTgtV, false);
+                                ahtBg=a.bg; ahtC=a.c; ahtFw=a.fw;
                             }
                             const ahtTxt = ahtV!==null ? String(ahtV) : '\u2014';
-                            return `<td style="${qaStyle(bl)}">${cs.acc}</td>`
-                                 + `<td style="${qaStyle()}">${cs.prec}</td>`
-                                 + `<td style="${qaStyle()}">${cs.rec}</td>`
+                            return td(cs.acc,  accSt,  bl)
+                                 + td(cs.prec, precSt, '')
+                                 + td(cs.rec,  recSt,  '')
                                  + `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${ahtFw};color:${ahtC};background:${ahtBg}">${ahtTxt}</td>`;
                         }).join('')}
                       </tr>`;
