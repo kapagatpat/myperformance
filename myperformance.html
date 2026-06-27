@@ -14233,18 +14233,47 @@ function generateReviewerMonthlyDoc(mcdConfig) {
     const winSecLbl = lbl => `<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:${textMuted};margin-bottom:7px;margin-top:12px">${lbl}</div>`;
     const divLine = `<div style="height:0.5px;background:${divider};margin:8px 0"></div>`;
 
-    // Quality wins
+    // Quality wins — focus on P&R or Accuracy met, with which SWs passed
     const errCountCurr = currRows.reduce((s,r)=>s+(r.fpa||0)+(r.fna||0),0);
     const cleanWeeks   = (() => {
         const wks = [...new Set(currRows.map(r=>r.week))].sort();
         return wks.filter(wk => !currRows.some(r=>r.week===wk&&(r.fpa||0)+(r.fna||0)>0)).length;
     })();
     const totalWeeks = [...new Set(currRows.map(r=>r.week))].length;
-    const accOk = currStats.acc!==null && currStats.acc >= ACC_TGT;
+    const _highAR_w = currStats.ar !== null && currStats.ar >= 0.10;
+
+    // Per-SW quality wins: SWs that met target this month
+    const swQualWinMap = {};
+    currRows.forEach(r => {
+        if(!r.sw) return;
+        if(!swQualWinMap[r.sw]) swQualWinMap[r.sw] = {tpa:0,fpa:0,fna:0,tna:0};
+        const s = swQualWinMap[r.sw];
+        s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0;
+    });
+    const swsMetTarget = Object.entries(swQualWinMap).filter(([sw, s]) => {
+        const tot = s.tpa+s.fpa+s.fna+s.tna;
+        if(tot===0) return false;
+        const tgt = (typeof SW_TARGETS!=='undefined'&&SW_TARGETS[sw]?.acc) ? SW_TARGETS[sw].acc : 0.96;
+        const acc = (s.tpa+s.tna)/tot;
+        const prec = (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
+        const rec  = (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
+        if(_highAR_w) return prec!==null && prec>=tgt && rec!==null && rec>=tgt;
+        return acc >= tgt;
+    }).map(([sw])=>sw);
 
     const qualWins = [];
-    if(accOk) qualWins.push(winRow('ok', `Accuracy above target for the full month (${pct(currStats.acc)}) \u2014 consistent and on track.`));
-    if(cleanWeeks > 0) qualWins.push(winRow('ok', `${cleanWeeks} of ${totalWeeks} weeks were error-free across all sub-workflows.`));
+    if(_highAR_w) {
+        const precOk = currStats.prec!==null && currStats.prec>=ACC_TGT;
+        const recOk  = currStats.rec!==null  && currStats.rec>=ACC_TGT;
+        if(precOk && recOk) qualWins.push(winRow('ok', `Precision (${pct(currStats.prec)}) and Recall (${pct(currStats.rec)}) both on target this month \u2014 quality held.`));
+        else if(precOk)     qualWins.push(winRow('ok', `Precision on target (${pct(currStats.prec)}) \u2014 low FP rate maintained.`));
+        else if(recOk)      qualWins.push(winRow('ok', `Recall on target (${pct(currStats.rec)}) \u2014 strong enforcement decisions.`));
+    } else {
+        const accOk = currStats.acc!==null && currStats.acc>=ACC_TGT;
+        if(accOk) qualWins.push(winRow('ok', `Accuracy on target this month (${pct(currStats.acc)}) \u2014 consistent and on track.`));
+    }
+    if(swsMetTarget.length>0) qualWins.push(winRow('ok', `Met quality target in: ${swsMetTarget.slice(0,4).join(', ')}${swsMetTarget.length>4?' and '+(swsMetTarget.length-4)+' more':''}.`));
+    if(cleanWeeks > 0) qualWins.push(winRow('ok', `${cleanWeeks} of ${totalWeeks} week${totalWeeks!==1?'s':''} were error-free across all sub-workflows.`));
 
     // AHT wins
     const ahtWins = [];
@@ -14274,19 +14303,62 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         <div id="occ-win-placeholder" style="font-size:12px;color:${textSec}">Computed with occupancy data below.</div>
       </div>`;
 
-    // ── Overall quality — last 6 months (KPI rows, month columns) ─────────────
+    // ── Overall performance — last 6 months (KPI rows, month columns) ─────────
     const moStats = {};
     last6Months.forEach(mo => {
         const rows = allRvRows.filter(r=>r.month===mo);
         moStats[mo] = sumStats(rows);
     });
 
+    // Per-month absenteeism from WFM_LOOKUP
+    // Map week → month so we can bucket sched/actual per month
+    const moAbsRate = {};
+    if(typeof WFM_LOOKUP!=='undefined'){
+        const wkToMo = {};
+        allRvRows.forEach(r=>{ if(r.week&&r.month) wkToMo[r.week]=r.month; });
+        const moAbs = {};
+        Object.entries(WFM_LOOKUP).forEach(([key,w])=>{
+            const parts=key.split('|'); if(parts.length!==2) return;
+            const rvKey=parts[0], wk=parts[1];
+            if(rvKey.trim()!==rv.trim()) return;
+            const mo=wkToMo[wk]; if(!mo) return;
+            if(!moAbs[mo]) moAbs[mo]={sched:0,actual:0};
+            moAbs[mo].sched+=w.sched||0; moAbs[mo].actual+=w.actual||0;
+        });
+        last6Months.forEach(mo=>{
+            const a=moAbs[mo];
+            moAbsRate[mo]=a&&a.sched>0?Math.max(0,(a.sched-a.actual)/a.sched):null;
+        });
+    }
+
     const qKPIs = [
-        { lbl:'Accuracy',    fn: s => s.acc,  fmt: pct,  tgt: ACC_TGT, higher: true  },
-        { lbl:'Precision',   fn: s => s.prec, fmt: pct,  tgt: ACC_TGT, higher: true  },
-        { lbl:'Recall',      fn: s => s.rec,  fmt: pct,  tgt: ACC_TGT, higher: true  },
-        { lbl:'Action rate', fn: s => s.ar,   fmt: pct,  tgt: null,    higher: null  },
-        { lbl:'Audits',      fn: s => s.aud,  fmt: v=>Math.round(v).toString(), tgt: null, higher: null },
+        { lbl:'Accuracy',    fn: s=>s.acc,  fmt: pct, tgt: ACC_TGT, higher:true,  arGate:'low'  },
+        { lbl:'Precision',   fn: s=>s.prec, fmt: pct, tgt: ACC_TGT, higher:true,  arGate:'high' },
+        { lbl:'Recall',      fn: s=>s.rec,  fmt: pct, tgt: ACC_TGT, higher:true,  arGate:'high' },
+        { lbl:'Action rate', fn: s=>s.ar,   fmt: pct, tgt: null,    higher:null,  arGate:null   },
+        { lbl:'Audits',      fn: s=>s.aud,  fmt: v=>Math.round(v).toString(), tgt:null, higher:null, arGate:null },
+        { lbl:'Decisions',   fn: s=>s.dec,  fmt: v=>Math.round(v).toLocaleString(), tgt:null, higher:null, arGate:null },
+        { lbl:'AHT (s)',     fn: s=>s.aht,  fmt: v=>v!==null?v.toFixed(1)+'s':'—', tgt:null, higher:false, arGate:null,
+          cellFn: (v, mo) => {
+              if(v===null) return {bg:'transparent',c:textMuted,fw:'400'};
+              const moRows=allRvRows.filter(r=>r.month===mo);
+              const jt=calcJobTarget?calcJobTarget(moRows):null;
+              const tgtV=jt?.weightedAHTTarget||null;
+              if(!tgtV) return {bg:'transparent',c:textSec,fw:'400'};
+              if(v<=tgtV) return {bg:'#DCFCE7',c:green,fw:'700'};
+              if(v<=tgtV*1.05) return {bg:'#FEF3C7',c:amber,fw:'700'};
+              return {bg:'#FEF2F2',c:red,fw:'700'};
+          }
+        },
+        { lbl:'NHT %',       fn: s=>s.dht+s.nht>0?s.nht/(s.dht+s.nht):null, fmt: pct, tgt:null, higher:null, arGate:null },
+        { lbl:'Absent %',    fn: (s,mo)=>moAbsRate[mo]??null, fmt: v=>(v*100).toFixed(1)+'%', tgt:0.05, higher:false, arGate:null,
+          cellFn: (v) => {
+              if(v===null) return {bg:'transparent',c:textMuted,fw:'400'};
+              if(v<=0.05) return {bg:'#DCFCE7',c:green,fw:'700'};
+              if(v<=0.10) return {bg:'#FEF3C7',c:amber,fw:'700'};
+              return {bg:'#FEF2F2',c:red,fw:'700'};
+          }
+        },
     ];
 
     const qColW = `${Math.round(80/last6Months.length)}%`;
@@ -14311,90 +14383,133 @@ function generateReviewerMonthlyDoc(mcdConfig) {
               <td style="padding:6px 10px;font-size:11px;font-weight:600;color:${textMuted};background:${lightGray};white-space:nowrap">${kpi.lbl}</td>
               ${last6Months.map((mo,i) => {
                   const s = moStats[mo];
-                  const v = s ? kpi.fn(s) : null;
+                  const v = s ? kpi.fn(s, mo) : null;
                   const isCurr = mo === currMonth;
                   const moAR = s ? s.ar : null;
                   const moHighAR = moAR !== null && moAR >= 0.10;
-                  let c = textSec;
-                  if(v !== null && kpi.tgt !== null && kpi.higher !== null) {
-                      if(kpi.lbl === 'Accuracy')  c = moHighAR ? textMuted : col(v);
-                      else if(kpi.lbl === 'Precision' || kpi.lbl === 'Recall') c = moHighAR ? col(v) : textMuted;
-                      else c = col(v);
+                  let bg, c, fw;
+                  if(kpi.cellFn) {
+                      const cs = kpi.cellFn(v, mo);
+                      bg = cs.bg; c = cs.c; fw = cs.fw;
+                  } else {
+                      c = textSec; bg = isCurr ? '#EEF2FF' : 'transparent'; fw = isCurr ? '700' : '400';
+                      if(v !== null && kpi.tgt !== null && kpi.higher !== null) {
+                          const active = kpi.arGate==='high' ? moHighAR : kpi.arGate==='low' ? !moHighAR : true;
+                          if(active) {
+                              c = kpi.higher ? col(v) : (v<=kpi.tgt?green:v<=kpi.tgt*1.1?amber:red);
+                              bg = c===green?'#DCFCE7':c===red?'#FEF2F2':c===amber?'#FEF3C7':isCurr?'#EEF2FF':'transparent';
+                              fw = (c===green||c===red||c===amber)?'700':(isCurr?'700':'400');
+                          } else { c = textMuted; bg = isCurr?'#EEF2FF':'transparent'; fw = isCurr?'700':'400'; }
+                      }
                   }
                   const disp = v!==null ? kpi.fmt(v) : '\u2014';
-                  const cellBg = c===green ? '#DCFCE7' : c===red ? '#FEF2F2' : c===amber ? '#FEF3C7' : isCurr ? '#EEF2FF' : 'transparent';
-                  const fw = (c===green||c===red||c===amber) ? 700 : (isCurr ? 700 : 400);
-                  return `<td style="padding:6px 10px;text-align:right;font-family:${mono};font-size:12px;font-weight:${fw};color:${c};background:${cellBg};border-left:${isCurr?'1px solid '+borderColor:'none'}">${disp}</td>`;
+                  return `<td style="padding:6px 10px;text-align:right;font-family:${mono};font-size:12px;font-weight:${fw};color:${c};background:${bg};border-left:${isCurr?'1px solid '+borderColor:'none'}">${disp}</td>`;
               }).join('')}
             </tr>`).join('')}
           </tbody>
         </table>
       </div>`;
 
-    // ── Error history — this month (weekly doc format) ──────────────────────
-    const latestWk = WEEKS.length ? WEEKS[WEEKS.length-1] : allRvRows.map(r=>r.week).sort().pop();
-    const msDay = 86400000;
-    const errRows = allRvRows.filter(r => r.pol && (r.fpa||0)+(r.fna||0)>0);
-    const polMap = {};
-    errRows.forEach(r => {
-        if(!polMap[r.pol]) polMap[r.pol] = {pol:r.pol, sws:new Set(), fp:0, fn:0, active:0, watch:0, hist:0};
-        const g = polMap[r.pol];
-        if(r.sw) g.sws.add(r.sw);
-        g.fp+=r.fpa||0; g.fn+=r.fna||0;
-    });
-    // Compute strike windows from all-time rows
-    Object.values(polMap).forEach(g => {
-        allRvRows.filter(r=>r.pol===g.pol&&(r.fpa+r.fna)>0).forEach(r=>{
-            const days=(new Date(latestWk)-new Date(r.week))/msDay;
-            if(days<=60) g.active++; else if(days<=120) g.watch++; else g.hist++;
+    // ── QA — last 6 months by sub-workflow ───────────────────────────────────
+    // Build per-SW per-month quality data
+    const swQAByMonth = {};
+    allRvRows.forEach(r => {
+        if(!r.sw) return;
+        last6Months.forEach(mo => {
+            if(r.month!==mo) return;
+            if(!swQAByMonth[r.sw]) swQAByMonth[r.sw] = {};
+            if(!swQAByMonth[r.sw][mo]) swQAByMonth[r.sw][mo] = {tpa:0,fpa:0,fna:0,tna:0};
+            const s=swQAByMonth[r.sw][mo];
+            s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0;
         });
     });
-    const sortedPolRows = Object.values(polMap).sort((a,b)=>(b.fn+b.fp)-(a.fn+a.fp));
+    // Exclude SWs with zero audits across all 6 months
+    const swsWithQA = Object.keys(swQAByMonth).filter(sw =>
+        last6Months.some(mo => {
+            const s=swQAByMonth[sw][mo];
+            return s && (s.tpa+s.fpa+s.fna+s.tna)>0;
+        })
+    ).sort();
 
-    const strikeBadgeHTMLS = g => {
-        const parts=[];
-        if(g.active>0) parts.push(`<span style="background:${redBg};color:${red};border-radius:999px;font-size:10px;font-weight:600;padding:1px 7px">Active ${g.active}</span>`);
-        if(g.watch>0)  parts.push(`<span style="background:${amberBg};color:${amber};border-radius:999px;font-size:10px;font-weight:600;padding:1px 7px">Watch ${g.watch}</span>`);
-        if(g.hist>0)   parts.push(`<span style="background:${lightGray};color:${textMuted};border-radius:999px;font-size:10px;font-weight:600;padding:1px 7px">Hist ${g.hist}</span>`);
-        if(!parts.length) parts.push(`<span style="background:${lightGray};color:${textMuted};border-radius:999px;font-size:10px;font-weight:600;padding:1px 7px">Resolved</span>`);
-        return `<div style="display:flex;gap:3px;flex-wrap:wrap">${parts.join('')}</div>`;
+    // Per-month AR for each cell (for AR-gating)
+    const moARMap = {};
+    last6Months.forEach(mo=>{ const s=moStats[mo]; moARMap[mo]=s?s.ar:null; });
+
+    const qaCell = (sw, mo) => {
+        const s = swQAByMonth[sw]?.[mo];
+        const isCurr = mo===currMonth;
+        const baseBg = isCurr?'#EEF2FF':'transparent';
+        if(!s) return {prec:'—',rec:'—',acc:'—',bg:baseBg,c:textMuted,fw:'400'};
+        const tot=s.tpa+s.fpa+s.fna+s.tna;
+        if(tot===0) return {prec:'—',rec:'—',acc:'—',bg:baseBg,c:textMuted,fw:'400'};
+        const moHighAR = moARMap[mo]!==null && moARMap[mo]>=0.10;
+        const tgt = (typeof SW_TARGETS!=='undefined'&&SW_TARGETS[sw]?.acc)||ACC_TGT;
+        const prec=(s.tpa+s.fpa)>0?s.tpa/(s.tpa+s.fpa):null;
+        const rec =(s.tpa+s.fna)>0?s.tpa/(s.tpa+s.fna):null;
+        const acc =tot>0?(s.tpa+s.tna)/tot:null;
+        const met = moHighAR ? (prec!==null&&prec>=tgt&&rec!==null&&rec>=tgt) : (acc!==null&&acc>=tgt);
+        const bg  = met ? '#DCFCE7' : '#FEF2F2';
+        const c   = met ? green : red;
+        return {
+            prec: prec!==null?(prec*100).toFixed(1)+'%':'—',
+            rec:  rec!==null?(rec*100).toFixed(1)+'%':'—',
+            acc:  acc!==null?(acc*100).toFixed(1)+'%':'—',
+            bg, c, fw:'700', moHighAR
+        };
     };
 
-    const errTable = sortedPolRows.length === 0
-        ? `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No errors on record \u2014 clean record.</div>`
+    const qaColW = `${Math.round(66/last6Months.length)}%`;
+    const errTable = swsWithQA.length === 0
+        ? `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No QA data found for this reviewer in the last 6 months.</div>`
         : `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
-            <colgroup><col style="width:26%"><col style="width:22%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:25%"></colgroup>
-            <thead><tr style="background:${lightGray}">
-              <th style="padding:6px 9px;text-align:left;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em">Policy</th>
-              <th style="padding:6px 9px;text-align:left;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em">SWs hit</th>
-              <th style="padding:6px 9px;text-align:center;font-size:10px;font-weight:700;color:${red};text-transform:uppercase;letter-spacing:.06em">Active</th>
-              <th style="padding:6px 9px;text-align:center;font-size:10px;font-weight:700;color:${amber};text-transform:uppercase;letter-spacing:.06em">Watch</th>
-              <th style="padding:6px 9px;text-align:center;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em">Historical</th>
-              <th style="padding:6px 9px;text-align:left;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em">Last error</th>
-            </tr></thead>
+          <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
+            <colgroup>
+              <col style="width:19%">
+              ${last6Months.map(()=>`<col style="width:${qaColW}"><col style="width:${qaColW}">`).join('')}
+            </colgroup>
+            <thead>
+              <tr style="background:${lightGray}">
+                <th rowspan="2" style="padding:5px 9px;text-align:left;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em;vertical-align:bottom">Sub-workflow</th>
+                ${last6Months.map((mo) => {
+                    const isCurr=mo===currMonth;
+                    const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
+                    return `<th colspan="2" style="padding:4px 9px;text-align:center;font-size:10px;font-weight:700;color:${isCurr?textPri:textSec};${isCurr?'background:#EEF2FF;':''}border-left:1px solid ${borderColor};border-bottom:0.5px solid ${divider}">${fmtMonth(mo)}<span style="font-size:9px;font-weight:400;color:${textMuted};margin-left:4px">${moHighAR?'P&R':'Acc'}</span></th>`;
+                }).join('')}
+              </tr>
+              <tr style="background:${lightGray}">
+                ${last6Months.map((mo) => {
+                    const isCurr=mo===currMonth;
+                    const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
+                    const lbls=moHighAR?['P','R']:['Acc',''];
+                    return `<th style="padding:3px 6px;text-align:center;font-size:9px;font-weight:600;color:${textMuted};border-left:1px solid ${borderColor}${isCurr?';background:#EEF2FF':''}">${lbls[0]}</th>`
+                          +`<th style="padding:3px 6px;text-align:center;font-size:9px;font-weight:600;color:${textMuted}${isCurr?';background:#EEF2FF':''}">${lbls[1]}</th>`;
+                }).join('')}
+              </tr>
+            </thead>
             <tbody>
-              ${sortedPolRows.map((g,i) => {
-                  const lastErrWk = allRvRows.filter(r=>r.pol===g.pol&&(r.fpa+r.fna)>0).map(r=>r.week).sort().pop();
-                  const daysAgo = lastErrWk ? Math.round((new Date(latestWk)-new Date(lastErrWk))/msDay) : null;
-                  const lastLbl = lastErrWk ? fmtW(lastErrWk) : '\u2014';
-                  const isLast = i===sortedPolRows.length-1;
-                  const actBg = g.active>0 ? redBg   : lightGray;
-                  const actC  = g.active>0 ? red     : textMuted;
-                  const wchBg = g.watch>0  ? amberBg : lightGray;
-                  const wchC  = g.watch>0  ? amber   : textMuted;
-                  const hisBg = g.hist>0   ? lightGray : lightGray;
-                  const hisC  = g.hist>0   ? textSec  : textMuted;
+              ${swsWithQA.map((sw, idx) => {
+                  const isLast=idx===swsWithQA.length-1;
                   return `<tr style="border-bottom:${isLast?'none':'0.5px solid '+divider}">
-                    <td style="padding:7px 9px;font-size:12px;font-weight:600">${g.pol}</td>
-                    <td style="padding:7px 9px;font-size:11px;color:${textSec};white-space:normal;line-height:1.4">${[...g.sws].join(' \u00b7 ')||'\u2014'}</td>
-                    <td style="padding:7px 9px;text-align:center;font-family:${mono};font-size:12px;font-weight:700;background:${actBg};color:${actC}">${g.active}</td>
-                    <td style="padding:7px 9px;text-align:center;font-family:${mono};font-size:12px;font-weight:700;background:${wchBg};color:${wchC}">${g.watch}</td>
-                    <td style="padding:7px 9px;text-align:center;font-family:${mono};font-size:12px;color:${hisC};background:${hisBg}">${g.hist}</td>
-                    <td style="padding:7px 9px;font-size:11px;color:${textSec}">${lastLbl}</td>
+                    <td style="padding:6px 9px;font-size:11px;font-weight:600;white-space:nowrap">${sw}</td>
+                    ${last6Months.map((mo) => {
+                        const cs=qaCell(sw,mo);
+                        const isCurr=mo===currMonth;
+                        const bl=`border-left:1px solid ${borderColor};`;
+                        const cellStyle=`padding:5px 6px;text-align:center;font-family:${mono};font-size:11px;font-weight:${cs.fw};color:${cs.c};background:${cs.bg};`;
+                        const v1=cs.moHighAR?cs.prec:cs.acc;
+                        const v2=cs.moHighAR?cs.rec:'';
+                        return `<td style="${cellStyle}${bl}">${v1}</td><td style="${cellStyle}">${v2}</td>`;
+                    }).join('')}
                   </tr>`;
               }).join('')}
             </tbody>
+            <tfoot><tr style="background:${lightGray};border-top:1px solid ${borderColor}">
+              <td colspan="${1+last6Months.length*2}" style="padding:5px 9px;font-size:10px;color:${textMuted}">
+                <span style="margin-right:10px"><span style="display:inline-block;width:7px;height:7px;border-radius:1px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:3px"></span>Met target</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:1px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:3px"></span>Below target</span>
+                <span style="margin-left:10px;color:${textMuted}">AR ≥10%: shows P &amp; R columns · AR &lt;10%: shows Accuracy</span>
+              </td>
+            </tr></tfoot>
           </table>
         </div>`;
 
@@ -14426,21 +14541,23 @@ function generateReviewerMonthlyDoc(mcdConfig) {
 
     // Sort: MTD-failing first, then high-impact meeting-goal (by curr month decisions desc)
     const swsWithData = Object.keys(swAHTByMonth).filter(sw => {
-        const d = swAHTByMonth[sw][currMonth];
-        return d && d.dec >= 3;
+        return last6Months.some(mo => {
+            const d = swAHTByMonth[sw][mo];
+            return d && d.dec >= 1;
+        });
     });
     const swMTDStatus = sw => {
         const d = swAHTByMonth[sw]?.[currMonth];
-        if(!d||d.dec<3) return 'no-data';
+        if(!d||d.dec<5) return 'no-data';
         const aht=Math.round((d.dht+d.nht)/d.dec), tgt=SW_TARGETS[sw]?.aht||null;
         if(!tgt) return 'no-target';
         return aht>tgt ? 'fail' : 'ok';
     };
     const swCurrDec = sw => swAHTByMonth[sw]?.[currMonth]?.dec || 0;
     const failingSWs  = swsWithData.filter(sw=>swMTDStatus(sw)==='fail').sort((a,b)=>swCurrDec(b)-swCurrDec(a));
-    const meetingSWs  = swsWithData.filter(sw=>swMTDStatus(sw)==='ok' || swMTDStatus(sw)==='no-target')
+    const meetingSWs  = swsWithData.filter(sw=>swMTDStatus(sw)!=='fail')
         .sort((a,b)=>swCurrDec(b)-swCurrDec(a));
-    const orderedSWs  = [...failingSWs, ...meetingSWs].slice(0,10);
+    const orderedSWs  = [...failingSWs, ...meetingSWs];
 
     const ahtMoColW = `${Math.round(72/last6Months.length)}%`;
     const ahtTable = orderedSWs.length === 0
@@ -14481,8 +14598,10 @@ function generateReviewerMonthlyDoc(mcdConfig) {
           ${months.map((mo,i) => {
               const isCurr = mo===curr;
               const d = byMonth[sw]?.[mo];
-              const aht = d&&d.dec>=3 ? Math.round((d.dht+d.nht)/d.dec) : null;
-              const cs = ahtCellStyle(aht, tgt, isCurr);
+              const dec = d?.dec||0;
+              const aht = d&&dec>=1 ? Math.round((d.dht+d.nht)/dec) : null;
+              // Only color-code if >=5 decisions for that month
+              const cs = dec>=5 ? ahtCellStyle(aht, tgt, isCurr) : {bg: isCurr?'#ECEEF2':'transparent', c:textMuted, fw:'400', txt: aht!==null?aht+'s':'\u2014'};
               const bl = isCurr ? 'border-left:1px solid '+bc+';' : '';
               return `<td style="padding:6px 9px;text-align:center;font-family:${mono};font-size:11px;font-weight:${cs.fw};color:${cs.c};background:${cs.bg};${bl}">${cs.txt}</td>`;
           }).join('')}
@@ -14560,9 +14679,6 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         ${divLine}
         ${winSecLbl('AHT')}
         ${ahtWins.length ? ahtWins.join('') : winRow('na','AHT was mixed this month \u2014 see AHT section for detail.')}
-        ${divLine}
-        ${winSecLbl('Occupancy')}
-        ${occWinRow}
       </div>`;
 
     // ── Focus areas — Quality always first ────────────────────────────────────
@@ -14765,17 +14881,15 @@ function generateReviewerMonthlyDoc(mcdConfig) {
       ${divSection}
       ${secHead('Wins this month', green)}${winsHTMLFinal}
       ${divSection}
-      ${secHead('Overall quality \u2014 last 6 months', blue)}${qualTrendTable}
+      ${secHead('Overall performance \u2014 last 6 months', blue)}${qualTrendTable}
       ${divSection}
-      ${secHead('Error history \u2014 this month', red)}${errTable}
+      ${secHead('QA \u2014 last 6 months by sub-workflow', red)}
+      <div style="font-size:11px;color:${textMuted};margin-bottom:8px">AR \u226510% \u2192 Precision &amp; Recall shown \u00b7 AR &lt;10% \u2192 Accuracy shown \u00b7 Green = on target \u00b7 Red = below target</div>
+      ${errTable}
       ${divSection}
       ${secHead('AHT \u2014 last 6 months by sub-workflow', amber)}
-      <div style="font-size:11px;color:${textMuted};margin-bottom:8px">MTD-failing SWs first, then high-impact meeting-goal SWs. Green \u2264 target \u00b7 amber within 5% \u00b7 red over target.</div>
+      <div style="font-size:11px;color:${textMuted};margin-bottom:8px">All sub-workflows with any data. Color-coded only for months with \u22655 decisions. Green \u2264 target \u00b7 amber within 5% \u00b7 red over target.</div>
       ${ahtTable}
-      ${divSection}
-      ${secHead('Occupancy \u2014 last 6 weeks', amber)}
-      <div style="font-size:11px;color:${textMuted};margin-bottom:8px">Benchmark = team P75\u2013P100 per week. Green = within top 25% range.</div>
-      ${occTable}
       ${coachingSection}
     </div>`;
 
@@ -23057,7 +23171,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
           <span class="mcd-fa-title" id="mcd-q-title">Loading...</span>
           <div class="mcd-tog-wrap">
             <span class="mcd-tog-lbl" id="mcd-q-tog-lbl">Included</span>
-            <span class="mcd-locked-note" id="mcd-q-lock-note" style="display:none">KPI failing — required</span>
+            <span class="mcd-locked-note" id="mcd-q-lock-note" style="display:none"></span>
             <div class="mcd-track mcd-on" id="mcd-tog-q" onclick="mcdToggle('q')"><div class="mcd-thumb"></div></div>
           </div>
         </div>
@@ -23119,7 +23233,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
           <span class="mcd-fa-title" id="mcd-e-title">Loading...</span>
           <div class="mcd-tog-wrap">
             <span class="mcd-tog-lbl" id="mcd-e-tog-lbl">Included</span>
-            <span class="mcd-locked-note" id="mcd-e-lock-note" style="display:none">KPI failing — required</span>
+            <span class="mcd-locked-note" id="mcd-e-lock-note" style="display:none"></span>
             <div class="mcd-track mcd-on" id="mcd-tog-e" onclick="mcdToggle('e')"><div class="mcd-thumb"></div></div>
           </div>
         </div>
@@ -23172,7 +23286,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
           <span class="mcd-fa-title" id="mcd-a-title">Absenteeism — enter manually</span>
           <div class="mcd-tog-wrap">
             <span class="mcd-tog-lbl" id="mcd-a-tog-lbl">Excluded</span>
-            <span class="mcd-locked-note" id="mcd-a-lock-note" style="display:none">KPI failing — required</span>
+            <span class="mcd-locked-note" id="mcd-a-lock-note" style="display:none"></span>
             <div class="mcd-track mcd-off" id="mcd-tog-a" onclick="mcdToggle('a')"><div class="mcd-thumb"></div></div>
           </div>
         </div>
@@ -23343,7 +23457,7 @@ function openMonthlyCoachingModal(){
       return sq.sw+' P:'+p+' R:'+r;
     }).join(' · ');
   }
-  var qTitle=totalErrors>0?(topPolStr+' \xb7 '+totalErrors+' total error'+(totalErrors!==1?'s':'')+' \xb7 '+_mcd.accStr+' vs 96% target'+(swPRStr?' \xb7 '+swPRStr:'')):('No active errors \u2014 '+_mcd.accStr+' on target');
+  var qTitle=totalErrors>0?((swPRStr?swPRStr+' \xb7 ':'')+topPolStr+' \xb7 '+totalErrors+' total error'+(totalErrors!==1?'s':'')+' \xb7 '+_mcd.accStr+' vs 96% target'):('No active errors \u2014 '+_mcd.accStr+' on target');
   document.getElementById('mcd-q-title').textContent=qTitle;
 
   // Lock quality toggle when failing
