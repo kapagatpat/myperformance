@@ -23065,7 +23065,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
 .mcd-psp-badge{font-size:10px;font-weight:800;padding:2px 10px;border-radius:var(--pill);background:var(--coral);color:#fff;flex-shrink:0}
 .mcd-psp-title{font-size:12px;font-weight:700;color:var(--coral);flex:1}
 .mcd-psp-body{padding:10px 14px;border-top:1px solid var(--cbd);background:var(--surface)}
-.mcd-psp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:7px}
+.mcd-psp-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:7px}
 .mcd-psp-item{background:var(--cbg);border:1px solid var(--cbd);border-radius:var(--r-xs);padding:6px 10px}
 .mcd-psp-item-lbl{font-size:10px;color:var(--coral);font-weight:600;margin-bottom:2px}
 .mcd-psp-item-val{font-size:12px;font-weight:700;font-family:var(--m);color:var(--coral)}
@@ -23157,6 +23157,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
           <div class="mcd-psp-item"><div class="mcd-psp-item-lbl">Trajectory</div><div class="mcd-psp-item-val" id="mcd-psp-status">—</div></div>
           <div class="mcd-psp-item"><div class="mcd-psp-item-lbl">Accuracy</div><div class="mcd-psp-item-val" id="mcd-psp-acc">—</div></div>
           <div class="mcd-psp-item"><div class="mcd-psp-item-lbl">Gap to target</div><div class="mcd-psp-item-val" id="mcd-psp-gap">—</div></div>
+          <div class="mcd-psp-item"><div class="mcd-psp-item-lbl">Projecting</div><div class="mcd-psp-item-val" id="mcd-psp-proj">—</div></div>
         </div>
         <div class="mcd-psp-note">Coaching actions are linked to performance this month. Discuss this doc with your supervisor before the session. Escalate by end of month if no measurable improvement.</div>
       </div>
@@ -23417,11 +23418,19 @@ function openMonthlyCoachingModal(){
   var absStr=absVal!==null?(absVal*100).toFixed(1)+'%':'No data';
   var absFailing=absVal!==null&&absVal>0.05;
 
-  // ── PSP trajectory ────────────────────────────────────────────────────────
+  // ── PSP trajectory + projection ──────────────────────────────────────────
   var prevMonth=allMonths.indexOf(currMonth)>=1?allMonths[allMonths.indexOf(currMonth)-1]:null;
   var prevAcc=null;
   if(prevMonth){var pr=allRvRows.filter(function(r){return r.month===prevMonth});var pt=0,pf=0;pr.forEach(function(r){pt+=r.tpa+r.tna;pf+=r.fpa+r.fna;});prevAcc=pt+pf>0?pt/(pt+pf)*100:null;}
   var pspTraj=isPSP&&prevAcc!==null?(accPct>prevAcc?'Improving':accPct<prevAcc?'Regressing':'Stable'):'';
+
+  // Projected EOM accuracy: extrapolate current error rate over 4-week month
+  var weeksElapsed=[...new Set(currRows.map(function(r){return r.week}).filter(Boolean))].length||1;
+  var projTot=tot>0?Math.round((tot/weeksElapsed)*4):0;
+  var projErr=totalErrors>0?Math.round((totalErrors/weeksElapsed)*4):0;
+  var projCorrect=projTot-projErr;
+  var projAcc=projTot>0?projCorrect/projTot*100:null;
+  var projStr=projAcc!==null?projAcc.toFixed(2)+'%':'—';
 
   // ── Top error policies ────────────────────────────────────────────────────
   var polC={};
@@ -23432,7 +23441,7 @@ function openMonthlyCoachingModal(){
   // ── Store state ───────────────────────────────────────────────────────────
   _mcd.rv=rv;_mcd.month=currMonth;_mcd.sw=swList.join(', ')||'All SWs';
   _mcd.accPct=accPct;_mcd.accStr=accPct!==null?accPct.toFixed(2)+'%':'\u2014';
-  _mcd.totalErrors=totalErrors;_mcd.isPSP=isPSP;_mcd.pspTraj=pspTraj;
+  _mcd.totalErrors=totalErrors;_mcd.isPSP=isPSP;_mcd.pspTraj=pspTraj;_mcd.projStr=projStr;
   _mcd.absStr=absStr;_mcd.absFailing=absFailing;_mcd.overAHT=overAHT;_mcd.swQuality=swQuality;
 
   var fmtM=typeof fmtMonth==='function'?fmtMonth(currMonth):currMonth;
@@ -23446,6 +23455,7 @@ function openMonthlyCoachingModal(){
     document.getElementById('mcd-psp-status').textContent=pspTraj||'Below target';
     document.getElementById('mcd-psp-acc').textContent=_mcd.accStr;
     document.getElementById('mcd-psp-gap').textContent=accPct!==null?'-'+(96-accPct).toFixed(2)+'pp':'\u2014';
+    document.getElementById('mcd-psp-proj').textContent=projStr;
   }else{document.getElementById('mcd-psp-banner').style.display='none';}
 
   // ── Quality card ──────────────────────────────────────────────────────────
@@ -23668,8 +23678,8 @@ function mcdGenerate(){
     isPSP:_mcd.isPSP,pspTraj:_mcd.pspTraj,accStr:_mcd.accStr,
     swQuality:_mcd.swQuality,overAHT:_mcd.overAHT,absFailing:_mcd.absFailing,absStr:_mcd.absStr
   };
-  closeMcdModal();
   generateReviewerMonthlyDoc(config);
+  closeMcdModal();
 }
 // ─── END MONTHLY COACHING MODAL ──────────────────────────────────────────────
 </script>
