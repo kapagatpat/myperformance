@@ -14452,11 +14452,10 @@ function generateReviewerMonthlyDoc(mcdConfig) {
 
     const qaCell = (sw, mo) => {
         const s = swQAByMonth[sw]?.[mo];
-        const isCurr = mo===currMonth;
-        const baseBg = isCurr?'#EEF2FF':'transparent';
-        if(!s) return {prec:'—',rec:'—',acc:'—',bg:baseBg,c:textMuted,fw:'400'};
+        const noData = {prec:'—',rec:'—',acc:'—',bg:'transparent',c:textMuted,fw:'400',hasData:false};
+        if(!s) return noData;
         const tot=s.tpa+s.fpa+s.fna+s.tna;
-        if(tot===0) return {prec:'—',rec:'—',acc:'—',bg:baseBg,c:textMuted,fw:'400'};
+        if(tot===0) return noData;
         const moHighAR = moARMap[mo]!==null && moARMap[mo]>=0.10;
         const tgt = (typeof SW_TARGETS!=='undefined'&&SW_TARGETS[sw]?.acc)||ACC_TGT;
         const prec=(s.tpa+s.fpa)>0?s.tpa/(s.tpa+s.fpa):null;
@@ -14469,7 +14468,7 @@ function generateReviewerMonthlyDoc(mcdConfig) {
             prec: prec!==null?(prec*100).toFixed(1)+'%':'—',
             rec:  rec!==null?(rec*100).toFixed(1)+'%':'—',
             acc:  acc!==null?(acc*100).toFixed(1)+'%':'—',
-            bg, c, fw:'700', moHighAR
+            bg, c, fw:'700', moHighAR, hasData:true
         };
     };
 
@@ -14522,15 +14521,14 @@ function generateReviewerMonthlyDoc(mcdConfig) {
     const errTable = swsWithQA.length === 0
         ? `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No QA data found for this reviewer in the last 3 months.</div>`
         : (() => {
-        // Column counts: SW label + Targets + (3 cols per month)
-        const totalCols = 2 + last3Months.length * 3;
-        const moColW = `${Math.round(76 / last3Months.length / 3)}%`;
+        // 4 data cols per month: Acc, P, R, AHT
+        const totalCols = 2 + last3Months.length * 4;
         return `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
-          <table style="width:100%;min-width:600px;border-collapse:collapse;font-size:10px">
+          <table style="width:100%;min-width:620px;border-collapse:collapse;font-size:10px">
             <colgroup>
-              <col style="width:18%">
-              <col style="width:10%">
-              ${last3Months.map(()=>`<col style="width:${moColW}"><col style="width:${moColW}"><col style="width:${moColW}%">`).join('')}
+              <col style="width:17%">
+              <col style="width:9%">
+              ${last3Months.map(()=>`<col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:7%">`).join('')}
             </colgroup>
             <thead>
               <tr style="background:${lightGray}">
@@ -14538,18 +14536,17 @@ function generateReviewerMonthlyDoc(mcdConfig) {
                 <th rowspan="2" style="padding:5px 6px;text-align:center;font-size:9px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.04em;vertical-align:bottom;border-left:1px solid ${borderColor}">Target</th>
                 ${last3Months.map((mo) => {
                     const isCurr=mo===currMonth;
-                    const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
-                    return `<th colspan="3" style="padding:4px 6px;text-align:center;font-size:9px;font-weight:700;color:${isCurr?textPri:textSec};${isCurr?'background:#EEF2FF;':''}border-left:1px solid ${borderColor};border-bottom:0.5px solid ${divider};white-space:nowrap">${fmtMonth(mo)} <span style="font-size:8px;font-weight:400;color:${textMuted}">${moHighAR?'P&R':'Acc'}</span></th>`;
+                    return `<th colspan="4" style="padding:4px 6px;text-align:center;font-size:9px;font-weight:700;color:${isCurr?textPri:textSec};${isCurr?'background:#EEF2FF;':''}border-left:1px solid ${borderColor};border-bottom:0.5px solid ${divider};white-space:nowrap">${fmtMonth(mo)}</th>`;
                 }).join('')}
               </tr>
               <tr style="background:${lightGray}">
                 ${last3Months.map((mo) => {
                     const isCurr=mo===currMonth;
-                    const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
-                    const lbls=moHighAR?['P','R']:['Acc',''];
-                    return `<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};border-left:1px solid ${borderColor}${isCurr?';background:#EEF2FF':''}">${lbls[0]}</th>`
-                          +`<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted}${isCurr?';background:#EEF2FF':''}">${lbls[1]}</th>`
-                          +`<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted}${isCurr?';background:#ECEEF2':''};font-style:italic">AHT</th>`;
+                    const bg=isCurr?';background:#EEF2FF':'';
+                    const bgAHT=isCurr?';background:#ECEEF2':'';
+                    const bl=`border-left:1px solid ${borderColor}`;
+                    const th=(lbl,extra='')=>`<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${extra}">${lbl}</th>`;
+                    return th('Acc',`${bl}${bg}`) + th('P',bg) + th('R',bg) + th('AHT',bgAHT);
                 }).join('')}
               </tr>
             </thead>
@@ -14564,27 +14561,40 @@ function generateReviewerMonthlyDoc(mcdConfig) {
                   swList.map((sw, idx) => {
                       const isLast = idx===swList.length-1 && wf===wfOrder[wfOrder.length-1];
                       const swTgt = SW_TARGETS[sw];
-                      const accTgt = swTgt?.acc ? (swTgt.acc*100).toFixed(0)+'%' : (ACC_TGT*100).toFixed(0)+'%';
-                      const ahtTgt = swTgt?.aht ? swTgt.aht+'s' : '\u2014';
-                      const tgtCell = `<div style="font-size:8.5px;font-weight:600;color:${textSec};line-height:1.4">${accTgt}</div><div style="font-size:8px;color:${textMuted};font-style:italic">${ahtTgt}</div>`;
+                      const accTgtVal = swTgt?.acc ? (swTgt.acc*100).toFixed(0)+'%' : (ACC_TGT*100).toFixed(0)+'%';
+                      const ahtTgtVal = swTgt?.aht ? swTgt.aht+'s' : '\u2014';
+                      // Target cell: Acc & P&R share same threshold; show both labels clearly
+                      const tgtCell = `<div style="font-size:8px;color:${textMuted};margin-bottom:1px">Acc / P&R</div>`
+                                    + `<div style="font-size:8.5px;font-weight:700;color:${textSec}">${accTgtVal}</div>`
+                                    + `<div style="font-size:8px;color:${textMuted};margin-top:2px">AHT</div>`
+                                    + `<div style="font-size:8.5px;font-weight:700;color:${textSec}">${ahtTgtVal}</div>`;
                       return `<tr style="border-bottom:${isLast?'none':'0.5px solid '+divider}">
-                        <td style="padding:5px 8px;font-size:10px;font-weight:600;white-space:nowrap;padding-left:12px">${sw}</td>
-                        <td style="padding:5px 6px;text-align:center;border-left:1px solid ${borderColor};background:${lightGray}">${tgtCell}</td>
+                        <td style="padding:5px 8px 5px 12px;font-size:10px;font-weight:600;white-space:nowrap">${sw}</td>
+                        <td style="padding:4px 6px;text-align:center;border-left:1px solid ${borderColor};background:${lightGray};vertical-align:middle">${tgtCell}</td>
                         ${last3Months.map((mo) => {
-                            const cs=qaCell(sw,mo);
-                            const isCurr=mo===currMonth;
-                            const bl=`border-left:1px solid ${borderColor};`;
-                            const qaStyle=`padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${cs.fw};color:${cs.c};background:${cs.bg};`;
-                            const v1=cs.moHighAR?cs.prec:cs.acc;
-                            const v2=cs.moHighAR?cs.rec:'';
-                            const ahtD=swAHTByMonth[sw]?.[mo];
-                            const ahtDec=ahtD?.dec||0;
-                            const ahtV=ahtD&&ahtDec>=1?Math.round((ahtD.dht+ahtD.nht)/ahtDec):null;
-                            const ahtTgtV=swTgt?.aht||null;
-                            const ahtCs=ahtDec>=5&&ahtTgtV?ahtCellStyle(ahtV,ahtTgtV,isCurr):{bg:isCurr?'#ECEEF2':'transparent',c:textMuted,fw:'400',txt:ahtV!==null?String(ahtV):'\u2014'};
-                            if(!ahtCs.txt) ahtCs.txt=ahtV!==null?String(ahtV):'\u2014';
-                            return `<td style="${qaStyle}${bl}">${v1}</td><td style="${qaStyle}">${v2}</td>`
-                                 + `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${ahtCs.fw};color:${ahtCs.c};background:${ahtCs.bg};font-style:italic">${ahtCs.txt}</td>`;
+                            const cs = qaCell(sw, mo);
+                            const isCurr = mo===currMonth;
+                            const bl = `border-left:1px solid ${borderColor};`;
+                            // QA cells: color only when hasData, else plain muted
+                            const qaBg = cs.hasData ? cs.bg : 'transparent';
+                            const qaC  = cs.hasData ? cs.c  : textMuted;
+                            const qaFw = cs.hasData ? cs.fw : '400';
+                            const qaStyle = (extra='') => `padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${qaFw};color:${qaC};background:${qaBg};${extra}`;
+                            // AHT cell: color only when hasData (dec>=5 and target exists)
+                            const ahtD = swAHTByMonth[sw]?.[mo];
+                            const ahtDec = ahtD?.dec||0;
+                            const ahtV = ahtD&&ahtDec>=1 ? Math.round((ahtD.dht+ahtD.nht)/ahtDec) : null;
+                            const ahtTgtV = swTgt?.aht||null;
+                            let ahtBg='transparent', ahtC=textMuted, ahtFw='400';
+                            if(ahtV!==null && ahtDec>=5 && ahtTgtV) {
+                                const cs2 = ahtCellStyle(ahtV, ahtTgtV, false);
+                                ahtBg=cs2.bg; ahtC=cs2.c; ahtFw=cs2.fw;
+                            }
+                            const ahtTxt = ahtV!==null ? String(ahtV) : '\u2014';
+                            return `<td style="${qaStyle(bl)}">${cs.acc}</td>`
+                                 + `<td style="${qaStyle()}">${cs.prec}</td>`
+                                 + `<td style="${qaStyle()}">${cs.rec}</td>`
+                                 + `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${ahtFw};color:${ahtC};background:${ahtBg}">${ahtTxt}</td>`;
                         }).join('')}
                       </tr>`;
                   }).join('');
@@ -14594,7 +14604,7 @@ function generateReviewerMonthlyDoc(mcdConfig) {
               <td colspan="${totalCols}" style="padding:5px 8px;font-size:9px;color:${textMuted}">
                 <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:2px"></span>Met target</span>
                 <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:2px"></span>Below target</span>
-                <span>AHT: green \u2264 target \u00b7 amber within 5% \u00b7 red over (\u22655 decisions)</span>
+                <span>Color applied only when data present \u00b7 AHT color-coded \u22655 decisions</span>
               </td>
             </tr></tfoot>
           </table>
