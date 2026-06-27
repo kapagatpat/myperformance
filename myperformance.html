@@ -16219,6 +16219,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#F0F2F5;padding:40px 
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 10000);
+    // Auto-open Monthly Coaching Modal after weekly reviewer doc, same as Monthly flow
+    if(docType === 'reviewer') {
+        setTimeout(() => { try { openMonthlyCoachingModal(); } catch(e){} }, 300);
+    }
 }
 // ─── END COACHING DOC EXPORT ──────────────────────────────────────────────────
 
