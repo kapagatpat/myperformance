@@ -678,6 +678,52 @@ tr:hover td{background:#F8F9FB}
         </div>
       </div>
 
+      <!-- ── Priority Surface ──────────────────────────────────────────────── -->
+      <div id="ti-priority-surface" style="margin-bottom:1.5rem">
+
+        <!-- Header row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.08em">Priority Surface</span>
+            <span style="font-size:10px;font-weight:700;background:var(--pbg);color:var(--purple);border-radius:var(--pill);padding:2px 8px;border:1px solid var(--pbd)">Auto-computed</span>
+            <span id="ti-ps-legend" style="font-size:10px;color:var(--tm)"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10px;font-weight:700;color:var(--tm)">Threshold window</span>
+            <select id="ti-ps-thresh" onchange="renderPrioritySurface()" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);color:var(--ts);font-family:var(--f);cursor:pointer">
+              <option value="0.02">±2pp</option>
+              <option value="0.03">±3pp</option>
+              <option value="0.05">±5pp</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Flag cards row -->
+        <div id="ti-ps-flags" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px"></div>
+
+        <!-- Bottom two panels -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <!-- Borderline tracker -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:11px;font-weight:800;color:var(--text)">Borderline Reviewers</span>
+              <span style="font-size:10px;color:var(--tm)">Within threshold of any KPI boundary</span>
+            </div>
+            <div id="ti-ps-borderline" style="padding:10px 14px;min-height:60px"></div>
+          </div>
+          <!-- Weekly movement digest -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:11px;font-weight:800;color:var(--text)">Week-on-Week Movement</span>
+              <span style="font-size:10px;color:var(--tm)">Last 2 available weeks</span>
+            </div>
+            <div id="ti-ps-movement" style="padding:10px 14px;min-height:60px"></div>
+          </div>
+        </div>
+
+      </div>
+      <!-- ── End Priority Surface ────────────────────────────────────────── -->
+
       <div class="kpi-section-label">TL Snapshot</div>
       <div id="ti-tl-cards" style="display:flex;flex-direction:column;gap:12px;margin-bottom:1.5rem"></div>
       
@@ -1906,6 +1952,37 @@ tr:hover td{background:#F8F9FB}
 
       </div>
 
+      <!-- ROW 3: GOALS CSV UPLOAD -->
+      <div style="margin-top:2px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:1.25rem;align-items:stretch">
+
+        <!-- INSTRUCTIONS -->
+        <div style="background:linear-gradient(135deg,#F0FDF4 55%,#DCFCE7);border:1px solid #86EFAC;border-radius:var(--r);padding:1.25rem">
+          <div style="font-size:11px;font-weight:800;color:#15803D;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🎯 Goals CSV — Band Targets</div>
+          <div style="display:flex;gap:9px;align-items:flex-start;font-size:11px;color:var(--ts);margin-bottom:6px"><span style="background:#16A34A;color:#fff;border-radius:50%;width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">1</span><span>Export the <strong>2026_Goals</strong> CSV from your shared drive</span></div>
+          <div style="display:flex;gap:9px;align-items:flex-start;font-size:11px;color:var(--ts);margin-bottom:6px"><span style="background:#16A34A;color:#fff;border-radius:50%;width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">2</span><span>Required columns: <strong>WW Month, Workflow, Subworkflow, Metric, Exceeding, Achieving, Approaching, Needs Improvement</strong></span></div>
+          <div style="display:flex;gap:9px;align-items:flex-start;font-size:11px;color:var(--ts);margin-bottom:6px"><span style="background:#16A34A;color:#fff;border-radius:50%;width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">3</span><span>Upload once per month when targets change — overrides hardcoded defaults for all signal detection and scoring</span></div>
+          <div style="margin-top:10px;padding:7px 10px;background:#DCFCE7;border-radius:5px;border:1px solid #86EFAC;font-size:10px;color:#15803D">Quality values are percentages (e.g. 98.00%) · AHT values are seconds</div>
+        </div>
+
+        <!-- GOALS UPLOAD PANEL -->
+        <div class="up-panel" id="goals-dropzone" onclick="document.getElementById('goals-file-input').click()" style="margin-bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;border-color:#86EFAC;cursor:pointer">
+          <div style="font-size:28px;margin-bottom:6px">🎯</div>
+          <div style="font-size:14px;font-weight:800;color:var(--text)">Goals CSV</div>
+          <div style="font-size:11px;color:var(--tm);margin-top:3px;text-align:center">Band targets · all 4 bands per metric per SW</div>
+          <div style="font-size:11px;color:var(--blue);margin-top:6px;text-decoration:underline">click to browse</div>
+          <input type="file" id="goals-file-input" accept=".csv" onchange="goalsHandleUpload(this)" style="display:none">
+          <div id="goals-up-ok"  style="margin-top:10px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
+          <div id="goals-up-err" style="margin-top:10px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
+        </div>
+
+        <!-- GOALS STATUS CARD -->
+        <div style="background:var(--sec);border:1px solid var(--bbd);border-radius:var(--r);padding:1.25rem;display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:11px;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Goals Status</div>
+          <div id="goals-status" style="font-size:12px;color:var(--tm);line-height:1.6">No goals file loaded — using hardcoded defaults</div>
+        </div>
+
+      </div>
+
       <!-- DATA HEALTH PANEL -->
       <div id="data-health-panel" style="display:none;text-align:left"></div>
 
@@ -2360,6 +2437,165 @@ function getSwTargets(sw, wf) {
 
 // Manual overrides from Load Dataset tab — checked before BAND_TARGETS
 let SW_TARGET_OVERRIDES = {};
+
+// ─── GOALS CSV — RUNTIME BAND TARGETS ────────────────────────────────────────
+// Null until a goals CSV is uploaded. When set, takes priority over BAND_TARGETS.
+// Structure mirrors BAND_TARGETS: [workflow][subworkflow][metric] = {exc,ach,app,ni}
+let LOADED_BAND_TARGETS = null;
+
+function parseGoalsCsv(text) {
+  const lines = text.split(/\r?\n/);
+  if(lines.length < 2) throw new Error('Goals CSV appears empty');
+
+  // Normalise header
+  const rawHeader = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,'').trim());
+  const col = {};
+  rawHeader.forEach((h,i) => { col[h.toLowerCase().replace(/\s+/g,'_')] = i; });
+
+  const need = ['workflow','subworkflow','metric','exceeding','achieving','approaching','needs_improvement'];
+  const missing = need.filter(k => col[k] === undefined);
+  if(missing.length) throw new Error('Missing columns: ' + missing.join(', '));
+
+  const result = {};
+  let rowCount = 0;
+
+  for(let i = 1; i < lines.length; i++) {
+    const raw = lines[i].trim();
+    if(!raw) continue;
+
+    // Simple CSV split — handle quoted fields
+    const cells = [];
+    let cur = '', inQ = false;
+    for(let c = 0; c < raw.length; c++) {
+      if(raw[c] === '"') { inQ = !inQ; continue; }
+      if(raw[c] === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+      else cur += raw[c];
+    }
+    cells.push(cur.trim());
+
+    const get = key => (cells[col[key]] || '').trim();
+
+    const workflow   = get('workflow');
+    const subwf      = get('subworkflow') || '-';
+    const metric     = get('metric');
+
+    if(!workflow || !metric) continue;
+
+    // Parse numeric value — strip %, commas, spaces
+    const parseVal = (raw) => {
+      if(!raw) return null;
+      const s = raw.replace(/,/g,'').replace(/%/g,'').trim();
+      const n = parseFloat(s);
+      if(isNaN(n)) return null;
+      // Detect if original had % — quality metrics come as e.g. "98.00%"
+      return raw.includes('%') ? n / 100 : n;
+    };
+
+    const exc = parseVal(get('exceeding'));
+    const ach = parseVal(get('achieving'));
+    const app = parseVal(get('approaching'));
+    const ni  = parseVal(get('needs_improvement'));
+
+    if(exc === null && ach === null && app === null && ni === null) continue;
+
+    if(!result[workflow])           result[workflow] = {};
+    if(!result[workflow][subwf])    result[workflow][subwf] = {};
+
+    result[workflow][subwf][metric] = { exc, ach, app, ni };
+    rowCount++;
+  }
+
+  if(rowCount === 0) throw new Error('No valid data rows found in goals CSV');
+  return { table: result, rowCount };
+}
+
+// Primary accessor — all band logic should call this instead of reading BAND_TARGETS directly.
+// Lookup priority: LOADED_BAND_TARGETS → BAND_TARGETS → null
+// Returns {exc, ach, app, ni} or null
+function getBandTargets(workflow, sw, metric) {
+  const source = LOADED_BAND_TARGETS || BAND_TARGETS;
+  if(!source) return null;
+
+  const wfNode = source[workflow];
+  if(wfNode) {
+    // Exact SW match
+    if(wfNode[sw] && wfNode[sw][metric]) return wfNode[sw][metric];
+    // Workflow-level fallback (subwf === '-')
+    if(wfNode['-'] && wfNode['-'][metric]) return wfNode['-'][metric];
+  }
+  // Overall fallback
+  const overall = source['Overall'];
+  if(overall) {
+    if(overall['-'] && overall['-'][metric]) return overall['-'][metric];
+  }
+  return null;
+}
+
+// Assign band label for a given value against a band object.
+// isAHT=true means lower is better (AHT); false means higher is better (quality).
+// Returns 'exc' | 'ach' | 'app' | 'ni' | null
+function assignBand(value, bandObj, isAHT) {
+  if(value === null || value === undefined || !bandObj) return null;
+  const { exc, ach, app, ni } = bandObj;
+  if(isAHT) {
+    // Lower = better: exc <= ach <= app <= ni thresholds
+    if(exc !== null && value <= exc) return 'exc';
+    if(ach !== null && value <= ach) return 'ach';
+    if(app !== null && value <= app) return 'app';
+    return 'ni';
+  } else {
+    // Higher = better: exc >= ach >= app >= ni thresholds
+    if(exc !== null && value >= exc) return 'exc';
+    if(ach !== null && value >= ach) return 'ach';
+    if(app !== null && value >= app) return 'app';
+    return 'ni';
+  }
+}
+
+function goalsHandleUpload(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const okEl  = document.getElementById('goals-up-ok');
+  const errEl = document.getElementById('goals-up-err');
+  const statEl= document.getElementById('goals-status');
+  okEl.style.display  = 'none';
+  errEl.style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const { table, rowCount } = parseGoalsCsv(e.target.result);
+      LOADED_BAND_TARGETS = table;
+
+      // Invalidate SW_TARGETS cache so it re-reads from new source
+      Object.keys(SW_TARGETS).forEach(k => { try { delete SW_TARGETS[k]; } catch(_){} });
+
+      const workflows  = Object.keys(table);
+      const swCount    = workflows.reduce((acc,wf) => acc + Object.keys(table[wf]).length, 0);
+
+      okEl.textContent = `✓ ${rowCount} rows loaded`;
+      okEl.style.display = 'block';
+
+      statEl.innerHTML = `<span style="color:var(--teal);font-weight:700">✓ Goals loaded</span><br>
+        ${rowCount} metric rows · ${workflows.length} workflow(s) · ${swCount} SW entries<br>
+        <span style="color:var(--tm);font-size:11px">Band targets active — overriding defaults</span>`;
+
+      // Force re-render of Team Insights if visible
+      const tiTab = document.getElementById('tab-ti');
+      if(tiTab && tiTab.style.display !== 'none' && typeof renderTeamInsights === 'function') {
+        renderTeamInsights();
+      }
+    } catch(err) {
+      LOADED_BAND_TARGETS = null;
+      errEl.textContent = '✗ ' + err.message;
+      errEl.style.display = 'block';
+      statEl.innerHTML = `<span style="color:var(--coral);font-weight:700">✗ Load failed</span><br><span style="font-size:11px;color:var(--tm)">${err.message}</span><br>Using hardcoded defaults.`;
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+// ─── END GOALS CSV ────────────────────────────────────────────────────────────
 
 // Keep SW_TARGETS as a thin shim so existing code that reads SW_TARGETS[sw].acc/aht still works
 // Lookup order: overrides → band table → Overall fallback
