@@ -14078,6 +14078,8 @@ function generateReviewerMonthlyDoc(mcdConfig) {
 
     // Last 6 months for quality trend table
     const last6Months = allMonths.slice(Math.max(0, currIdx-5), currIdx+1);
+    // Last 3 months for combined QA & AHT sub-workflow table
+    const last3Months = allMonths.slice(Math.max(0, currIdx-2), currIdx+1);
     const prevMonth   = currIdx >= 1 ? allMonths[currIdx-1] : null;
 
     const allRvRows = filterRows(qaFilter(RAW_ROWS.filter(r => r.reviewer===rv && r.sw && r.sw!=='(blank)')), [], [], sws, workflows);
@@ -14410,12 +14412,12 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         </table>
       </div>`;
 
-    // ── QA — last 6 months by sub-workflow ───────────────────────────────────
+    // ── QA & AHT — last 3 months by sub-workflow ─────────────────────────────
     // Build per-SW per-month quality data
     const swQAByMonth = {};
     allRvRows.forEach(r => {
         if(!r.sw) return;
-        last6Months.forEach(mo => {
+        last3Months.forEach(mo => {
             if(r.month!==mo) return;
             if(!swQAByMonth[r.sw]) swQAByMonth[r.sw] = {};
             if(!swQAByMonth[r.sw][mo]) swQAByMonth[r.sw][mo] = {tpa:0,fpa:0,fna:0,tna:0};
@@ -14423,9 +14425,9 @@ function generateReviewerMonthlyDoc(mcdConfig) {
             s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0;
         });
     });
-    // Exclude SWs with zero audits across all 6 months
+    // Exclude SWs with zero audits across all 3 months
     const swsWithQA = Object.keys(swQAByMonth).filter(sw =>
-        last6Months.some(mo => {
+        last3Months.some(mo => {
             const s=swQAByMonth[sw][mo];
             return s && (s.tpa+s.fpa+s.fna+s.tna)>0;
         })
@@ -14433,7 +14435,7 @@ function generateReviewerMonthlyDoc(mcdConfig) {
 
     // Per-month AR for each cell (for AR-gating)
     const moARMap = {};
-    last6Months.forEach(mo=>{ const s=moStats[mo]; moARMap[mo]=s?s.ar:null; });
+    last3Months.forEach(mo=>{ const s=moStats[mo]; moARMap[mo]=s?s.ar:null; });
 
     const qaCell = (sw, mo) => {
         const s = swQAByMonth[sw]?.[mo];
@@ -14458,65 +14460,9 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         };
     };
 
-    const qaColW = `${Math.round(66/last6Months.length)}%`;
-    const errTable = swsWithQA.length === 0
-        ? `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No QA data found for this reviewer in the last 6 months.</div>`
-        : `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
-          <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
-            <colgroup>
-              <col style="width:19%">
-              ${last6Months.map(()=>`<col style="width:${qaColW}"><col style="width:${qaColW}">`).join('')}
-            </colgroup>
-            <thead>
-              <tr style="background:${lightGray}">
-                <th rowspan="2" style="padding:5px 9px;text-align:left;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em;vertical-align:bottom">Sub-workflow</th>
-                ${last6Months.map((mo) => {
-                    const isCurr=mo===currMonth;
-                    const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
-                    return `<th colspan="2" style="padding:4px 9px;text-align:center;font-size:10px;font-weight:700;color:${isCurr?textPri:textSec};${isCurr?'background:#EEF2FF;':''}border-left:1px solid ${borderColor};border-bottom:0.5px solid ${divider}">${fmtMonth(mo)}<span style="font-size:9px;font-weight:400;color:${textMuted};margin-left:4px">${moHighAR?'P&R':'Acc'}</span></th>`;
-                }).join('')}
-              </tr>
-              <tr style="background:${lightGray}">
-                ${last6Months.map((mo) => {
-                    const isCurr=mo===currMonth;
-                    const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
-                    const lbls=moHighAR?['P','R']:['Acc',''];
-                    return `<th style="padding:3px 6px;text-align:center;font-size:9px;font-weight:600;color:${textMuted};border-left:1px solid ${borderColor}${isCurr?';background:#EEF2FF':''}">${lbls[0]}</th>`
-                          +`<th style="padding:3px 6px;text-align:center;font-size:9px;font-weight:600;color:${textMuted}${isCurr?';background:#EEF2FF':''}">${lbls[1]}</th>`;
-                }).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${swsWithQA.map((sw, idx) => {
-                  const isLast=idx===swsWithQA.length-1;
-                  return `<tr style="border-bottom:${isLast?'none':'0.5px solid '+divider}">
-                    <td style="padding:6px 9px;font-size:11px;font-weight:600;white-space:nowrap">${sw}</td>
-                    ${last6Months.map((mo) => {
-                        const cs=qaCell(sw,mo);
-                        const isCurr=mo===currMonth;
-                        const bl=`border-left:1px solid ${borderColor};`;
-                        const cellStyle=`padding:5px 6px;text-align:center;font-family:${mono};font-size:11px;font-weight:${cs.fw};color:${cs.c};background:${cs.bg};`;
-                        const v1=cs.moHighAR?cs.prec:cs.acc;
-                        const v2=cs.moHighAR?cs.rec:'';
-                        return `<td style="${cellStyle}${bl}">${v1}</td><td style="${cellStyle}">${v2}</td>`;
-                    }).join('')}
-                  </tr>`;
-              }).join('')}
-            </tbody>
-            <tfoot><tr style="background:${lightGray};border-top:1px solid ${borderColor}">
-              <td colspan="${1+last6Months.length*2}" style="padding:5px 9px;font-size:10px;color:${textMuted}">
-                <span style="margin-right:10px"><span style="display:inline-block;width:7px;height:7px;border-radius:1px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:3px"></span>Met target</span>
-                <span><span style="display:inline-block;width:7px;height:7px;border-radius:1px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:3px"></span>Below target</span>
-                <span style="margin-left:10px;color:${textMuted}">AR ≥10%: shows P &amp; R columns · AR &lt;10%: shows Accuracy</span>
-              </td>
-            </tr></tfoot>
-          </table>
-        </div>`;
-
-    // ── AHT — last 6 months by sub-workflow ──────────────────────────────────
-    // Build per-SW per-month AHT
+    // ── AHT data — last 3 months (feeds into combined QA & AHT table) ────────
     const swAHTByMonth = {};
-    last6Months.forEach(mo => {
+    last3Months.forEach(mo => {
         allRvRows.filter(r=>r.month===mo&&r.sw).forEach(r => {
             if(!swAHTByMonth[r.sw]) swAHTByMonth[r.sw] = {};
             if(!swAHTByMonth[r.sw][mo]) swAHTByMonth[r.sw][mo] = {dht:0,nht:0,dec:0};
@@ -14525,7 +14471,6 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         });
     });
 
-    // ahtBadge returns {bg, c} for cell-level conditional formatting (not inline badges)
     const ahtCellStyle = (aht, tgt, isCurr) => {
         const baseBg = isCurr ? '#ECEEF2' : 'transparent';
         if(aht===null) return {bg: baseBg, c: textMuted, fw: '400', txt: '\u2014'};
@@ -14534,18 +14479,11 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         if(aht<=tgt*1.05) return {bg: isCurr?'#FFE99A':'#FEF3C7', c: amber, fw:'700', txt: String(aht)};
         return                   {bg: isCurr?'#FFD5D5':'#FEF2F2', c: red,   fw:'700', txt: String(aht)};
     };
-    const ahtBadge = (aht, tgt) => {
-        if(aht===null) return '\u2014';
-        return String(aht);
-    };
 
-    // Sort: MTD-failing first, then high-impact meeting-goal (by curr month decisions desc)
-    const swsWithData = Object.keys(swAHTByMonth).filter(sw => {
-        return last6Months.some(mo => {
-            const d = swAHTByMonth[sw][mo];
-            return d && d.dec >= 1;
-        });
-    });
+    // MTD AHT status — used for MCD focus section
+    const swsWithData = Object.keys(swAHTByMonth).filter(sw =>
+        last3Months.some(mo => { const d=swAHTByMonth[sw][mo]; return d&&d.dec>=1; })
+    );
     const swMTDStatus = sw => {
         const d = swAHTByMonth[sw]?.[currMonth];
         if(!d||d.dec<5) return 'no-data';
@@ -14554,60 +14492,74 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         return aht>tgt ? 'fail' : 'ok';
     };
     const swCurrDec = sw => swAHTByMonth[sw]?.[currMonth]?.dec || 0;
-    const failingSWs  = swsWithData.filter(sw=>swMTDStatus(sw)==='fail').sort((a,b)=>swCurrDec(b)-swCurrDec(a));
-    const meetingSWs  = swsWithData.filter(sw=>swMTDStatus(sw)!=='fail')
-        .sort((a,b)=>swCurrDec(b)-swCurrDec(a));
-    const orderedSWs  = [...failingSWs, ...meetingSWs];
+    const failingSWs = swsWithData.filter(sw=>swMTDStatus(sw)==='fail').sort((a,b)=>swCurrDec(b)-swCurrDec(a));
+    const meetingSWs = swsWithData.filter(sw=>swMTDStatus(sw)!=='fail').sort((a,b)=>swCurrDec(b)-swCurrDec(a));
 
-    const ahtMoColW = `${Math.round(72/last6Months.length)}%`;
-    const ahtTable = orderedSWs.length === 0
-        ? `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No AHT data found for this reviewer in ${fmtMonth(currMonth)}.</div>`
+    const qaColW = `${Math.round(66/last3Months.length)}%`;
+    const errTable = swsWithQA.length === 0
+        ? `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No QA data found for this reviewer in the last 3 months.</div>`
         : `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
           <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
             <colgroup>
-              <col style="width:19%">
-              ${last6Months.map((_,i)=>`<col style="width:${ahtMoColW}">`).join('')}
-              <col style="width:8%"><col style="width:8%">
+              <col style="width:16%">
+              ${last3Months.map(()=>`<col style="width:${qaColW}"><col style="width:${qaColW}"><col style="width:6%">`).join('')}
             </colgroup>
             <thead>
               <tr style="background:${lightGray}">
-                <th style="padding:5px 9px;text-align:left;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em">Sub-workflow</th>
-                ${last6Months.map((mo,i) => {
-                    const isCurr = mo===currMonth;
-                    return `<th style="padding:5px 9px;text-align:center;font-size:10px;font-weight:700;color:${isCurr?textPri:textSec};text-transform:uppercase;${isCurr?'background:#ECEEF2;border-left:1px solid '+borderColor+';':''}">${fmtMonth(mo)}</th>`;
+                <th rowspan="2" style="padding:5px 9px;text-align:left;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em;vertical-align:bottom">Sub-workflow</th>
+                ${last3Months.map((mo) => {
+                    const isCurr=mo===currMonth;
+                    const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
+                    return `<th colspan="3" style="padding:4px 9px;text-align:center;font-size:10px;font-weight:700;color:${isCurr?textPri:textSec};${isCurr?'background:#EEF2FF;':''}border-left:1px solid ${borderColor};border-bottom:0.5px solid ${divider}">${fmtMonth(mo)}<span style="font-size:9px;font-weight:400;color:${textMuted};margin-left:4px">${moHighAR?'P&R':'Acc'}</span></th>`;
                 }).join('')}
-                <th style="padding:5px 9px;text-align:left;font-size:10px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em;background:#ECEEF2;border-left:1px solid ${borderColor}">Target</th>
+              </tr>
+              <tr style="background:${lightGray}">
+                ${last3Months.map((mo) => {
+                    const isCurr=mo===currMonth;
+                    const moHighAR=moARMap[mo]!==null&&moARMap[mo]>=0.10;
+                    const lbls=moHighAR?['P','R']:['Acc',''];
+                    return `<th style="padding:3px 6px;text-align:center;font-size:9px;font-weight:600;color:${textMuted};border-left:1px solid ${borderColor}${isCurr?';background:#EEF2FF':''}">${lbls[0]}</th>`
+                          +`<th style="padding:3px 6px;text-align:center;font-size:9px;font-weight:600;color:${textMuted}${isCurr?';background:#EEF2FF':''}">${lbls[1]}</th>`
+                          +`<th style="padding:3px 6px;text-align:center;font-size:9px;font-weight:600;color:${textMuted}${isCurr?';background:#ECEEF2':''};font-style:italic">AHT</th>`;
+                }).join('')}
               </tr>
             </thead>
             <tbody>
-              ${failingSWs.length>0?`<tr><td colspan="${2+last6Months.length}" style="padding:3px 9px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${textMuted};background:${redBg};border-bottom:0.5px solid ${redBd}">MTD over target</td></tr>`:''}
-              ${orderedSWs.map((sw,idx) => {
-                  if(idx===failingSWs.length && meetingSWs.length>0 && failingSWs.length>0)
-                      return `<tr><td colspan="${2+last6Months.length}" style="padding:3px 9px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${textMuted};background:${lightGray};border-bottom:0.5px solid ${divider}">High impact \u00b7 on target</td></tr>` +
-                          ahtSwRow(sw, last6Months, swAHTByMonth, currMonth, borderColor, divider, mono, textSec, lightGray, ahtBadge);
-                  return ahtSwRow(sw, last6Months, swAHTByMonth, currMonth, borderColor, divider, mono, textSec, lightGray, ahtBadge);
+              ${swsWithQA.map((sw, idx) => {
+                  const isLast=idx===swsWithQA.length-1;
+                  return `<tr style="border-bottom:${isLast?'none':'0.5px solid '+divider}">
+                    <td style="padding:6px 9px;font-size:11px;font-weight:600;white-space:nowrap">${sw}</td>
+                    ${last3Months.map((mo) => {
+                        const cs=qaCell(sw,mo);
+                        const isCurr=mo===currMonth;
+                        const bl=`border-left:1px solid ${borderColor};`;
+                        const cellStyle=`padding:5px 6px;text-align:center;font-family:${mono};font-size:11px;font-weight:${cs.fw};color:${cs.c};background:${cs.bg};`;
+                        const v1=cs.moHighAR?cs.prec:cs.acc;
+                        const v2=cs.moHighAR?cs.rec:'';
+                        // AHT cell
+                        const ahtD=swAHTByMonth[sw]?.[mo];
+                        const ahtDec=ahtD?.dec||0;
+                        const ahtV=ahtD&&ahtDec>=1?Math.round((ahtD.dht+ahtD.nht)/ahtDec):null;
+                        const ahtTgt=SW_TARGETS?.[sw]?.aht||null;
+                        const ahtCs=ahtDec>=5&&ahtTgt?ahtCellStyle(ahtV,ahtTgt,isCurr):{bg:isCurr?'#ECEEF2':'transparent',c:textMuted,fw:'400',txt:ahtV!==null?String(ahtV):'\u2014'};
+                        if(!ahtCs.txt) ahtCs.txt=ahtV!==null?String(ahtV):'\u2014';
+                        return `<td style="${cellStyle}${bl}">${v1}</td><td style="${cellStyle}">${v2}</td>`
+                             + `<td style="padding:5px 6px;text-align:center;font-family:${mono};font-size:11px;font-weight:${ahtCs.fw};color:${ahtCs.c};background:${ahtCs.bg};font-style:italic">${ahtCs.txt}</td>`;
+                    }).join('')}
+                  </tr>`;
               }).join('')}
             </tbody>
+            <tfoot><tr style="background:${lightGray};border-top:1px solid ${borderColor}">
+              <td colspan="${1+last3Months.length*3}" style="padding:5px 9px;font-size:10px;color:${textMuted}">
+                <span style="margin-right:10px"><span style="display:inline-block;width:7px;height:7px;border-radius:1px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:3px"></span>Met target</span>
+                <span><span style="display:inline-block;width:7px;height:7px;border-radius:1px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:3px"></span>Below target</span>
+                <span style="margin-left:10px;color:${textMuted}">AR \u226510%: shows P &amp; R \u00b7 AR &lt;10%: shows Accuracy \u00b7 AHT color-coded \u22655 decisions</span>
+              </td>
+            </tr></tfoot>
           </table>
         </div>`;
 
-    function ahtSwRow(sw, months, byMonth, curr, bc, div, mono, textSec, lightGray, ahtBadge) {
-        const tgt = SW_TARGETS[sw]?.aht || null;
-        return `<tr style="border-bottom:0.5px solid ${div}">
-          <td style="padding:6px 9px;font-size:11px;font-weight:600;white-space:nowrap">${sw}</td>
-          ${months.map((mo,i) => {
-              const isCurr = mo===curr;
-              const d = byMonth[sw]?.[mo];
-              const dec = d?.dec||0;
-              const aht = d&&dec>=1 ? Math.round((d.dht+d.nht)/dec) : null;
-              // Only color-code if >=5 decisions for that month
-              const cs = dec>=5 ? ahtCellStyle(aht, tgt, isCurr) : {bg: isCurr?'#ECEEF2':'transparent', c:textMuted, fw:'400', txt: aht!==null?String(aht):'\u2014'};
-              const bl = isCurr ? 'border-left:1px solid '+bc+';' : '';
-              return `<td style="padding:6px 9px;text-align:center;font-family:${mono};font-size:11px;font-weight:${cs.fw};color:${cs.c};background:${cs.bg};${bl}">${cs.txt}</td>`;
-          }).join('')}
-          <td style="padding:6px 9px;font-family:${mono};font-size:12px;color:${textSec};background:#ECEEF2;border-left:1px solid ${bc}">${tgt?tgt:'\u2014'}</td>
-        </tr>`;
-    }
+
 
 
 
@@ -14897,13 +14849,9 @@ function generateReviewerMonthlyDoc(mcdConfig) {
       ${divSection}
       ${secHead('Overall performance \u2014 last 6 months', blue)}${qualTrendTable}
       ${divSection}
-      ${secHead('QA \u2014 last 6 months by sub-workflow', red)}
-      <div style="font-size:11px;color:${textMuted};margin-bottom:8px">AR \u226510% \u2192 Precision &amp; Recall shown \u00b7 AR &lt;10% \u2192 Accuracy shown \u00b7 Green = on target \u00b7 Red = below target</div>
+      ${secHead('QA & AHT \u2014 last 3 months by sub-workflow', red)}
+      <div style="font-size:11px;color:${textMuted};margin-bottom:8px">AR \u226510% \u2192 Precision &amp; Recall shown \u00b7 AR &lt;10% \u2192 Accuracy shown \u00b7 AHT in italics, color-coded \u22655 decisions</div>
       ${errTable}
-      ${divSection}
-      ${secHead('AHT \u2014 last 6 months by sub-workflow', amber)}
-      <div style="font-size:11px;color:${textMuted};margin-bottom:8px">All sub-workflows with any data. Color-coded only for months with \u22655 decisions. Green \u2264 target \u00b7 amber within 5% \u00b7 red over target.</div>
-      ${ahtTable}
       ${coachingSection}
     </div>`;
 
