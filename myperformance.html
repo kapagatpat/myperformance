@@ -15864,8 +15864,8 @@ function _generateCoachingDocInner() {
         const swsByWfWPR = {};
         wfOrderWPR.forEach(wf=>{ swsByWfWPR[wf]=swsAll.filter(sw=>(swToWfWPR[sw]||'')=== wf).sort(); });
 
-        // Week column count: 1 SW + 5 weeks (each = Acc/AHT) + MTD (QA+AHT) = 1 + 5*2 + 2 = 13
-        const totalColsWPR = 1 + displayWks.length*2 + 2;
+        // Week column count: 1 SW + 5 weeks (each = P|R|AHT) + MTD (P|R|AHT) = 1 + 5*3 + 3 = 19
+        const totalColsWPR = 1 + displayWks.length*3 + 3;
 
         // Week sub-headers
         const wkSubHdr = displayWks.map((wk,wi)=>{
@@ -15873,16 +15873,16 @@ function _generateCoachingDocInner() {
             const isCurr=wi===displayWks.length-1;
             const bl=isFirst?'border-left:2px solid '+borderColor+';':'border-left:0.5px solid '+divider+';';
             const bg=isCurr?'background:#EEF2FF;':'background:'+lightGray+';';
-            return `<th colspan="2" style="padding:4px 5px;text-align:center;font-size:9px;font-weight:600;color:${isCurr?textPri:textMuted};${bg}${bl}border-bottom:0.5px solid ${divider};white-space:nowrap">${fmtW(wk)}${isCurr?' ←':''}</th>`;
-        }).join('') + `<th colspan="2" style="padding:4px 5px;text-align:center;font-size:9px;font-weight:600;color:#4F46E5;background:#EEF2FF;border-left:2px solid #C7D2FE;border-bottom:0.5px solid ${divider};white-space:nowrap">MTD ${currMoLabel}</th>`;
+            return `<th colspan="3" style="padding:4px 5px;text-align:center;font-size:9px;font-weight:600;color:${isCurr?textPri:textMuted};${bg}${bl}border-bottom:0.5px solid ${divider};white-space:nowrap">${fmtW(wk)}${isCurr?' ←':''}</th>`;
+        }).join('') + `<th colspan="3" style="padding:4px 5px;text-align:center;font-size:9px;font-weight:600;color:#4F46E5;background:#EEF2FF;border-left:2px solid #C7D2FE;border-bottom:0.5px solid ${divider};white-space:nowrap">MTD ${currMoLabel}</th>`;
 
         const colSubHdr = displayWks.map((wk,wi)=>{
             const isFirst=isFirstWkInMonth(wk);
             const isCurr=wi===displayWks.length-1;
             const bl=isFirst?'border-left:2px solid '+borderColor+';':'border-left:0.5px solid '+divider+';';
             const bg=isCurr?'background:#EEF2FF;':'background:'+lightGray+';';
-            return `<th style="padding:2px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${bg}${bl}">QA</th><th style="padding:2px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${bg}">AHT</th>`;
-        }).join('') + `<th style="padding:2px 4px;text-align:center;font-size:8px;font-weight:600;color:#4F46E5;background:#EEF2FF;border-left:2px solid #C7D2FE">QA</th><th style="padding:2px 4px;text-align:center;font-size:8px;font-weight:600;color:#4F46E5;background:#EEF2FF">AHT</th>`;
+            return `<th style="padding:2px 3px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${bg}${bl}">P</th><th style="padding:2px 3px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${bg}">R</th><th style="padding:2px 3px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${bg}">AHT</th>`;
+        }).join('') + `<th style="padding:2px 3px;text-align:center;font-size:8px;font-weight:600;color:#4F46E5;background:#EEF2FF;border-left:2px solid #C7D2FE">P</th><th style="padding:2px 3px;text-align:center;font-size:8px;font-weight:600;color:#4F46E5;background:#EEF2FF">R</th><th style="padding:2px 3px;text-align:center;font-size:8px;font-weight:600;color:#4F46E5;background:#EEF2FF">AHT</th>`;
 
         const buildSwRow2 = (sw, isLast) => {
             const swTgt = SW_TARGETS[sw];
@@ -15903,7 +15903,8 @@ function _generateCoachingDocInner() {
                 // Determine AR for this week at overall level
                 const wkARv = safeAR(wkStats[wk]?.tpa||0,wkStats[wk]?.fpa||0,wkStats[wk]?.fna||0,wkStats[wk]?.tna||0);
                 const highAR = wkARv!==null&&wkARv>=0.10;
-                let qaTxt='—', qaBg='transparent', qaC=textMuted, qaFw='400';
+                let precTxt='—', precBg='transparent', precC=textMuted, precFw='400';
+                let recTxt='—', recBg='transparent', recC=textMuted, recFw='400';
                 if(tot>0){
                     const acc2=safeAcc(q.tpa,q.fpa,q.fna,q.tna);
                     const prec2=safePrec(q.tpa,q.fpa);
@@ -15912,13 +15913,12 @@ function _generateCoachingDocInner() {
                     const precTgt2=swTgt?.prec||ACC_TARGET;
                     const recTgt2=swTgt?.rec||ACC_TARGET;
                     if(highAR){
-                        const met2=(prec2!==null&&prec2>=precTgt2)&&(rec2!==null&&rec2>=recTgt2);
-                        qaTxt=prec2!==null?(prec2*100).toFixed(0)+'%':'—';
-                        qaBg=met2?'#DCFCE7':'#FEF2F2'; qaC=met2?green:red; qaFw='700';
+                        const pMet=prec2!==null&&prec2>=precTgt2; precTxt=prec2!==null?(prec2*100).toFixed(0)+'%':'—'; precBg=pMet?'#DCFCE7':'#FEF2F2'; precC=pMet?green:red; precFw='700';
+                        const rMet=rec2!==null&&rec2>=recTgt2; recTxt=rec2!==null?(rec2*100).toFixed(0)+'%':'—'; recBg=rMet?'#DCFCE7':'#FEF2F2'; recC=rMet?green:red; recFw='700';
                     } else {
                         const met2=acc2!==null&&acc2>=accTgt2;
-                        qaTxt=acc2!==null?(acc2*100).toFixed(0)+'%':'—';
-                        qaBg=met2?'#DCFCE7':'#FEF2F2'; qaC=met2?green:red; qaFw='700';
+                        precTxt=acc2!==null?(acc2*100).toFixed(0)+'%':'—'; precBg=met2?'#DCFCE7':'#FEF2F2'; precC=met2?green:red; precFw='700';
+                        recTxt='—'; recBg='transparent'; recC=textMuted; recFw='400';
                     }
                 }
                 const ahtV2=aD&&aD.dec>=1?Math.round((aD.dht+aD.nht)/aD.dec):null;
@@ -15926,8 +15926,9 @@ function _generateCoachingDocInner() {
                 let ahtBg2='transparent',ahtC2=textMuted,ahtFw2='400';
                 if(ahtV2!==null&&aD.dec>=3&&ahtTgtN){ ahtBg2=ahtBgFn(ahtV2,ahtTgtN); ahtC2=ahtCFn(ahtV2,ahtTgtN); ahtFw2='700'; }
                 const ahtTxt2=ahtV2!==null?String(ahtV2):'—';
-                return `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${qaFw};color:${qaC};background:${qaBg};${bl}border-bottom:0.5px solid ${divider}">${qaTxt}</td>`
-                     + `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${ahtFw2};color:${ahtC2};background:${ahtBg2};border-bottom:0.5px solid ${divider}">${ahtTxt2}</td>`;
+                return `<td style="padding:3px 3px;text-align:center;font-family:${mono};font-size:9px;font-weight:${precFw};color:${precC};background:${precBg};${bl}border-bottom:0.5px solid ${divider}">${precTxt}</td>`
+                     + `<td style="padding:3px 3px;text-align:center;font-family:${mono};font-size:9px;font-weight:${recFw};color:${recC};background:${recBg};border-bottom:0.5px solid ${divider}">${recTxt}</td>`
+                     + `<td style="padding:3px 3px;text-align:center;font-family:${mono};font-size:9px;font-weight:${ahtFw2};color:${ahtC2};background:${ahtBg2};border-bottom:0.5px solid ${divider}">${ahtTxt2}</td>`;
             }).join('');
 
             // MTD cells
@@ -15935,13 +15936,19 @@ function _generateCoachingDocInner() {
             const mtdTot=qM?qM.tpa+qM.fpa+qM.fna+qM.tna:0;
             const mtdARv=safeAR(mtd.tpa,mtd.fpa,mtd.fna,mtd.tna);
             const mtdHighAR=mtdARv!==null&&mtdARv>=0.10;
-            let mtdQATxt='—',mtdQABg='transparent',mtdQAC=textMuted,mtdQAFw='400';
+            let mtdPTxt='—',mtdPBg='transparent',mtdPC=textMuted,mtdPFw='400';
+            let mtdRTxt='—',mtdRBg='transparent',mtdRC=textMuted,mtdRFw='400';
             if(mtdTot>0){
                 const acc2=safeAcc(qM.tpa,qM.fpa,qM.fna,qM.tna);
                 const prec2=safePrec(qM.tpa,qM.fpa); const rec2=safeRec(qM.tpa,qM.fna);
                 const accTgt2=swTgt?.acc||ACC_TARGET; const precTgt2=swTgt?.prec||ACC_TARGET; const recTgt2=swTgt?.rec||ACC_TARGET;
-                if(mtdHighAR){ const met2=(prec2!==null&&prec2>=precTgt2)&&(rec2!==null&&rec2>=recTgt2); mtdQATxt=prec2!==null?(prec2*100).toFixed(0)+'%':'—'; mtdQABg=met2?'#DCFCE7':'#FEF2F2'; mtdQAC=met2?green:red; mtdQAFw='700'; }
-                else { const met2=acc2!==null&&acc2>=accTgt2; mtdQATxt=acc2!==null?(acc2*100).toFixed(0)+'%':'—'; mtdQABg=met2?'#DCFCE7':'#FEF2F2'; mtdQAC=met2?green:red; mtdQAFw='700'; }
+                if(mtdHighAR){
+                    const pMet=prec2!==null&&prec2>=precTgt2; mtdPTxt=prec2!==null?(prec2*100).toFixed(0)+'%':'—'; mtdPBg=pMet?'#DCFCE7':'#FEF2F2'; mtdPC=pMet?green:red; mtdPFw='700';
+                    const rMet=rec2!==null&&rec2>=recTgt2; mtdRTxt=rec2!==null?(rec2*100).toFixed(0)+'%':'—'; mtdRBg=rMet?'#DCFCE7':'#FEF2F2'; mtdRC=rMet?green:red; mtdRFw='700';
+                } else {
+                    const met2=acc2!==null&&acc2>=accTgt2; mtdPTxt=acc2!==null?(acc2*100).toFixed(0)+'%':'—'; mtdPBg=met2?'#DCFCE7':'#FEF2F2'; mtdPC=met2?green:red; mtdPFw='700';
+                    mtdRTxt='—'; mtdRBg='transparent'; mtdRC=textMuted; mtdRFw='400';
+                }
             }
             const mtdAHTv=aM&&aM.dec>=1?Math.round((aM.dht+aM.nht)/aM.dec):null;
             const mtdAHTtgt=swTgt?.aht||null;
@@ -15953,23 +15960,24 @@ function _generateCoachingDocInner() {
 
             return `<tr style="border-bottom:${isLast?'none':'0.5px solid '+divider}">
               <td style="padding:5px 8px 5px 12px;vertical-align:middle;border-bottom:${isLast?'none':'0.5px solid '+divider}">
-                <div style="font-size:10px;font-weight:600;white-space:nowrap;color:${textPri}">${sw}</div>
+                <div style="font-size:9px;font-weight:600;white-space:nowrap;color:${textPri}">${sw}</div>
                 <div style="font-size:8px;color:${textMuted};margin-top:1px;white-space:nowrap">${tgtLine}</div>
               </td>
               ${wkCells}
-              <td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${mtdQAFw};color:${mtdQAC};background:${mtdQABg};${mtdBL}border-bottom:${mtdBd}">${mtdQATxt}</td>
-              <td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${mtdAHTfw};color:${mtdAHTc};background:${mtdAHTbg};border-bottom:${mtdBd}">${mtdAHTtxt}</td>
+              <td style="padding:3px 3px;text-align:center;font-family:${mono};font-size:9px;font-weight:${mtdPFw};color:${mtdPC};background:${mtdPBg};${mtdBL}border-bottom:${mtdBd}">${mtdPTxt}</td>
+              <td style="padding:3px 3px;text-align:center;font-family:${mono};font-size:9px;font-weight:${mtdRFw};color:${mtdRC};background:${mtdRBg};border-bottom:${mtdBd}">${mtdRTxt}</td>
+              <td style="padding:3px 3px;text-align:center;font-family:${mono};font-size:9px;font-weight:${mtdAHTfw};color:${mtdAHTc};background:${mtdAHTbg};border-bottom:${mtdBd}">${mtdAHTtxt}</td>
             </tr>`;
         };
 
         const swTable2 = (swsAll.length===0)
             ? `<div style="padding:10px 14px;border-radius:8px;border:1px solid ${borderColor};font-size:12px;color:${textMuted};font-style:italic">No sub-workflow data in the last 5 weeks.</div>`
             : `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
-              <table style="width:100%;min-width:580px;border-collapse:collapse;font-size:10px">
+              <table style="width:100%;min-width:680px;border-collapse:collapse;font-size:9px">
                 <colgroup>
-                  <col style="width:20%">
-                  ${displayWks.map(()=>`<col style="width:${Math.round(58/displayWks.length/2)}%"><col style="width:${Math.round(58/displayWks.length/2)}%">`).join('')}
-                  <col style="width:8%"><col style="width:7%">
+                  <col style="width:18%">
+                  ${displayWks.map(()=>`<col style="width:${Math.round(58/displayWks.length/3)}%"><col style="width:${Math.round(58/displayWks.length/3)}%"><col style="width:${Math.round(58/displayWks.length/3)}%">`).join('')}
+                  <col style="width:5%"><col style="width:5%"><col style="width:5%">
                 </colgroup>
                 <thead>
                   <tr style="background:${lightGray}">
@@ -16194,8 +16202,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#F0F2F5;padding:40px 
 .copy-btn{font-size:11px;font-weight:600;padding:5px 14px;border-radius:6px;border:1px solid #DDE1E9;background:#F4F6F9;cursor:pointer;font-family:inherit}
 .copy-btn:hover{background:#E8EBF0}
 @media print{.page{box-shadow:none;border:none;padding:16px;border-radius:0}}
+.mcd-btn{font-size:11px;font-weight:700;padding:5px 14px;border-radius:6px;border:none;background:#2563EB;color:#fff;cursor:pointer;font-family:inherit}
+.mcd-btn:hover{background:#1D4ED8}
 </style></head><body>
-<div class="page">${docHTML}</div>
+<div id="doc-topbar" style="max-width:740px;margin:0 auto 8px;display:flex;justify-content:flex-end;padding:0 4px"><button class="mcd-btn" onclick="if(window.opener&&window.opener.openMonthlyCoachingModal){window.opener.openMonthlyCoachingModal();}else{alert('Return to MyPerformance dashboard and use the Monthly Review Doc button.');}">&#128197; Monthly Review Doc</button></div><div class="page">${docHTML}</div>
 </body></html>`;
 
     // Use Blob URL — avoids popup blockers entirely
@@ -16204,7 +16214,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#F0F2F5;padding:40px 
     const a    = document.createElement('a');
     a.href     = url;
     a.target   = '_blank';
-    a.rel      = 'noopener';
+    a.rel      = '';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
