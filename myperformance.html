@@ -14099,7 +14099,7 @@ function generateReviewerMonthlyDoc(mcdConfig) {
     const mono="'JetBrains Mono','SF Mono',monospace";
     const sans="'DM Sans',system-ui,sans-serif";
     const pct  = v => v!==null&&v!==undefined ? (v*100).toFixed(2)+'%' : '\u2014';
-    const secs = v => v!==null&&v!==undefined ? Number(v).toFixed(2)+'s' : '\u2014';
+    const secs = v => v!==null&&v!==undefined ? Number(v).toFixed(2) : '\u2014';
     const col  = v => v===null?textMuted:v>=ACC_TGT?green:v>=0.93?amber:red;
 
     const sumStats = rows => {
@@ -14218,7 +14218,7 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         ${kpiCard('Action Rate', currStats.ar!==null?pct(currStats.ar):'\u2014', teamStats.ar!==null?'Team: '+pct(teamStats.ar):'(TP+FP) / Total', textSec)}
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:7px;margin-bottom:12px;align-items:stretch">
-        ${(()=>{ const _jt=calcJobTarget(currRows); const _wt=_jt.weightedAHTTarget; const _aa=_jt.actualAHT; const _c=_aa!==null&&_wt!==null?ahtTargetColor(_aa,_wt):(_aa!==null?blue:textMuted); const _sub=_wt!==null?'Target: '+Number(_wt).toFixed(2)+'s'+(_aa!==null?' · '+(Math.round(_aa)<=Math.round(_wt)?'✓ On target':'+'+Number(_aa-_wt).toFixed(2)+'s over'):''):'No blended target'; return kpiCard('Actual AHT', _aa!==null?Number(_aa).toFixed(2)+'s':'—', _sub, _c); })()}
+        ${(()=>{ const _jt=calcJobTarget(currRows); const _wt=_jt.weightedAHTTarget; const _aa=_jt.actualAHT; const _c=_aa!==null&&_wt!==null?ahtTargetColor(_aa,_wt):(_aa!==null?blue:textMuted); const _sub=_wt!==null?'Target: '+Number(_wt).toFixed(2)+(_aa!==null?' · '+(Math.round(_aa)<=Math.round(_wt)?'✓ On target':'+'+Number(_aa-_wt).toFixed(2)+' over'):''):'No blended target'; return kpiCard('Actual AHT', _aa!==null?Number(_aa).toFixed(2):'—', _sub, _c); })()}
         ${(()=>{ const _jt=calcJobTarget(currRows); const _exp=_jt.expected!==null?Math.round(_jt.expected):null; const _c=_jt.expected!==null?jobGapColor(_jt.gap,_jt.expected):blue; const _sub=_exp!==null?'Target: '+_exp.toLocaleString()+' · Gap: '+(_jt.gap>=0?'+':'')+Math.round(_jt.gap):'Actual decisions'; return kpiCard('Decisions', _jt.actual.toLocaleString(), _sub, _c); })()}
         ${kpiCard('Occupancy',   mtdOccCard!==null?mtdOccCard+'%':'\u2014', occCardSub, occCardColor)}
         ${kpiCard('Absenteeism', absRateCard!==null?(absRateCard*100).toFixed(1)+'%':'\u2014', absCardSub, absCardColor)}
@@ -14338,7 +14338,7 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         { lbl:'Action rate', fn: s=>s.ar,   fmt: pct, tgt: null,    higher:null,  arGate:null   },
         { lbl:'Audits',      fn: s=>s.aud,  fmt: v=>Math.round(v).toString(), tgt:null, higher:null, arGate:null },
         { lbl:'Decisions',   fn: s=>s.dec,  fmt: v=>Math.round(v).toLocaleString(), tgt:null, higher:null, arGate:null },
-        { lbl:'AHT (s)',     fn: s=>s.aht,  fmt: v=>v!==null?v.toFixed(1)+'s':'—', tgt:null, higher:false, arGate:null,
+        { lbl:'AHT',         fn: s=>s.aht,  fmt: v=>v!==null?v.toFixed(1):'—', tgt:null, higher:false, arGate:null,
           cellFn: (v, mo) => {
               if(v===null) return {bg:'transparent',c:textMuted,fw:'400'};
               const moRows=allRvRows.filter(r=>r.month===mo);
@@ -14529,14 +14529,14 @@ function generateReviewerMonthlyDoc(mcdConfig) {
     const ahtCellStyle = (aht, tgt, isCurr) => {
         const baseBg = isCurr ? '#ECEEF2' : 'transparent';
         if(aht===null) return {bg: baseBg, c: textMuted, fw: '400', txt: '\u2014'};
-        if(!tgt)       return {bg: baseBg, c: textSec,   fw: '400', txt: aht+'s'};
-        if(aht<=tgt)      return {bg: isCurr?'#BBFFD4':'#DCFCE7', c: green, fw:'700', txt: aht+'s'};
-        if(aht<=tgt*1.05) return {bg: isCurr?'#FFE99A':'#FEF3C7', c: amber, fw:'700', txt: aht+'s'};
-        return                   {bg: isCurr?'#FFD5D5':'#FEF2F2', c: red,   fw:'700', txt: aht+'s'};
+        if(!tgt)       return {bg: baseBg, c: textSec,   fw: '400', txt: String(aht)};
+        if(aht<=tgt)      return {bg: isCurr?'#BBFFD4':'#DCFCE7', c: green, fw:'700', txt: String(aht)};
+        if(aht<=tgt*1.05) return {bg: isCurr?'#FFE99A':'#FEF3C7', c: amber, fw:'700', txt: String(aht)};
+        return                   {bg: isCurr?'#FFD5D5':'#FEF2F2', c: red,   fw:'700', txt: String(aht)};
     };
     const ahtBadge = (aht, tgt) => {
         if(aht===null) return '\u2014';
-        return aht+'s';
+        return String(aht);
     };
 
     // Sort: MTD-failing first, then high-impact meeting-goal (by curr month decisions desc)
@@ -14601,11 +14601,11 @@ function generateReviewerMonthlyDoc(mcdConfig) {
               const dec = d?.dec||0;
               const aht = d&&dec>=1 ? Math.round((d.dht+d.nht)/dec) : null;
               // Only color-code if >=5 decisions for that month
-              const cs = dec>=5 ? ahtCellStyle(aht, tgt, isCurr) : {bg: isCurr?'#ECEEF2':'transparent', c:textMuted, fw:'400', txt: aht!==null?aht+'s':'\u2014'};
+              const cs = dec>=5 ? ahtCellStyle(aht, tgt, isCurr) : {bg: isCurr?'#ECEEF2':'transparent', c:textMuted, fw:'400', txt: aht!==null?String(aht):'\u2014'};
               const bl = isCurr ? 'border-left:1px solid '+bc+';' : '';
               return `<td style="padding:6px 9px;text-align:center;font-family:${mono};font-size:11px;font-weight:${cs.fw};color:${cs.c};background:${cs.bg};${bl}">${cs.txt}</td>`;
           }).join('')}
-          <td style="padding:6px 9px;font-family:${mono};font-size:12px;color:${textSec};background:#ECEEF2;border-left:1px solid ${bc}">${tgt?tgt+'s':'\u2014'}</td>
+          <td style="padding:6px 9px;font-family:${mono};font-size:12px;color:${textSec};background:#ECEEF2;border-left:1px solid ${bc}">${tgt?tgt:'\u2014'}</td>
         </tr>`;
     }
 
@@ -14708,20 +14708,6 @@ function generateReviewerMonthlyDoc(mcdConfig) {
             </div>
           </div>
         </div>`;
-
-    // ── Policy error breakdown for focus areas ────────────────────────────────
-    const _polC = {};
-    currRows.forEach(r => {
-        if(!r.pol || (r.fpa||0)+(r.fna||0)===0) return;
-        if(!_polC[r.pol]) _polC[r.pol] = {fp:0, fn:0, sw:r.sw, lastWk:r.week};
-        _polC[r.pol].fp += r.fpa||0;
-        _polC[r.pol].fn += r.fna||0;
-        if(r.week > _polC[r.pol].lastWk) _polC[r.pol].lastWk = r.week;
-    });
-    const sortedPolRows = Object.entries(_polC)
-        .map(([pol,d]) => ({pol, fp:d.fp, fn:d.fn, total:d.fp+d.fn, sw:d.sw, lastWk:d.lastWk, type:d.fn>=d.fp?'FN':'FP'}))
-        .filter(p => p.total>0)
-        .sort((a,b) => b.total-a.total);
 
     // Quality focus
     const topErrPol = sortedPolRows[0];
@@ -23692,8 +23678,8 @@ function mcdGenerate(){
     isPSP:_mcd.isPSP,pspTraj:_mcd.pspTraj,accStr:_mcd.accStr,
     swQuality:_mcd.swQuality,overAHT:_mcd.overAHT,absFailing:_mcd.absFailing,absStr:_mcd.absStr
   };
-  generateReviewerMonthlyDoc(config);
   closeMcdModal();
+  generateReviewerMonthlyDoc(config);
 }
 // ─── END MONTHLY COACHING MODAL ──────────────────────────────────────────────
 </script>
