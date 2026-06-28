@@ -4435,7 +4435,14 @@ function renderPrioritySurface() {
     var reviewer = rvEntry[0], swMap = rvEntry[1];
     Object.entries(swMap).forEach(function(swEntry) {
       var sw = swEntry[0], weekMap = swEntry[1];
+      // Fall back to the most recent week that has audit data for this reviewer-SW
+      // (latestWk may be WFM-only with zero quality audits)
       var latestEntry = weekMap[latestWk];
+      if(!latestEntry) {
+        var availWks = last4.slice().reverse().filter(function(wk){ return weekMap[wk]; });
+        if(!availWks.length) return;
+        latestEntry = weekMap[availWks[0]];
+      }
       if(!latestEntry) return;
       var metrics = latestEntry.useAR ? ['Precision','Recall','AHT'] : ['Accuracy','AHT'];
       metrics.forEach(function(metric) {
