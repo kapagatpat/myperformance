@@ -1952,37 +1952,6 @@ tr:hover td{background:#F8F9FB}
 
       </div>
 
-      <!-- ROW 3: GOALS CSV UPLOAD -->
-      <div style="margin-top:2px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:1.25rem;align-items:stretch">
-
-        <!-- INSTRUCTIONS -->
-        <div style="background:linear-gradient(135deg,#F0FDF4 55%,#DCFCE7);border:1px solid #86EFAC;border-radius:var(--r);padding:1.25rem">
-          <div style="font-size:11px;font-weight:800;color:#15803D;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🎯 Goals CSV — Band Targets</div>
-          <div style="display:flex;gap:9px;align-items:flex-start;font-size:11px;color:var(--ts);margin-bottom:6px"><span style="background:#16A34A;color:#fff;border-radius:50%;width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">1</span><span>Export the <strong>2026_Goals</strong> CSV from your shared drive</span></div>
-          <div style="display:flex;gap:9px;align-items:flex-start;font-size:11px;color:var(--ts);margin-bottom:6px"><span style="background:#16A34A;color:#fff;border-radius:50%;width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">2</span><span>Required columns: <strong>WW Month, Workflow, Subworkflow, Metric, Exceeding, Achieving, Approaching, Needs Improvement</strong></span></div>
-          <div style="display:flex;gap:9px;align-items:flex-start;font-size:11px;color:var(--ts);margin-bottom:6px"><span style="background:#16A34A;color:#fff;border-radius:50%;width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">3</span><span>Upload once per month when targets change — overrides hardcoded defaults for all signal detection and scoring</span></div>
-          <div style="margin-top:10px;padding:7px 10px;background:#DCFCE7;border-radius:5px;border:1px solid #86EFAC;font-size:10px;color:#15803D">Quality values are percentages (e.g. 98.00%) · AHT values are seconds</div>
-        </div>
-
-        <!-- GOALS UPLOAD PANEL -->
-        <div class="up-panel" id="goals-dropzone" onclick="document.getElementById('goals-file-input').click()" style="margin-bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;border-color:#86EFAC;cursor:pointer">
-          <div style="font-size:28px;margin-bottom:6px">🎯</div>
-          <div style="font-size:14px;font-weight:800;color:var(--text)">Goals CSV</div>
-          <div style="font-size:11px;color:var(--tm);margin-top:3px;text-align:center">Band targets · all 4 bands per metric per SW</div>
-          <div style="font-size:11px;color:var(--blue);margin-top:6px;text-decoration:underline">click to browse</div>
-          <input type="file" id="goals-file-input" accept=".csv" onchange="goalsHandleUpload(this)" style="display:none">
-          <div id="goals-up-ok"  style="margin-top:10px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
-          <div id="goals-up-err" style="margin-top:10px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
-        </div>
-
-        <!-- GOALS STATUS CARD -->
-        <div style="background:var(--sec);border:1px solid var(--bbd);border-radius:var(--r);padding:1.25rem;display:flex;flex-direction:column;justify-content:center">
-          <div style="font-size:11px;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Goals Status</div>
-          <div id="goals-status" style="font-size:12px;color:var(--tm);line-height:1.6">No goals file loaded — using hardcoded defaults</div>
-        </div>
-
-      </div>
-
       <!-- DATA HEALTH PANEL -->
       <div id="data-health-panel" style="display:none;text-align:left"></div>
 
@@ -2113,7 +2082,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // subworkflow '-' = workflow-level fallback; 'OTHER' = explicit catch-all
 // Achieving (ach) = pass line for Met/Below status
 // For accuracy/precision/recall: values are fractions (0–1)
-// For AHT: values are seconds
+// For AHT: values are seconds. Source: 2026_Goals_May_2026.csv — hardcoded May 2026
 const BAND_TARGETS = {
   "Overall": {
     "-": {
@@ -2223,6 +2192,12 @@ const BAND_TARGETS = {
       "Recall":    {exc:0.97, ach:0.95, app:0.93, ni:0.88},
       "AHT":       {exc:77,   ach:171,  app:315,  ni:441}
     },
+    "13+ Appeals": {
+      "Accuracy":  {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "Precision": {exc:0.99, ach:0.97, app:0.95, ni:0.90},
+      "Recall":    {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "AHT":       {exc:399,  ach:410,  app:410,  ni:410}
+    },
     "Asset Review": {
       "Accuracy":  {exc:0.97, ach:0.95, app:0.93, ni:0.88},
       "Precision": {exc:0.99, ach:0.97, app:0.95, ni:0.90},
@@ -2295,6 +2270,12 @@ const BAND_TARGETS = {
       "Recall":    {exc:0.97, ach:0.95, app:0.93, ni:0.88},
       "AHT":       {exc:82,   ach:154,  app:262,  ni:378}
     },
+    "In-Depth Review": {
+      "Accuracy":  {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "Precision": {exc:0.99, ach:0.97, app:0.95, ni:0.90},
+      "Recall":    {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "AHT":       {exc:321,  ach:510,  app:706,  ni:861}
+    },
     "MHE Asset Review": {
       "Accuracy":  {exc:0.97, ach:0.95, app:0.93, ni:0.88},
       "Precision": {exc:0.99, ach:0.97, app:0.95, ni:0.90},
@@ -2312,6 +2293,18 @@ const BAND_TARGETS = {
       "Precision": {exc:1.00, ach:0.98, app:0.96, ni:0.91},
       "Recall":    {exc:1.00, ach:0.98, app:0.96, ni:0.91},
       "AHT":       {exc:46,   ach:90,   app:166,  ni:271}
+    },
+    "NPC": {
+      "Accuracy":  {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "Precision": {exc:0.99, ach:0.97, app:0.95, ni:0.90},
+      "Recall":    {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "AHT":       {exc:74,   ach:165,  app:1358, ni:1358}
+    },
+    "NPC Avatar": {
+      "Accuracy":  {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "Precision": {exc:0.99, ach:0.97, app:0.95, ni:0.90},
+      "Recall":    {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "AHT":       {exc:1358, ach:1358, app:1358, ni:1358}
     },
     "Post Report": {
       "Accuracy":  {exc:0.97, ach:0.95, app:0.93, ni:0.88},
@@ -2361,12 +2354,12 @@ const BAND_TARGETS = {
       "Recall":    {exc:1.00, ach:0.98, app:0.96, ni:0.91},
       "AHT":       {exc:44,   ach:95,   app:192,  ni:306}
     },
-    "Workrooms":      {"AHT": {exc:36,   ach:50,   app:292,  ni:292}},
-    "13+ Appeals":    {"AHT": {exc:399,  ach:410,  app:410,  ni:410}},
-    "In-Depth Review":{"AHT": {exc:321,  ach:510,  app:706,  ni:861}},
-    "NPC":            {"AHT": {exc:74,   ach:165,  app:1358, ni:1358}},
-    "NPC Avatar":     {"AHT": {exc:1358, ach:1358, app:1358, ni:1358}},
-    "224":            {"AHT": {exc:208,  ach:299,  app:457,  ni:590}},
+    "Workrooms": {
+      "Accuracy":  {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "Precision": {exc:0.99, ach:0.97, app:0.95, ni:0.90},
+      "Recall":    {exc:0.97, ach:0.95, app:0.93, ni:0.88},
+      "AHT":       {exc:36,   ach:50,   app:292,  ni:292}
+    },
     "OTHER": {
       "Accuracy":  {exc:0.97, ach:0.95, app:0.93, ni:0.88},
       "Precision": {exc:0.99, ach:0.97, app:0.95, ni:0.90},
@@ -4375,13 +4368,7 @@ function renderPrioritySurface() {
     return;
   }
 
-  if(!LOADED_BAND_TARGETS) {
-    flagsEl.innerHTML = '<div style="grid-column:1/-1;background:#FFF7ED;border:1px solid #FDE68A;border-radius:var(--r);padding:14px 16px;display:flex;align-items:flex-start;gap:10px"><span style="font-size:18px;flex-shrink:0">&#x26A0;</span><div><div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:3px">Goals CSV not loaded - signal detection disabled</div><div style="font-size:11px;color:#92400E;line-height:1.5">Upload a Goals CSV on the <strong>Load Dataset</strong> tab to activate band-based signal detection.</div></div></div>';
-    if(borderEl) borderEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:6px 0">No band targets loaded.</div>';
-    if(movementEl) movementEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:6px 0">No band targets loaded.</div>';
-    if(legendEl) legendEl.textContent = '';
-    return;
-  }
+
 
   const threshEl = document.getElementById('ti-ps-thresh');
   const thresh   = parseFloat(threshEl ? threshEl.value : '0.03');
