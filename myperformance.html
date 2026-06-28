@@ -4350,11 +4350,274 @@ function renderTeamInsights(){
     allMonths: [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort(),
   };
 
+  renderPrioritySurface();
+
   } catch(e) {
     console.error('renderTeamInsights error:', e);
   }
   buildTIDefectLog();
 }
+
+
+// PRIORITY SURFACE
+function renderPrioritySurface() {
+  const flagsEl     = document.getElementById('ti-ps-flags');
+  const borderEl    = document.getElementById('ti-ps-borderline');
+  const movementEl  = document.getElementById('ti-ps-movement');
+  const legendEl    = document.getElementById('ti-ps-legend');
+  if(!flagsEl) return;
+
+  if(!RAW_ROWS || RAW_ROWS.length === 0) {
+    flagsEl.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:var(--tm);font-size:12px">Load a dataset to see signal detection.</div>';
+    if(borderEl) borderEl.innerHTML = '';
+    if(movementEl) movementEl.innerHTML = '';
+    if(legendEl) legendEl.textContent = '';
+    return;
+  }
+
+  if(!LOADED_BAND_TARGETS) {
+    flagsEl.innerHTML = '<div style="grid-column:1/-1;background:#FFF7ED;border:1px solid #FDE68A;border-radius:var(--r);padding:14px 16px;display:flex;align-items:flex-start;gap:10px"><span style="font-size:18px;flex-shrink:0">&#x26A0;</span><div><div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:3px">Goals CSV not loaded - signal detection disabled</div><div style="font-size:11px;color:#92400E;line-height:1.5">Upload a Goals CSV on the <strong>Load Dataset</strong> tab to activate band-based signal detection.</div></div></div>';
+    if(borderEl) borderEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:6px 0">No band targets loaded.</div>';
+    if(movementEl) movementEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:6px 0">No band targets loaded.</div>';
+    if(legendEl) legendEl.textContent = '';
+    return;
+  }
+
+  const threshEl = document.getElementById('ti-ps-thresh');
+  const thresh   = parseFloat(threshEl ? threshEl.value : '0.03');
+  const allWeeks = [...new Set(RAW_ROWS.map(r => r.week).filter(Boolean))].sort();
+  const last4    = allWeeks.slice(-4);
+  const latestWk = last4[last4.length - 1];
+  const prevWk   = last4.length >= 2 ? last4[last4.length - 2] : null;
+
+  if(!latestWk) {
+    flagsEl.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:var(--tm);font-size:12px">Not enough week data for signal detection.</div>';
+    return;
+  }
+
+  const activeRevs = window._activeRevs || null;
+  const BAND_RANK  = { exc:3, ach:2, app:1, ni:0 };
+
+  const matrix  = {};
+  const rows4   = RAW_ROWS.filter(r => last4.includes(r.week));
+  const grouped = {};
+
+  rows4.forEach(function(r) {
+    if(!r.reviewer || !r.sw || !r.week) return;
+    if(activeRevs && !activeRevs.has(r.reviewer)) return;
+    var key = r.reviewer + '||' + r.sw + '||' + r.week;
+    if(!grouped[key]) grouped[key] = { reviewer:r.reviewer, sw:r.sw, week:r.week, workflow:r.workflow, tpa:0, tna:0, fpa:0, fna:0, dht:0, nht:0, decisions:0 };
+    var g = grouped[key];
+    g.tpa+=(r.tpa||0); g.tna+=(r.tna||0); g.fpa+=(r.fpa||0); g.fna+=(r.fna||0);
+    g.dht+=(r.dht||0); g.nht+=(r.nht||0); g.decisions+=(r.decisions||0);
+  });
+
+  Object.values(grouped).forEach(function(g) {
+    var reviewer=g.reviewer, sw=g.sw, week=g.week, workflow=g.workflow;
+    var tot = g.tpa + g.tna + g.fpa + g.fna;
+    if(tot === 0) return;
+    var ar   = g.decisions > 0 ? g.fpa / g.decisions : 0;
+    var acc  = tot > 0 ? (g.tpa + g.tna) / tot : null;
+    var prec = (g.tpa + g.fpa) > 0 ? g.tpa / (g.tpa + g.fpa) : null;
+    var rec  = (g.tpa + g.fna) > 0 ? g.tpa / (g.tpa + g.fna) : null;
+    var aht  = g.decisions > 0 ? (g.dht + g.nht) / g.decisions : null;
+    var useAR = ar >= 0.10;
+    var bAcc  = getBandTargets(workflow, sw, 'Accuracy');
+    var bPrec = getBandTargets(workflow, sw, 'Precision');
+    var bRec  = getBandTargets(workflow, sw, 'Recall');
+    var bAht  = getBandTargets(workflow, sw, 'AHT');
+    var entry = {
+      acc:acc, prec:prec, rec:rec, aht:aht, ar:ar, workflow:workflow, useAR:useAR,
+      band_acc:bAcc, band_prec:bPrec, band_rec:bRec, band_aht:bAht,
+      b_acc:  assignBand(acc,  bAcc,  false),
+      b_prec: assignBand(prec, bPrec, false),
+      b_rec:  assignBand(rec,  bRec,  false),
+      b_aht:  assignBand(aht,  bAht,  true),
+      decisions: g.decisions
+    };
+    if(!matrix[reviewer])     matrix[reviewer] = {};
+    if(!matrix[reviewer][sw]) matrix[reviewer][sw] = {};
+    matrix[reviewer][sw][week] = entry;
+  });
+
+  var signals    = [];
+  var borderline = [];
+
+  Object.entries(matrix).forEach(function(rvEntry) {
+    var reviewer = rvEntry[0], swMap = rvEntry[1];
+    Object.entries(swMap).forEach(function(swEntry) {
+      var sw = swEntry[0], weekMap = swEntry[1];
+      var latestEntry = weekMap[latestWk];
+      if(!latestEntry) return;
+      var metrics = latestEntry.useAR ? ['Precision','Recall','AHT'] : ['Accuracy','AHT'];
+      metrics.forEach(function(metric) {
+        var isAHT  = metric === 'AHT';
+        var bndKey = isAHT ? 'band_aht' : metric==='Precision' ? 'band_prec' : metric==='Recall' ? 'band_rec' : 'band_acc';
+        var valKey = isAHT ? 'aht'      : metric==='Precision' ? 'prec'      : metric==='Recall' ? 'rec'      : 'acc';
+        var bKey   = isAHT ? 'b_aht'    : metric==='Precision' ? 'b_prec'    : metric==='Recall' ? 'b_rec'    : 'b_acc';
+        var latestBand = latestEntry[bKey];
+        var latestVal  = latestEntry[valKey];
+        var bandObj    = latestEntry[bndKey];
+        if(!latestBand || latestVal === null || latestVal === undefined) return;
+        var hist = last4.map(function(wk){ return weekMap[wk] ? weekMap[wk][bKey] : null; });
+
+        var prevEntry = prevWk ? weekMap[prevWk] : null;
+        var prevBand  = prevEntry ? prevEntry[bKey] : null;
+        if(prevBand && latestBand && BAND_RANK[latestBand] < BAND_RANK[prevBand] && (latestBand==='ni'||latestBand==='app')) {
+          signals.push({ reviewer:reviewer, sw:sw, workflow:latestEntry.workflow, type:'red', metric:metric, latestVal:latestVal, latestBand:latestBand, prevBand:prevBand, hist:hist });
+        }
+
+        if(latestBand==='ni'||latestBand==='app') {
+          var runLen = 0;
+          for(var i=hist.length-1;i>=0;i--){ if(hist[i]==='ni'||hist[i]==='app') runLen++; else break; }
+          var alreadyRed = signals.find(function(s){ return s.reviewer===reviewer&&s.sw===sw&&s.metric===metric&&s.type==='red'; });
+          if(runLen >= 3 && !alreadyRed) {
+            signals.push({ reviewer:reviewer, sw:sw, workflow:latestEntry.workflow, type:'yellow', metric:metric, latestVal:latestVal, latestBand:latestBand, runLen:runLen, hist:hist });
+          }
+        }
+
+        var rankedHist = hist.map(function(b){ return b ? BAND_RANK[b] : null; });
+        var last3      = rankedHist.filter(function(v){ return v!==null; }).slice(-3);
+        if(last3.length===3 && last3[0]>last3[1] && last3[1]>last3[2]) {
+          var alreadyFl = signals.find(function(s){ return s.reviewer===reviewer&&s.sw===sw&&s.metric===metric&&(s.type==='red'||s.type==='yellow'); });
+          if(!alreadyFl) {
+            signals.push({ reviewer:reviewer, sw:sw, workflow:latestEntry.workflow, type:'orange', metric:metric, latestVal:latestVal, latestBand:latestBand, hist:hist });
+          }
+        }
+
+        if(bandObj && latestVal !== null) {
+          var achTgt = bandObj.ach;
+          if(achTgt !== null && achTgt !== undefined) {
+            var gap = isAHT ? latestVal - achTgt : achTgt - latestVal;
+            if(gap > 0 && gap <= thresh) borderline.push({ reviewer:reviewer, sw:sw, metric:metric, val:latestVal, band:latestBand, bandObj:bandObj, gap:gap, isAHT:isAHT });
+          }
+        }
+      });
+    });
+  });
+
+  var movement = [];
+  if(prevWk) {
+    Object.entries(matrix).forEach(function(rvEntry) {
+      var reviewer = rvEntry[0], swMap = rvEntry[1];
+      Object.entries(swMap).forEach(function(swEntry) {
+        var sw = swEntry[0], weekMap = swEntry[1];
+        var cur = weekMap[latestWk], prev = weekMap[prevWk];
+        if(!cur||!prev) return;
+        var metrics = cur.useAR ? ['Precision','Recall'] : ['Accuracy'];
+        metrics.forEach(function(metric) {
+          var valKey = metric==='Precision'?'prec':metric==='Recall'?'rec':'acc';
+          var bKey   = metric==='Precision'?'b_prec':metric==='Recall'?'b_rec':'b_acc';
+          var cv=cur[valKey], pv=prev[valKey];
+          if(cv===null||pv===null||cv===undefined||pv===undefined) return;
+          var delta = cv - pv;
+          if(Math.abs(delta)<0.001) return;
+          movement.push({ reviewer:reviewer, sw:sw, metric:metric, prevVal:pv, latestVal:cv, delta:delta, prevBand:prev[bKey], latestBand:cur[bKey], workflow:cur.workflow });
+        });
+      });
+    });
+    movement.sort(function(a,b){ return Math.abs(b.delta)-Math.abs(a.delta); });
+  }
+
+  var fmtPct  = function(v){ return v!==null&&v!==undefined ? (v*100).toFixed(1)+'%' : '\u2014'; };
+  var fmtSecs = function(v){ return v!==null&&v!==undefined ? Math.round(v)+'s' : '\u2014'; };
+  var bandPill = function(b) {
+    if(!b) return '';
+    var cfg = { exc:['#15803D','#DCFCE7'], ach:['#1D4ED8','#EFF6FF'], app:['#92400E','#FEF9C3'], ni:['#B91C1C','#FEF2F2'] };
+    var labels = { exc:'Exceeding', ach:'Achieving', app:'Approaching', ni:'Needs Improvement' };
+    var pair = cfg[b]||['#555','#eee'];
+    return '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:'+pair[1]+';color:'+pair[0]+';white-space:nowrap">'+(labels[b]||b)+'</span>';
+  };
+  var sigIcon  = function(t){ return t==='red'?'\uD83D\uDD34':t==='yellow'?'\uD83D\uDFE1':'\uD83D\uDFE0'; };
+  var sigBdCol = function(t){ return t==='red'?'#FCA5A5':t==='yellow'?'#FCD34D':'#FDBA74'; };
+  var sigBgCol = function(t){ return t==='red'?'#FEF2F2':t==='yellow'?'#FEFCE8':'#FFF7ED'; };
+
+  var reviewerSignals = {};
+  signals.forEach(function(s){ if(!reviewerSignals[s.reviewer]) reviewerSignals[s.reviewer]=[]; reviewerSignals[s.reviewer].push(s); });
+  var typeOrd = {red:0,yellow:1,orange:2};
+  var sortedRevs = Object.keys(reviewerSignals).sort(function(a,b){
+    var wa = Math.min.apply(null, reviewerSignals[a].map(function(s){ return typeOrd[s.type]; }));
+    var wb = Math.min.apply(null, reviewerSignals[b].map(function(s){ return typeOrd[s.type]; }));
+    return wa - wb;
+  });
+
+  if(sortedRevs.length===0) {
+    flagsEl.innerHTML = '<div style="grid-column:1/-1;background:#F0FDF4;border:1px solid #86EFAC;border-radius:var(--r);padding:14px 16px;text-align:center"><div style="font-size:14px;margin-bottom:4px">&#x2705;</div><div style="font-size:12px;font-weight:700;color:#15803D">No signals detected</div><div style="font-size:11px;color:#15803D;margin-top:2px">All reviewers within target bands across '+last4.length+' weeks</div></div>';
+  } else {
+    flagsEl.innerHTML = sortedRevs.map(function(reviewer) {
+      var rvSigs = reviewerSignals[reviewer].slice().sort(function(a,b){ return typeOrd[a.type]-typeOrd[b.type]; });
+      var worstType = rvSigs[0].type;
+      var sigRows = rvSigs.map(function(s){
+        var valStr = s.metric==='AHT' ? fmtSecs(s.latestVal) : fmtPct(s.latestVal);
+        return '<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:0.5px solid '+sigBdCol(s.type)+'40">'
+          +'<span style="font-size:10px">'+sigIcon(s.type)+'</span>'
+          +'<span style="font-size:10px;font-weight:700;color:var(--ts);flex:1">'+s.metric+' \u00b7 '+s.sw+'</span>'
+          +'<span style="font-size:10px;color:var(--tm)">'+valStr+'</span>'
+          +bandPill(s.latestBand)
+          +'</div>';
+      }).join('');
+      return '<div style="background:'+sigBgCol(worstType)+';border:1.5px solid '+sigBdCol(worstType)+';border-radius:var(--r);padding:10px 12px">'
+        +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">'
+        +'<span style="font-size:13px">'+sigIcon(worstType)+'</span>'
+        +'<span style="font-size:12px;font-weight:800;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+reviewer+'</span>'
+        +'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:var(--surface);border:1px solid '+sigBdCol(worstType)+';color:var(--ts)">'+rvSigs.length+' signal'+(rvSigs.length>1?'s':'')+'</span>'
+        +'</div>'+sigRows+'</div>';
+    }).join('');
+  }
+
+  if(legendEl) {
+    var reds=signals.filter(function(s){return s.type==='red';}).length;
+    var yels=signals.filter(function(s){return s.type==='yellow';}).length;
+    var orgs=signals.filter(function(s){return s.type==='orange';}).length;
+    legendEl.textContent = sortedRevs.length > 0
+      ? sortedRevs.length+' reviewer'+(sortedRevs.length!==1?'s':'')+' flagged \u00b7 '+reds+' red / '+yels+' yellow / '+orgs+' orange \u00b7 '+last4.length+' wks'
+      : last4.length+' wks analysed \u00b7 no signals';
+  }
+
+  if(borderEl) {
+    if(borderline.length===0) {
+      borderEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">No reviewers within threshold of a KPI boundary.</div>';
+    } else {
+      var sortedBL = borderline.slice().sort(function(a,b){ return a.gap-b.gap; });
+      borderEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:5px">'
+        + sortedBL.slice(0,12).map(function(b){
+          var valStr = b.isAHT ? fmtSecs(b.val) : fmtPct(b.val);
+          var tgtStr = b.isAHT ? fmtSecs(b.bandObj.ach) : fmtPct(b.bandObj.ach);
+          var gapStr = b.isAHT ? '+'+Math.round(b.gap)+'s' : (b.gap*100).toFixed(1)+'pp';
+          return '<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;border-bottom:0.5px solid var(--divider)">'
+            +'<span style="font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+b.reviewer+'</span>'
+            +'<span style="color:var(--tm);flex-shrink:0">'+b.metric+' \u00b7 '+b.sw+'</span>'
+            +'<span style="font-weight:700;color:var(--ts);font-family:monospace;flex-shrink:0">'+valStr+'</span>'
+            +'<span style="font-size:9px;color:var(--tm);flex-shrink:0">vs '+tgtStr+'</span>'
+            +'<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;background:#FEF9C3;color:#92400E;flex-shrink:0">'+gapStr+' away</span>'
+            +'</div>';
+        }).join('')+'</div>';
+    }
+  }
+
+  if(movementEl) {
+    if(!prevWk || movement.length===0) {
+      movementEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">Need at least 2 weeks of data for movement analysis.</div>';
+    } else {
+      movementEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:5px">'
+        + movement.slice(0,10).map(function(m){
+          var improved = m.delta > 0;
+          var arrow    = improved ? '\u2191' : '\u2193';
+          var aColor   = improved ? '#15803D' : '#B91C1C';
+          var deltaStr = (m.delta>0?'+':'')+(m.delta*100).toFixed(1)+'pp';
+          return '<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;border-bottom:0.5px solid var(--divider)">'
+            +'<span style="font-size:13px;font-weight:800;color:'+aColor+';flex-shrink:0">'+arrow+'</span>'
+            +'<span style="font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+m.reviewer+'</span>'
+            +'<span style="color:var(--tm);flex-shrink:0">'+m.metric+' \u00b7 '+m.sw+'</span>'
+            +'<span style="font-size:10px;color:var(--tm);flex-shrink:0">'+fmtPct(m.prevVal)+' \u2192 '+fmtPct(m.latestVal)+'</span>'
+            +'<span style="font-size:10px;font-weight:700;color:'+aColor+';font-family:monospace;flex-shrink:0">'+deltaStr+'</span>'
+            +bandPill(m.latestBand)
+            +'</div>';
+        }).join('')+'</div>';
+    }
+  }
+}
+// END PRIORITY SURFACE
 
 // ─── TEAM INSIGHTS COACHING DOC ───────────────────────────────────────────────
 function buildTeamInsightsDoc() {
