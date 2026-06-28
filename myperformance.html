@@ -4403,7 +4403,8 @@ function renderPrioritySurface() {
     var reviewer=g.reviewer, sw=g.sw, week=g.week, workflow=g.workflow;
     var tot = g.tpa + g.tna + g.fpa + g.fna;
     if(tot === 0) return;
-    var ar   = g.decisions > 0 ? g.fpa / g.decisions : 0;
+    var tot  = g.tpa + g.fpa + g.fna + g.tna;
+    var ar   = tot > 0 ? (g.tpa + g.fpa) / tot : 0;
     var acc  = tot > 0 ? (g.tpa + g.tna) / tot : null;
     var prec = (g.tpa + g.fpa) > 0 ? g.tpa / (g.tpa + g.fpa) : null;
     var rec  = (g.tpa + g.fna) > 0 ? g.tpa / (g.tpa + g.fna) : null;
