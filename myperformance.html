@@ -388,7 +388,7 @@ tr:hover td{background:#F8F9FB}
     <div class="sb-footer">
       <strong>MyPerformance</strong>
       
-      <span id="sb-version-stamp">MVIO · v1.25 · Jun 15 2026 22:30</span>
+      <span id="sb-version-stamp">MVIO · v1.25 · <span id="sb-build-ts">--</span></span>
     </div>
   </nav>
 
@@ -689,35 +689,44 @@ tr:hover td{background:#F8F9FB}
             <span id="ti-ps-legend" style="font-size:10px;color:var(--tm)"></span>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:10px;font-weight:700;color:var(--tm)">Threshold window</span>
-            <select id="ti-ps-thresh" onchange="renderPrioritySurface()" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);color:var(--ts);font-family:var(--f);cursor:pointer">
-              <option value="0.02">±2pp</option>
-              <option value="0.03">±3pp</option>
-              <option value="0.05">±5pp</option>
-            </select>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF9C3;color:#92400E;border:1px solid #FCD34D">Approaching + NI flagged</span>
           </div>
         </div>
 
-        <!-- Flag cards row -->
-        <div id="ti-ps-flags" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px"></div>
+        <!-- Panel A — Band Distribution Table -->
+        <div id="ti-ps-panel-a" style="margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:11px;font-weight:800;color:var(--text)">Panel A — Band Distribution by Reviewer</span>
+            <span style="font-size:10px;color:var(--tm)">Last 4 weeks · AR-gated · worst-KPI pill</span>
+          </div>
+          <div id="ti-ps-band-table" style="padding:10px 14px;min-height:60px;overflow-x:auto"></div>
+        </div>
 
-        <!-- Bottom two panels -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <!-- Borderline tracker -->
+        <!-- Panel B — Signal Flag Cards -->
+        <div id="ti-ps-flags" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:12px"></div>
+
+        <!-- Panel C + Borderline/Movement row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
-            <div style="padding:10px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:11px;font-weight:800;color:var(--text)">Borderline Reviewers</span>
-              <span style="font-size:10px;color:var(--tm)">Within threshold of any KPI boundary</span>
+            <div style="padding:10px 14px;border-bottom:1px solid var(--divider)">
+              <span style="font-size:11px;font-weight:800;color:var(--text)">Borderline</span>
+              <div style="font-size:10px;color:var(--tm)">Within threshold of any KPI boundary</div>
             </div>
             <div id="ti-ps-borderline" style="padding:10px 14px;min-height:60px"></div>
           </div>
-          <!-- Weekly movement digest -->
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
-            <div style="padding:10px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:11px;font-weight:800;color:var(--text)">Week-on-Week Movement</span>
-              <span style="font-size:10px;color:var(--tm)">Last 2 available weeks</span>
+            <div style="padding:10px 14px;border-bottom:1px solid var(--divider)">
+              <span style="font-size:11px;font-weight:800;color:var(--text)">WoW Movement</span>
+              <div style="font-size:10px;color:var(--tm)">Last 2 available weeks</div>
             </div>
             <div id="ti-ps-movement" style="padding:10px 14px;min-height:60px"></div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--divider)">
+              <span style="font-size:11px;font-weight:800;color:var(--text)">Panel C — Coaching Loop</span>
+              <div style="font-size:10px;color:var(--tm)">MCD status vs flagged reviewers</div>
+            </div>
+            <div id="ti-ps-coaching" style="padding:10px 14px;min-height:60px"></div>
           </div>
         </div>
 
@@ -2072,6 +2081,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const el = e.target.closest('button, .tab, select, a, [onclick], label');
     if (el) { e.preventDefault(); el.click(); }
   }, { passive: false });
+
+  // Auto-populate build timestamp from file's last modified date
+  (function() {
+    const el = document.getElementById('sb-build-ts');
+    if (!el) return;
+    const raw = document.lastModified; // "MM/DD/YYYY HH:MM:SS"
+    try {
+      const d = new Date(raw);
+      const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+      const day = String(d.getDate()).padStart(2, '0');
+      const yr  = d.getFullYear();
+      const hh  = String(d.getHours()).padStart(2, '0');
+      const mm  = String(d.getMinutes()).padStart(2, '0');
+      el.textContent = `${mon} ${day} ${yr} ${hh}:${mm}`;
+    } catch(e) { el.textContent = raw; }
+  })();
 });
 // ── End iPad touch fix ────────────────────────────────────────────────────
 
@@ -4370,10 +4395,11 @@ function renderPrioritySurface() {
 
 
 
-  const threshEl = document.getElementById('ti-ps-thresh');
-  const thresh   = parseFloat(threshEl ? threshEl.value : '0.03');
   const allWeeks = [...new Set(RAW_ROWS.map(r => r.week).filter(Boolean))].sort();
-  const last4    = allWeeks.slice(-4);
+  // Use only weeks that have actual quality data (non-zero audits) to avoid WFM-only weeks
+  const qualWeeks = [...new Set(RAW_ROWS.filter(r => r.sw && (r.tpa+r.fpa+r.fna+r.tna)>0).map(r => r.week).filter(Boolean))].sort();
+  const baseWeeks = qualWeeks.length >= 4 ? qualWeeks : allWeeks;
+  const last4    = baseWeeks.slice(-4);
   const latestWk = last4[last4.length - 1];
   const prevWk   = last4.length >= 2 ? last4[last4.length - 2] : null;
 
@@ -4435,14 +4461,7 @@ function renderPrioritySurface() {
     var reviewer = rvEntry[0], swMap = rvEntry[1];
     Object.entries(swMap).forEach(function(swEntry) {
       var sw = swEntry[0], weekMap = swEntry[1];
-      // Fall back to the most recent week that has audit data for this reviewer-SW
-      // (latestWk may be WFM-only with zero quality audits)
       var latestEntry = weekMap[latestWk];
-      if(!latestEntry) {
-        var availWks = last4.slice().reverse().filter(function(wk){ return weekMap[wk]; });
-        if(!availWks.length) return;
-        latestEntry = weekMap[availWks[0]];
-      }
       if(!latestEntry) return;
       var metrics = latestEntry.useAR ? ['Precision','Recall','AHT'] : ['Accuracy','AHT'];
       metrics.forEach(function(metric) {
@@ -4480,11 +4499,11 @@ function renderPrioritySurface() {
           }
         }
 
-        if(bandObj && latestVal !== null) {
+        if(bandObj && latestVal !== null && (latestBand==='app'||latestBand==='ni')) {
           var achTgt = bandObj.ach;
           if(achTgt !== null && achTgt !== undefined) {
             var gap = isAHT ? latestVal - achTgt : achTgt - latestVal;
-            if(gap > 0 && gap <= thresh) borderline.push({ reviewer:reviewer, sw:sw, metric:metric, val:latestVal, band:latestBand, bandObj:bandObj, gap:gap, isAHT:isAHT });
+            borderline.push({ reviewer:reviewer, sw:sw, metric:metric, val:latestVal, band:latestBand, bandObj:bandObj, gap:gap, isAHT:isAHT });
           }
         }
       });
@@ -4609,6 +4628,153 @@ function renderPrioritySurface() {
             +bandPill(m.latestBand)
             +'</div>';
         }).join('')+'</div>';
+    }
+  }
+
+  // ── PANEL A — Band Distribution Table ─────────────────────────────────────
+  var bandTableEl = document.getElementById('ti-ps-band-table');
+  if(bandTableEl) {
+    // Collect all reviewer+SW combos that have a latestWk entry
+    var panelARows = [];
+    var BCOL  = {exc:'#15803D',ach:'#1D4ED8',app:'#92400E',ni:'#B91C1C'};
+    var BBGCOL= {exc:'#DCFCE7',ach:'#EFF6FF',app:'#FEF9C3',ni:'#FEF2F2'};
+    var BLAB  = {exc:'EXC',ach:'ACH',app:'APP',ni:'NI'};
+    var BRANK2= {ni:0,app:1,ach:2,exc:3};
+
+    var kpiPill = function(b){
+      if(!b) return '<span style="font-size:9px;color:var(--tm)">—</span>';
+      return '<span style="font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;background:'+BBGCOL[b]+';color:'+BCOL[b]+'">'+BLAB[b]+'</span>';
+    };
+
+    Object.entries(matrix).forEach(function(rvEntry) {
+      var reviewer = rvEntry[0], swMap = rvEntry[1];
+      Object.entries(swMap).forEach(function(swEntry) {
+        var sw = swEntry[0], weekMap = swEntry[1];
+        var le = weekMap[latestWk];
+        if(!le) return;
+        // Worst KPI across AR-gated quality + AHT
+        var qualKeys = le.useAR ? ['b_prec','b_rec'] : ['b_acc'];
+        var allKeys  = qualKeys.concat(['b_aht']);
+        var worstBand = null;
+        allKeys.forEach(function(k){ var b=le[k]; if(b && (worstBand===null||BRANK2[b]<BRANK2[worstBand])) worstBand=b; });
+        panelARows.push({ reviewer:reviewer, sw:sw, workflow:le.workflow, le:le, weekMap:weekMap, worstBand:worstBand });
+      });
+    });
+
+    if(panelARows.length===0) {
+      bandTableEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">No reviewer data for latest week.</div>';
+    } else {
+      // Sort: NI first, then APP, then ACH, then EXC; within band by reviewer name
+      panelARows.sort(function(a,b){
+        var ra = a.worstBand!==null ? (BRANK2[a.worstBand]||4) : 4;
+        var rb = b.worstBand!==null ? (BRANK2[b.worstBand]||4) : 4;
+        if(ra!==rb) return ra-rb;
+        return a.reviewer.localeCompare(b.reviewer);
+      });
+
+      var rows = panelARows.slice(0,50).map(function(row){
+        var le  = row.le;
+        var useAR = le.useAR;
+        var arStr = (le.ar*100).toFixed(0)+'%';
+
+        // Per-KPI pills — AR-gated
+        var precCell = useAR
+          ? kpiPill(le.b_prec)
+          : '<span style="font-size:9px;color:var(--tm)">n/a</span>';
+        var recCell  = useAR
+          ? kpiPill(le.b_rec)
+          : '<span style="font-size:9px;color:var(--tm)">n/a</span>';
+        var accCell  = !useAR
+          ? kpiPill(le.b_acc)
+          : '<span style="font-size:9px;color:var(--tm)">n/a</span>';
+        var ahtCell  = kpiPill(le.b_aht);
+
+        // 4-wk trend spark using primary quality key
+        var primaryKey = useAR ? 'b_prec' : 'b_acc';
+        var spark = last4.map(function(wk){
+          var e = row.weekMap[wk];
+          var b = e ? e[primaryKey] : null;
+          if(!b) return '<span style="font-size:9px;color:var(--tm);padding:0 1px">·</span>';
+          return '<span style="font-size:9px;font-weight:800;color:'+BCOL[b]+';padding:0 1px">'+BLAB[b]+'</span>';
+        }).join('');
+
+        return '<tr style="border-bottom:0.5px solid var(--divider)">'
+          +'<td style="padding:5px 8px;font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis">'+row.reviewer+'</td>'
+          +'<td style="padding:5px 8px;font-size:10px;color:var(--tm);white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis">'+row.sw+'</td>'
+          +'<td style="padding:5px 8px;font-size:10px;text-align:center;color:var(--tm)">'+arStr+'</td>'
+          +'<td style="padding:5px 8px;text-align:center">'+precCell+'</td>'
+          +'<td style="padding:5px 8px;text-align:center">'+recCell+'</td>'
+          +'<td style="padding:5px 8px;text-align:center">'+accCell+'</td>'
+          +'<td style="padding:5px 8px;text-align:center">'+ahtCell+'</td>'
+          +'<td style="padding:5px 8px;text-align:center;white-space:nowrap">'+spark+'</td>'
+          +'</tr>';
+      }).join('');
+
+      bandTableEl.innerHTML = '<table style="width:100%;border-collapse:collapse">'
+        +'<thead><tr style="border-bottom:1px solid var(--border);background:var(--bg)">'
+        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:left">Reviewer</th>'
+        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:left">Sub-workflow</th>'
+        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">AR</th>'
+        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">Precision</th>'
+        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">Recall</th>'
+        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">Accuracy</th>'
+        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">AHT</th>'
+        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">4-wk</th>'
+        +'</tr></thead>'
+        +'<tbody>'+rows+'</tbody></table>'
+        +(panelARows.length>50 ? '<div style="font-size:10px;color:var(--tm);padding:6px 0">Showing 50 of '+panelARows.length+' entries.</div>' : '');
+    }
+  }
+
+  // ── PANEL C — Coaching Loop Closure ───────────────────────────────────────
+  var coachingEl = document.getElementById('ti-ps-coaching');
+  if(coachingEl) {
+    var flaggedRevs = Object.keys(reviewerSignals);
+    // Read MCD state from _mcd global (set by coaching doc module)
+    var mcdState = window._mcd || {};
+    var mcdKeys  = Object.keys(mcdState);
+
+    if(flaggedRevs.length===0) {
+      coachingEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">No flagged reviewers — no coaching actions needed.</div>';
+    } else {
+      var rows = flaggedRevs.slice(0,15).map(function(rev){
+        // Find matching MCD entry (case-insensitive partial match)
+        var mcdEntry = null;
+        mcdKeys.forEach(function(k){
+          if(k.toLowerCase().includes(rev.toLowerCase().split(' ')[0]) || rev.toLowerCase().includes(k.toLowerCase().split(' ')[0])) {
+            mcdEntry = mcdState[k];
+          }
+        });
+        var sigs  = reviewerSignals[rev];
+        var worst = sigs.reduce(function(a,b){ return ({red:0,yellow:1,orange:2}[a.type]||3) <= ({red:0,yellow:1,orange:2}[b.type]||3) ? a : b; });
+        var hasMCD = mcdEntry && (mcdEntry.entries || []).length > 0;
+        var statusIcon = hasMCD ? '\u2705' : '\u26A0\uFE0F';
+        var statusColor = hasMCD ? '#15803D' : '#B91C1C';
+        var statusLabel = hasMCD ? 'MCD logged' : 'No MCD';
+        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:0.5px solid var(--divider)">'
+          +'<span style="font-size:11px">'+sigIcon(worst.type)+'</span>'
+          +'<span style="font-size:11px;font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+rev+'</span>'
+          +'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:'+(hasMCD?'#DCFCE7':'#FEF2F2')+';color:'+statusColor+'">'+statusIcon+' '+statusLabel+'</span>'
+          +'</div>';
+      }).join('');
+
+      var closedCount = flaggedRevs.filter(function(rev){
+        return mcdKeys.some(function(k){
+          return (k.toLowerCase().includes(rev.toLowerCase().split(' ')[0]) || rev.toLowerCase().includes(k.toLowerCase().split(' ')[0]))
+            && mcdState[k] && (mcdState[k].entries||[]).length > 0;
+        });
+      }).length;
+
+      var rate = flaggedRevs.length > 0 ? Math.round(closedCount/flaggedRevs.length*100) : 0;
+      var rateColor = rate >= 80 ? '#15803D' : rate >= 50 ? '#92400E' : '#B91C1C';
+      var rateBg    = rate >= 80 ? '#DCFCE7' : rate >= 50 ? '#FEF9C3' : '#FEF2F2';
+
+      coachingEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+        +'<span style="font-size:10px;color:var(--tm)">'+flaggedRevs.length+' flagged</span>'
+        +'<span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;background:'+rateBg+';color:'+rateColor+'">'+rate+'% MCD closure</span>'
+        +'</div>'
+        +'<div style="display:flex;flex-direction:column">'+rows+'</div>'
+        +(flaggedRevs.length>15 ? '<div style="font-size:10px;color:var(--tm);padding:4px 0">Showing 15 of '+flaggedRevs.length+'.</div>' : '');
     }
   }
 }
