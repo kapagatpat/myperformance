@@ -15402,17 +15402,17 @@ function generateReviewerMonthlyDoc(mcdConfig) {
             // Build commit table rows
             let commitHtml = '';
             if(commitRows && Array.isArray(commitRows) && commitRows.length){
-                commitHtml = commitRows.map(cr=>{
-                  const prStr=cr.prec&&cr.rec?` · <span style="color:${textMuted}">P:${mcdEsc(cr.prec)} R:${mcdEsc(cr.rec)}</span>`:'';
-                  return`<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:${lightGray};border-radius:7px;border:1px solid ${borderColor};margin-bottom:5px">
-                  <span style="font-size:11px;color:${textSec};flex:1">${mcdEsc(cr.sw)} · ${mcdEsc(cr.errors)+' error'+(cr.errors!==1?'s':'')} · ${mcdEsc(cr.acc)}${prStr}</span>
-                  <span style="font-size:13px;font-weight:700;font-family:${mono};color:${blue}">Committed: ${mcdEsc(cr.commit)}</span>
-                </div>`}).join('');
+                commitHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px">` + commitRows.map(cr=>{
+                  const prStr=cr.prec&&cr.rec?` · P:${mcdEsc(cr.prec)} R:${mcdEsc(cr.rec)}`:'';
+                  return`<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:${lightGray};border-radius:999px;border:1px solid ${borderColor};font-size:11px;white-space:nowrap">
+                  <span style="color:${textSec}">${mcdEsc(cr.sw)} · ${mcdEsc(cr.errors)+' error'+(cr.errors!==1?'s':'')} · ${mcdEsc(cr.acc)}${prStr}</span>
+                  <span style="font-weight:700;font-family:${mono};color:${blue}">→ ${mcdEsc(cr.commit)}</span>
+                </div>`}).join('') + `</div>`;
             } else if(ahtRows && Array.isArray(ahtRows) && ahtRows.length){
-                commitHtml = ahtRows.map(ar=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:${lightGray};border-radius:7px;border:1px solid ${borderColor};margin-bottom:5px">
-                  <span style="font-size:11px;color:${textSec};flex:1">${mcdEsc(ar.sw)} · Current: ${ar.actual}s · Target: ${ar.target}s</span>
-                  <span style="font-size:13px;font-weight:700;font-family:${mono};color:${blue}">Committed: ${mcdEsc(ar.commit)}</span>
-                </div>`).join('');
+                commitHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px">` + ahtRows.map(ar=>`<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:${lightGray};border-radius:999px;border:1px solid ${borderColor};font-size:11px;white-space:nowrap">
+                  <span style="color:${textSec}">${mcdEsc(ar.sw)} · ${ar.actual}s → ${ar.target}s</span>
+                  <span style="font-weight:700;font-family:${mono};color:${blue}">→ ${mcdEsc(ar.commit)}</span>
+                </div>`).join('') + `</div>`;
             } else {
                 commitHtml = `<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:${lightGray};border-radius:7px;border:1px solid ${borderColor}">
                   <span style="font-size:11px;color:${textSec};flex:1">Current: ${mcdEsc(curVal||'—')}</span>
@@ -15466,8 +15466,6 @@ function generateReviewerMonthlyDoc(mcdConfig) {
       ${secHead('QA & AHT \u2014 last 3 months by sub-workflow', red)}
       <div style="font-size:11px;color:${textMuted};margin-bottom:8px">AR \u226510% \u2192 Precision &amp; Recall shown \u00b7 AR &lt;10% \u2192 Accuracy shown \u00b7 AHT in italics, color-coded \u22655 decisions</div>
       ${errTable}
-      ${divSection}
-      ${focusBlock}
       ${coachingSection}
     </div>`;
 
@@ -16592,7 +16590,7 @@ function _generateCoachingDocInner(mcdConfig) {
                     const dt  = typeof act === 'object' && act.date ? ` <span style="font-size:10px;color:${textMuted}">(by ${act.date})</span>` : '';
                     return `<div style="font-size:11px;color:${textPri};line-height:1.5;padding:5px 9px;background:${lightGray};border-radius:5px;border-left:2px solid ${accentColor};margin-bottom:3px">${txt}${dt}</div>`;
                 };
-                const commitBlock = commitRows && commitRows.length ? commitRows.map(r=>`<div style="font-size:10px;color:${accentColor};padding:3px 9px;border-left:2px solid ${accentColor};margin-top:2px;font-style:italic">Commit (${r.sw||'Overall'}): ${r.commit}</div>`).join('') : commitTxt ? `<div style="font-size:10px;color:${accentColor};padding:3px 9px;border-left:2px solid ${accentColor};margin-top:2px;font-style:italic">Commit: ${commitTxt}</div>` : '';
+                const commitBlock = commitRows && commitRows.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:3px">` + commitRows.map(r=>`<div style="font-size:10px;color:${accentColor};padding:3px 8px;border:1px solid ${accentColor};border-radius:999px;font-style:italic;white-space:nowrap">${r.sw||'Overall'}: ${r.commit}</div>`).join('') + `</div>` : commitTxt ? `<div style="font-size:10px;color:${accentColor};padding:3px 9px;border-left:2px solid ${accentColor};margin-top:2px;font-style:italic">Commit: ${commitTxt}</div>` : '';
                 return `<div style="margin-bottom:10px">
                   <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${accentColor};margin-bottom:5px">${label}</div>
                   ${rvActs.length ? `<div style="font-size:8px;font-weight:600;text-transform:uppercase;color:${textMuted};margin-bottom:3px">Reviewer actions</div>${rvActs.map(actLine).join('')}` : ''}
