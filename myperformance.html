@@ -689,36 +689,19 @@ tr:hover td{background:#F8F9FB}
             <span id="ti-ps-legend" style="font-size:10px;color:var(--tm)"></span>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF2F2;color:#B91C1C;border:1px solid #FCA5A5">3+ SWs = Red</span>
-            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FFF7ED;color:#92400E;border:1px solid #FDBA74">2 = Amber</span>
-            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF9C3;color:#92400E;border:1px solid #FCD34D">1 = Yellow</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF2F2;color:#B91C1C;border:1px solid #FCA5A5">QA + AHT failing = Red</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FFF7ED;color:#92400E;border:1px solid #FDBA74">QA only = Amber</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF9C3;color:#92400E;border:1px solid #FCD34D">AHT only = Yellow</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#F0FDF4;color:#15803D;border:1px solid #86EFAC">Passing all = Green</span>
           </div>
         </div>
 
-        <!-- Section 1 — Priority Cards -->
+        <!-- Priority Cards -->
         <div style="margin-bottom:6px">
           <span style="font-size:11px;font-weight:800;color:var(--text)">Priority Cards</span>
-          <span style="font-size:10px;color:var(--tm)"> &middot; one card per reviewer, sorted by failing-SW count</span>
+          <span style="font-size:10px;color:var(--tm)"> &middot; one card per reviewer, sorted by status</span>
         </div>
-        <div id="ti-ps-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:14px"></div>
-
-        <!-- Section 2 + 3 -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
-            <div style="padding:10px 14px;border-bottom:1px solid var(--divider)">
-              <span style="font-size:11px;font-weight:800;color:var(--text)">Borderline Watch</span>
-              <div style="font-size:10px;color:var(--tm)">Approaching band, within reach of Achieving</div>
-            </div>
-            <div id="ti-ps-borderline" style="padding:10px 14px;min-height:60px"></div>
-          </div>
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
-            <div style="padding:10px 14px;border-bottom:1px solid var(--divider)">
-              <span style="font-size:11px;font-weight:800;color:var(--text)">Coaching Loop</span>
-              <div style="font-size:10px;color:var(--tm)">MCD status vs flagged reviewers</div>
-            </div>
-            <div id="ti-ps-coaching" style="padding:10px 14px;min-height:60px"></div>
-          </div>
-        </div>
+        <div id="ti-ps-cards" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px"></div>
 
       </div>
       <!-- ── End Priority Surface ────────────────────────────────────────── -->
@@ -4358,8 +4341,6 @@ function renderTeamInsights(){
 // panel respects the universal filter (TL, tenure, SW, workflow, role, review type, month pills).
 function renderPrioritySurface(filteredRows) {
   const cardsEl     = document.getElementById('ti-ps-cards');
-  const borderEl    = document.getElementById('ti-ps-borderline');
-  const coachingEl  = document.getElementById('ti-ps-coaching');
   const legendEl    = document.getElementById('ti-ps-legend');
   if(!cardsEl) return;
 
@@ -4370,8 +4351,6 @@ function renderPrioritySurface(filteredRows) {
 
   if(srcRows.length === 0) {
     cardsEl.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:var(--tm);font-size:12px">No data for current filter selection.</div>';
-    if(borderEl) borderEl.innerHTML = '';
-    if(coachingEl) coachingEl.innerHTML = '';
     if(legendEl) legendEl.textContent = '';
     return;
   }
@@ -4399,9 +4378,11 @@ function renderPrioritySurface(filteredRows) {
   // Quality flags: no minimum sample size — any SW that fails P&R or Accuracy is flagged.
   // AHT flags: require >=5 decisions; below that, suppress even if technically over target.
   const AHT_MIN_DECISIONS = 5;
-  const failsByReviewer = {}; // reviewer -> [{sw, metric, band, val, workflow, isAHT}]
+  const failsByReviewer = {}; // reviewer -> [{sw, metric, band, val, workflow, isAHT, bandObj}]
+  const allReviewers = new Set();
 
   Object.values(grouped).forEach(function(g) {
+    allReviewers.add(g.reviewer);
     var tot = g.tpa + g.fpa + g.fna + g.tna;
     var hasQual = tot > 0;
     var ar   = hasQual ? (g.tpa + g.fpa) / tot : 0;
@@ -4459,156 +4440,85 @@ function renderPrioritySurface(filteredRows) {
     return '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:'+pair[1]+';color:'+pair[0]+';white-space:nowrap">'+(labels[b]||b)+'</span>';
   };
 
-  // ── Tier assignment: Red >=3 failing SWs, Amber =2, Yellow =1 ──────────────
-  var tierOf = function(n){ return n>=3 ? 'red' : n===2 ? 'amber' : 'yellow'; };
-  var tierIcon = function(t){ return t==='red'?'\uD83D\uDD34':t==='amber'?'\uD83D\uDFE0':'\uD83D\uDFE1'; };
-  var tierBdCol = function(t){ return t==='red'?'#FCA5A5':t==='amber'?'#FDBA74':'#FCD34D'; };
-  var tierBgCol = function(t){ return t==='red'?'#FEF2F2':t==='amber'?'#FFF7ED':'#FEFCE8'; };
+  // ── Tier assignment: based on failure TYPE, not count ───────────────────────
+  // Red = QA + AHT both failing · Amber = QA only · Yellow = AHT only · Green = passing all
+  var tierIcon  = function(t){ return t==='red'?'\uD83D\uDD34':t==='amber'?'\uD83D\uDFE0':t==='yellow'?'\uD83D\uDFE1':'\u2705'; };
+  var tierBdCol = function(t){ return t==='red'?'#FCA5A5':t==='amber'?'#FDBA74':t==='yellow'?'#FCD34D':'#86EFAC'; };
+  var tierBgCol = function(t){ return t==='red'?'#FEF2F2':t==='amber'?'#FFF7ED':t==='yellow'?'#FEFCE8':'#F0FDF4'; };
+  var tierRank  = { red:0, amber:1, yellow:2, green:3 };
 
-  var flaggedRevs = Object.keys(swFailCount).filter(function(r){ return swFailCount[r] > 0; });
-  var sortedRevs = flaggedRevs.slice().sort(function(a,b){
-    var diff = swFailCount[b] - swFailCount[a];
+  var tierOf = function(rev){
+    var fails = failsByReviewer[rev] || [];
+    var hasQualFail = fails.some(function(f){ return !f.isAHT; });
+    var hasAhtFail  = fails.some(function(f){ return f.isAHT; });
+    if(hasQualFail && hasAhtFail) return 'red';
+    if(hasQualFail) return 'amber';
+    if(hasAhtFail)  return 'yellow';
+    return 'green';
+  };
+
+  var sortedRevs = Array.from(allReviewers).sort(function(a,b){
+    var diff = tierRank[tierOf(a)] - tierRank[tierOf(b)];
     if(diff !== 0) return diff;
+    var swDiff = (swFailCount[b]||0) - (swFailCount[a]||0);
+    if(swDiff !== 0) return swDiff;
     return a.localeCompare(b);
   });
 
-  // ── SECTION 1 — Priority Cards ──────────────────────────────────────────────
+  // ── Priority Cards ──────────────────────────────────────────────────────────
+  // Quality call-outs first, then AHT · within each, Needs Improvement before Approaching
+  // Each line: KPI · Sub-workflow   actual > target
+  var rankBand = { ni:0, app:1 };
+  var renderLine = function(f, tier){
+    var valStr = f.isAHT ? fmtSecs(f.val) : fmtPct(f.val);
+    var tgtRaw = f.bandObj ? f.bandObj.ach : null;
+    var tgtStr = (tgtRaw===null||tgtRaw===undefined) ? '\u2014' : (f.isAHT ? fmtSecs(tgtRaw) : fmtPct(tgtRaw));
+    return '<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:0.5px solid '+tierBdCol(tier)+'40">'
+      +'<span style="font-size:10px;font-weight:700;color:var(--ts);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+f.metric+' \u00b7 '+f.sw+'</span>'
+      +'<span style="font-size:10px;color:var(--tm);font-family:monospace;white-space:nowrap">'+valStr+' &gt; '+tgtStr+'</span>'
+      +bandPill(f.band)
+      +'</div>';
+  };
+
   if(sortedRevs.length===0) {
-    cardsEl.innerHTML = '<div style="grid-column:1/-1;background:#F0FDF4;border:1px solid #86EFAC;border-radius:var(--r);padding:14px 16px;text-align:center"><div style="font-size:14px;margin-bottom:4px">&#x2705;</div><div style="font-size:12px;font-weight:700;color:#15803D">No priority flags</div><div style="font-size:11px;color:#15803D;margin-top:2px">All reviewers within target bands MTD ('+fmtMonth(mtdMonth)+')</div></div>';
+    cardsEl.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:var(--tm);font-size:12px">No reviewers for current filter selection.</div>';
   } else {
     cardsEl.innerHTML = sortedRevs.map(function(reviewer) {
-      var fails = failsByReviewer[reviewer];
-      var n = swFailCount[reviewer];
-      var tier = tierOf(n);
-      var bySW = {};
-      fails.forEach(function(f){ (bySW[f.sw] = bySW[f.sw] || []).push(f); });
-      var rowsHtml = Object.keys(bySW).map(function(sw){
-        var items = bySW[sw];
-        var qualItems = items.filter(function(f){ return !f.isAHT; });
-        var ahtItems  = items.filter(function(f){ return f.isAHT; });
-        var lines = [];
+      var fails = failsByReviewer[reviewer] || [];
+      var tier = tierOf(reviewer);
+      var n = swFailCount[reviewer] || 0;
 
-        if(qualItems.length) {
-          // Worse band wins (ni beats app); combine P+R or just show Accuracy alone
-          var BRANK = {ni:0, app:1, ach:2, exc:3};
-          var worst = qualItems.reduce(function(a,b){ return BRANK[b.band] < BRANK[a.band] ? b : a; });
-          var qualLabel = qualItems.length > 1
-            ? qualItems.map(function(f){ return f.metric+' '+fmtPct(f.val); }).join(' / ')
-            : qualItems[0].metric+' '+fmtPct(qualItems[0].val);
-          lines.push('<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:0.5px solid '+tierBdCol(tier)+'40">'
-            +'<span style="font-size:10px;font-weight:700;color:var(--ts);flex:1">'+qualLabel+' \u00b7 '+sw+'</span>'
-            +bandPill(worst.band)
-            +'</div>');
-        }
+      var qualFails = fails.filter(function(f){ return !f.isAHT; }).sort(function(a,b){ return (rankBand[a.band]||0)-(rankBand[b.band]||0); });
+      var ahtFails  = fails.filter(function(f){ return f.isAHT; }).sort(function(a,b){ return (rankBand[a.band]||0)-(rankBand[b.band]||0); });
 
-        ahtItems.forEach(function(f){
-          lines.push('<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:0.5px solid '+tierBdCol(tier)+'40">'
-            +'<span style="font-size:10px;font-weight:700;color:var(--ts);flex:1">AHT \u00b7 '+sw+'</span>'
-            +'<span style="font-size:10px;color:var(--tm)">'+fmtSecs(f.val)+'</span>'
-            +bandPill(f.band)
-            +'</div>');
-        });
+      var rowsHtml = tier==='green'
+        ? '<div style="font-size:10px;color:#15803D;padding:3px 0">All targets met</div>'
+        : qualFails.map(function(f){ return renderLine(f, tier); }).join('') + ahtFails.map(function(f){ return renderLine(f, tier); }).join('');
 
-        return lines.join('');
-      }).join('');
+      var badge = tier==='green'
+        ? '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:var(--surface);border:1px solid '+tierBdCol(tier)+';color:var(--ts)">Passing</span>'
+        : '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:var(--surface);border:1px solid '+tierBdCol(tier)+';color:var(--ts)">'+n+' SW'+(n>1?'s':'')+' failing</span>';
+
       return '<div style="background:'+tierBgCol(tier)+';border:1.5px solid '+tierBdCol(tier)+';border-radius:var(--r);padding:10px 12px">'
         +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">'
         +'<span style="font-size:13px">'+tierIcon(tier)+'</span>'
         +'<span style="font-size:12px;font-weight:800;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+reviewer+'</span>'
-        +'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:var(--surface);border:1px solid '+tierBdCol(tier)+';color:var(--ts)">'+n+' SW'+(n>1?'s':'')+' failing</span>'
+        +badge
         +'</div>'+rowsHtml+'</div>';
     }).join('');
   }
 
   if(legendEl) {
-    var reds=sortedRevs.filter(function(r){return tierOf(swFailCount[r])==='red';}).length;
-    var ambers=sortedRevs.filter(function(r){return tierOf(swFailCount[r])==='amber';}).length;
-    var yels=sortedRevs.filter(function(r){return tierOf(swFailCount[r])==='yellow';}).length;
+    var reds=sortedRevs.filter(function(r){return tierOf(r)==='red';}).length;
+    var ambers=sortedRevs.filter(function(r){return tierOf(r)==='amber';}).length;
+    var yels=sortedRevs.filter(function(r){return tierOf(r)==='yellow';}).length;
+    var greens=sortedRevs.filter(function(r){return tierOf(r)==='green';}).length;
     legendEl.textContent = sortedRevs.length > 0
-      ? sortedRevs.length+' reviewer'+(sortedRevs.length!==1?'s':'')+' flagged \u00b7 '+reds+' red / '+ambers+' amber / '+yels+' yellow \u00b7 MTD '+fmtMonth(mtdMonth)
-      : 'MTD '+fmtMonth(mtdMonth)+' \u00b7 no flags';
+      ? sortedRevs.length+' reviewer'+(sortedRevs.length!==1?'s':'')+' \u00b7 '+reds+' red / '+ambers+' amber / '+yels+' yellow / '+greens+' green \u00b7 MTD '+fmtMonth(mtdMonth)
+      : 'MTD '+fmtMonth(mtdMonth)+' \u00b7 no data';
   }
 
-  // ── SECTION 2 — Borderline Watch (Approaching band, within reach of Achieving) ──
-  if(borderEl) {
-    var borderline = [];
-    Object.keys(failsByReviewer).forEach(function(rev){
-      failsByReviewer[rev].forEach(function(f){
-        if(f.band !== 'app' || !f.bandObj) return;
-        var achTgt = f.bandObj.ach;
-        if(achTgt === null || achTgt === undefined) return;
-        var gap = f.isAHT ? f.val - achTgt : achTgt - f.val;
-        borderline.push({ reviewer:rev, sw:f.sw, metric:f.metric, val:f.val, bandObj:f.bandObj, gap:gap, isAHT:f.isAHT });
-      });
-    });
-    if(borderline.length===0) {
-      borderEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">No reviewers within threshold of Achieving.</div>';
-    } else {
-      var sortedBL = borderline.slice().sort(function(a,b){ return a.gap-b.gap; });
-      borderEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:5px">'
-        + sortedBL.slice(0,15).map(function(b){
-          var valStr = b.isAHT ? fmtSecs(b.val) : fmtPct(b.val);
-          var tgtStr = b.isAHT ? fmtSecs(b.bandObj.ach) : fmtPct(b.bandObj.ach);
-          var gapStr = b.isAHT ? '+'+Math.round(b.gap)+'s' : (b.gap*100).toFixed(1)+'pp';
-          return '<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;border-bottom:0.5px solid var(--divider)">'
-            +'<span style="font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+b.reviewer+'</span>'
-            +'<span style="color:var(--tm);flex-shrink:0">'+b.metric+' \u00b7 '+b.sw+'</span>'
-            +'<span style="font-weight:700;color:var(--ts);font-family:monospace;flex-shrink:0">'+valStr+'</span>'
-            +'<span style="font-size:9px;color:var(--tm);flex-shrink:0">vs '+tgtStr+'</span>'
-            +'<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;background:#FEF9C3;color:#92400E;flex-shrink:0">'+gapStr+' away</span>'
-            +'</div>';
-        }).join('')+'</div>';
-    }
-  }
-
-  // ── SECTION 3 — Coaching Loop (MCD status vs flagged reviewers) ────────────
-  if(coachingEl) {
-    var mcdState = window._mcd || {};
-    var mcdKeys  = Object.keys(mcdState);
-
-    if(sortedRevs.length===0) {
-      coachingEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">No flagged reviewers — no coaching actions needed.</div>';
-    } else {
-      var rowsHtml2 = sortedRevs.slice(0,20).map(function(rev){
-        var mcdEntry = null;
-        mcdKeys.forEach(function(k){
-          if(k.toLowerCase().includes(rev.toLowerCase().split(' ')[0]) || rev.toLowerCase().includes(k.toLowerCase().split(' ')[0])) {
-            mcdEntry = mcdState[k];
-          }
-        });
-        var tier = tierOf(swFailCount[rev]);
-        var hasMCD = mcdEntry && (mcdEntry.entries || []).length > 0;
-        var statusIcon = hasMCD ? '\u2705' : '\u26A0\uFE0F';
-        var statusColor = hasMCD ? '#15803D' : '#B91C1C';
-        var statusLabel = hasMCD ? 'MCD logged' : 'No MCD';
-        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:0.5px solid var(--divider)">'
-          +'<span style="font-size:11px">'+tierIcon(tier)+'</span>'
-          +'<span style="font-size:11px;font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+rev+'</span>'
-          +'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:'+(hasMCD?'#DCFCE7':'#FEF2F2')+';color:'+statusColor+'">'+statusIcon+' '+statusLabel+'</span>'
-          +'</div>';
-      }).join('');
-
-      var closedCount = sortedRevs.filter(function(rev){
-        return mcdKeys.some(function(k){
-          return (k.toLowerCase().includes(rev.toLowerCase().split(' ')[0]) || rev.toLowerCase().includes(k.toLowerCase().split(' ')[0]))
-            && mcdState[k] && (mcdState[k].entries||[]).length > 0;
-        });
-      }).length;
-
-      var rate = sortedRevs.length > 0 ? Math.round(closedCount/sortedRevs.length*100) : 0;
-      var rateColor = rate >= 80 ? '#15803D' : rate >= 50 ? '#92400E' : '#B91C1C';
-      var rateBg    = rate >= 80 ? '#DCFCE7' : rate >= 50 ? '#FEF9C3' : '#FEF2F2';
-
-      coachingEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-        +'<span style="font-size:10px;color:var(--tm)">'+sortedRevs.length+' flagged</span>'
-        +'<span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;background:'+rateBg+';color:'+rateColor+'">'+rate+'% MCD closure</span>'
-        +'</div>'
-        +'<div style="display:flex;flex-direction:column">'+rowsHtml2+'</div>'
-        +(sortedRevs.length>20 ? '<div style="font-size:10px;color:var(--tm);padding:4px 0">Showing 20 of '+sortedRevs.length+'.</div>' : '');
-    }
-  }
-
-  window._psExportData = { mtdMonth: mtdMonth, flaggedRevs: sortedRevs, swFailCount: swFailCount, failsByReviewer: failsByReviewer };
+  window._psExportData = { mtdMonth: mtdMonth, allRevs: sortedRevs, swFailCount: swFailCount, failsByReviewer: failsByReviewer };
 }
 // END PRIORITY SURFACE
 
