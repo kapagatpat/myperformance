@@ -4435,10 +4435,11 @@ function renderPrioritySurface(filteredRows) {
   var bandPill = function(b) {
     if(!b) return '';
     var cfg = { exc:['#15803D','#DCFCE7'], ach:['#1D4ED8','#EFF6FF'], app:['#92400E','#FEF9C3'], ni:['#B91C1C','#FEF2F2'] };
-    var labels = { exc:'Exceeding', ach:'Achieving', app:'Approaching', ni:'Needs Improvement' };
+    var labels = { exc:'Exceeding', ach:'Achieving', app:'APPR', ni:'NI' };
     var pair = cfg[b]||['#555','#eee'];
     return '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:'+pair[1]+';color:'+pair[0]+';white-space:nowrap">'+(labels[b]||b)+'</span>';
   };
+  var bandColor = function(b){ var cfg = { ni:'#B91C1C', app:'#92400E' }; return cfg[b] || 'var(--ts)'; };
 
   // ── Tier assignment: based on failure TYPE, not count ───────────────────────
   // Red = QA + AHT both failing · Amber = QA only · Yellow = AHT only · Green = passing all
@@ -4467,7 +4468,7 @@ function renderPrioritySurface(filteredRows) {
 
   // ── Priority Cards ──────────────────────────────────────────────────────────
   // Quality call-outs first, then AHT · within each, Needs Improvement before Approaching
-  // Each line: KPI · Sub-workflow   actual > target
+  // Each line: KPI · Sub-workflow   [bold, color-coded actual]  /  Tgt [muted target]
   var rankBand = { ni:0, app:1 };
   var renderLine = function(f, tier){
     var valStr = f.isAHT ? fmtSecs(f.val) : fmtPct(f.val);
@@ -4475,7 +4476,11 @@ function renderPrioritySurface(filteredRows) {
     var tgtStr = (tgtRaw===null||tgtRaw===undefined) ? '\u2014' : (f.isAHT ? fmtSecs(tgtRaw) : fmtPct(tgtRaw));
     return '<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:0.5px solid '+tierBdCol(tier)+'40">'
       +'<span style="font-size:10px;font-weight:700;color:var(--ts);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+f.metric+' \u00b7 '+f.sw+'</span>'
-      +'<span style="font-size:10px;color:var(--tm);font-family:monospace;white-space:nowrap">'+valStr+' &gt; '+tgtStr+'</span>'
+      +'<span style="font-size:10px;font-family:monospace;white-space:nowrap">'
+        +'<span style="font-weight:800;color:'+bandColor(f.band)+'">'+valStr+'</span>'
+        +'<span style="color:var(--tm);font-weight:400;font-size:9px"> / Tgt </span>'
+        +'<span style="color:var(--ts);font-weight:600">'+tgtStr+'</span>'
+      +'</span>'
       +bandPill(f.band)
       +'</div>';
   };
