@@ -388,7 +388,7 @@ tr:hover td{background:#F8F9FB}
     <div class="sb-footer">
       <strong>MyPerformance</strong>
       
-      <span id="sb-version-stamp">MVIO · v1.25 · <span id="sb-build-ts">--</span></span>
+      <span id="sb-version-stamp">MVIO · v1.25 · %%BUILD_TS%%</span>
     </div>
   </nav>
 
@@ -685,45 +685,35 @@ tr:hover td{background:#F8F9FB}
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.08em">Priority Surface</span>
-            <span style="font-size:10px;font-weight:700;background:var(--pbg);color:var(--purple);border-radius:var(--pill);padding:2px 8px;border:1px solid var(--pbd)">Auto-computed</span>
+            <span style="font-size:10px;font-weight:700;background:var(--pbg);color:var(--purple);border-radius:var(--pill);padding:2px 8px;border:1px solid var(--pbd)">Auto-computed · MTD</span>
             <span id="ti-ps-legend" style="font-size:10px;color:var(--tm)"></span>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF9C3;color:#92400E;border:1px solid #FCD34D">Approaching + NI flagged</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF2F2;color:#B91C1C;border:1px solid #FCA5A5">3+ SWs = Red</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FFF7ED;color:#92400E;border:1px solid #FDBA74">2 = Amber</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF9C3;color:#92400E;border:1px solid #FCD34D">1 = Yellow</span>
           </div>
         </div>
 
-        <!-- Panel A — Band Distribution Table -->
-        <div id="ti-ps-panel-a" style="margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
-          <div style="padding:10px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:11px;font-weight:800;color:var(--text)">Panel A — Band Distribution by Reviewer</span>
-            <span style="font-size:10px;color:var(--tm)">Last 4 weeks · AR-gated · worst-KPI pill</span>
-          </div>
-          <div id="ti-ps-band-table" style="padding:10px 14px;min-height:60px;overflow-x:auto"></div>
+        <!-- Section 1 — Priority Cards -->
+        <div style="margin-bottom:6px">
+          <span style="font-size:11px;font-weight:800;color:var(--text)">Priority Cards</span>
+          <span style="font-size:10px;color:var(--tm)"> &middot; one card per reviewer, sorted by failing-SW count</span>
         </div>
+        <div id="ti-ps-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:14px"></div>
 
-        <!-- Panel B — Signal Flag Cards -->
-        <div id="ti-ps-flags" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:12px"></div>
-
-        <!-- Panel C + Borderline/Movement row -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <!-- Section 2 + 3 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
             <div style="padding:10px 14px;border-bottom:1px solid var(--divider)">
-              <span style="font-size:11px;font-weight:800;color:var(--text)">Borderline</span>
-              <div style="font-size:10px;color:var(--tm)">Within threshold of any KPI boundary</div>
+              <span style="font-size:11px;font-weight:800;color:var(--text)">Borderline Watch</span>
+              <div style="font-size:10px;color:var(--tm)">Approaching band, within reach of Achieving</div>
             </div>
             <div id="ti-ps-borderline" style="padding:10px 14px;min-height:60px"></div>
           </div>
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
             <div style="padding:10px 14px;border-bottom:1px solid var(--divider)">
-              <span style="font-size:11px;font-weight:800;color:var(--text)">WoW Movement</span>
-              <div style="font-size:10px;color:var(--tm)">Last 2 available weeks</div>
-            </div>
-            <div id="ti-ps-movement" style="padding:10px 14px;min-height:60px"></div>
-          </div>
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
-            <div style="padding:10px 14px;border-bottom:1px solid var(--divider)">
-              <span style="font-size:11px;font-weight:800;color:var(--text)">Panel C — Coaching Loop</span>
+              <span style="font-size:11px;font-weight:800;color:var(--text)">Coaching Loop</span>
               <div style="font-size:10px;color:var(--tm)">MCD status vs flagged reviewers</div>
             </div>
             <div id="ti-ps-coaching" style="padding:10px 14px;min-height:60px"></div>
@@ -2082,21 +2072,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (el) { e.preventDefault(); el.click(); }
   }, { passive: false });
 
-  // Auto-populate build timestamp from file's last modified date
-  (function() {
-    const el = document.getElementById('sb-build-ts');
-    if (!el) return;
-    const raw = document.lastModified; // "MM/DD/YYYY HH:MM:SS"
-    try {
-      const d = new Date(raw);
-      const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
-      const day = String(d.getDate()).padStart(2, '0');
-      const yr  = d.getFullYear();
-      const hh  = String(d.getHours()).padStart(2, '0');
-      const mm  = String(d.getMinutes()).padStart(2, '0');
-      el.textContent = `${mon} ${day} ${yr} ${hh}:${mm}`;
-    } catch(e) { el.textContent = raw; }
-  })();
+
 });
 // ── End iPad touch fix ────────────────────────────────────────────────────
 
@@ -4368,7 +4344,7 @@ function renderTeamInsights(){
     allMonths: [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort(),
   };
 
-  renderPrioritySurface();
+  renderPrioritySurface(rows);
 
   } catch(e) {
     console.error('renderTeamInsights error:', e);
@@ -4377,161 +4353,101 @@ function renderTeamInsights(){
 }
 
 
-// PRIORITY SURFACE
-function renderPrioritySurface() {
-  const flagsEl     = document.getElementById('ti-ps-flags');
+// PRIORITY SURFACE — MTD, filter-aware
+// rows passed in are already filterRows()+qaFilter()'d by renderTeamInsights, so this
+// panel respects the universal filter (TL, tenure, SW, workflow, role, review type, month pills).
+function renderPrioritySurface(filteredRows) {
+  const cardsEl     = document.getElementById('ti-ps-cards');
   const borderEl    = document.getElementById('ti-ps-borderline');
-  const movementEl  = document.getElementById('ti-ps-movement');
+  const coachingEl  = document.getElementById('ti-ps-coaching');
   const legendEl    = document.getElementById('ti-ps-legend');
-  if(!flagsEl) return;
+  if(!cardsEl) return;
 
-  if(!RAW_ROWS || RAW_ROWS.length === 0) {
-    flagsEl.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:var(--tm);font-size:12px">Load a dataset to see signal detection.</div>';
+  // Priority Surface tracks frontline reviewers only — Agent and SME roles.
+  // This is a hard restriction independent of the universal Role filter, since
+  // TLs/QPEs/Trainers/Supervisors don't carry comparable audit-outcome data.
+  const srcRows = (filteredRows || []).filter(r => r.role === 'Agent' || r.role === 'SME');
+
+  if(srcRows.length === 0) {
+    cardsEl.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:var(--tm);font-size:12px">No data for current filter selection.</div>';
     if(borderEl) borderEl.innerHTML = '';
-    if(movementEl) movementEl.innerHTML = '';
+    if(coachingEl) coachingEl.innerHTML = '';
     if(legendEl) legendEl.textContent = '';
     return;
   }
 
-
-
-  const allWeeks = [...new Set(RAW_ROWS.map(r => r.week).filter(Boolean))].sort();
-  // Use only weeks that have actual quality data (non-zero audits) to avoid WFM-only weeks
-  const qualWeeks = [...new Set(RAW_ROWS.filter(r => r.sw && (r.tpa+r.fpa+r.fna+r.tna)>0).map(r => r.week).filter(Boolean))].sort();
-  const baseWeeks = qualWeeks.length >= 4 ? qualWeeks : allWeeks;
-  const last4    = baseWeeks.slice(-4);
-  const latestWk = last4[last4.length - 1];
-  const prevWk   = last4.length >= 2 ? last4[last4.length - 2] : null;
-
-  if(!latestWk) {
-    flagsEl.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:var(--tm);font-size:12px">Not enough week data for signal detection.</div>';
+  // MTD = latest month present in the filtered rowset
+  const mtdMonth = [...new Set(srcRows.map(r => r.month).filter(Boolean))].sort().pop();
+  if(!mtdMonth) {
+    cardsEl.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:var(--tm);font-size:12px">No month data for current filter selection.</div>';
     return;
   }
+  const mtdRows = srcRows.filter(r => r.month === mtdMonth);
 
-  const activeRevs = window._activeRevs || null;
-  const BAND_RANK  = { exc:3, ach:2, app:1, ni:0 };
-
-  const matrix  = {};
-  const rows4   = RAW_ROWS.filter(r => last4.includes(r.week));
+  // ── Aggregate by reviewer + SW for the MTD window ──────────────────────────
   const grouped = {};
-
-  rows4.forEach(function(r) {
-    if(!r.reviewer || !r.sw || !r.week) return;
-    if(activeRevs && !activeRevs.has(r.reviewer)) return;
-    var key = r.reviewer + '||' + r.sw + '||' + r.week;
-    if(!grouped[key]) grouped[key] = { reviewer:r.reviewer, sw:r.sw, week:r.week, workflow:r.workflow, tpa:0, tna:0, fpa:0, fna:0, dht:0, nht:0, decisions:0 };
+  mtdRows.forEach(function(r) {
+    if(!r.reviewer || !r.sw) return;
+    var key = r.reviewer + '||' + r.sw;
+    if(!grouped[key]) grouped[key] = { reviewer:r.reviewer, sw:r.sw, workflow:r.workflow, tpa:0, tna:0, fpa:0, fna:0, dht:0, nht:0, decisions:0 };
     var g = grouped[key];
     g.tpa+=(r.tpa||0); g.tna+=(r.tna||0); g.fpa+=(r.fpa||0); g.fna+=(r.fna||0);
     g.dht+=(r.dht||0); g.nht+=(r.nht||0); g.decisions+=(r.decisions||0);
   });
 
+  // ── Evaluate each reviewer+SW combo against band targets ───────────────────
+  // Quality flags: no minimum sample size — any SW that fails P&R or Accuracy is flagged.
+  // AHT flags: require >=5 decisions; below that, suppress even if technically over target.
+  const AHT_MIN_DECISIONS = 5;
+  const failsByReviewer = {}; // reviewer -> [{sw, metric, band, val, workflow, isAHT}]
+
   Object.values(grouped).forEach(function(g) {
-    var reviewer=g.reviewer, sw=g.sw, week=g.week, workflow=g.workflow;
-    var tot = g.tpa + g.tna + g.fpa + g.fna;
-    if(tot === 0) return;
-    var tot  = g.tpa + g.fpa + g.fna + g.tna;
-    var ar   = tot > 0 ? (g.tpa + g.fpa) / tot : 0;
-    var acc  = tot > 0 ? (g.tpa + g.tna) / tot : null;
+    var tot = g.tpa + g.fpa + g.fna + g.tna;
+    var hasQual = tot > 0;
+    var ar   = hasQual ? (g.tpa + g.fpa) / tot : 0;
+    var acc  = hasQual ? (g.tpa + g.tna) / tot : null;
     var prec = (g.tpa + g.fpa) > 0 ? g.tpa / (g.tpa + g.fpa) : null;
     var rec  = (g.tpa + g.fna) > 0 ? g.tpa / (g.tpa + g.fna) : null;
     var aht  = g.decisions > 0 ? (g.dht + g.nht) / g.decisions : null;
     var useAR = ar >= 0.10;
-    var bAcc  = getBandTargets(workflow, sw, 'Accuracy');
-    var bPrec = getBandTargets(workflow, sw, 'Precision');
-    var bRec  = getBandTargets(workflow, sw, 'Recall');
-    var bAht  = getBandTargets(workflow, sw, 'AHT');
-    var entry = {
-      acc:acc, prec:prec, rec:rec, aht:aht, ar:ar, workflow:workflow, useAR:useAR,
-      band_acc:bAcc, band_prec:bPrec, band_rec:bRec, band_aht:bAht,
-      b_acc:  assignBand(acc,  bAcc,  false),
-      b_prec: assignBand(prec, bPrec, false),
-      b_rec:  assignBand(rec,  bRec,  false),
-      b_aht:  assignBand(aht,  bAht,  true),
-      decisions: g.decisions
-    };
-    if(!matrix[reviewer])     matrix[reviewer] = {};
-    if(!matrix[reviewer][sw]) matrix[reviewer][sw] = {};
-    matrix[reviewer][sw][week] = entry;
+
+    var bAcc  = getBandTargets(g.workflow, g.sw, 'Accuracy');
+    var bPrec = getBandTargets(g.workflow, g.sw, 'Precision');
+    var bRec  = getBandTargets(g.workflow, g.sw, 'Recall');
+    var bAht  = getBandTargets(g.workflow, g.sw, 'AHT');
+
+    if(hasQual) {
+      if(useAR) {
+        var bP = assignBand(prec, bPrec, false);
+        var bR = assignBand(rec,  bRec,  false);
+        if(bP === 'ni' || bP === 'app') {
+          (failsByReviewer[g.reviewer] = failsByReviewer[g.reviewer] || []).push({ sw:g.sw, workflow:g.workflow, metric:'Precision', band:bP, val:prec, bandObj:bPrec, isAHT:false });
+        }
+        if(bR === 'ni' || bR === 'app') {
+          (failsByReviewer[g.reviewer] = failsByReviewer[g.reviewer] || []).push({ sw:g.sw, workflow:g.workflow, metric:'Recall', band:bR, val:rec, bandObj:bRec, isAHT:false });
+        }
+      } else {
+        var bA = assignBand(acc, bAcc, false);
+        if(bA === 'ni' || bA === 'app') {
+          (failsByReviewer[g.reviewer] = failsByReviewer[g.reviewer] || []).push({ sw:g.sw, workflow:g.workflow, metric:'Accuracy', band:bA, val:acc, bandObj:bAcc, isAHT:false });
+        }
+      }
+    }
+
+    if(g.decisions >= AHT_MIN_DECISIONS && aht !== null) {
+      var bH = assignBand(aht, bAht, true);
+      if(bH === 'ni' || bH === 'app') {
+        (failsByReviewer[g.reviewer] = failsByReviewer[g.reviewer] || []).push({ sw:g.sw, workflow:g.workflow, metric:'AHT', band:bH, val:aht, bandObj:bAht, isAHT:true });
+      }
+    }
   });
 
-  var signals    = [];
-  var borderline = [];
-
-  Object.entries(matrix).forEach(function(rvEntry) {
-    var reviewer = rvEntry[0], swMap = rvEntry[1];
-    Object.entries(swMap).forEach(function(swEntry) {
-      var sw = swEntry[0], weekMap = swEntry[1];
-      var latestEntry = weekMap[latestWk];
-      if(!latestEntry) return;
-      var metrics = latestEntry.useAR ? ['Precision','Recall','AHT'] : ['Accuracy','AHT'];
-      metrics.forEach(function(metric) {
-        var isAHT  = metric === 'AHT';
-        var bndKey = isAHT ? 'band_aht' : metric==='Precision' ? 'band_prec' : metric==='Recall' ? 'band_rec' : 'band_acc';
-        var valKey = isAHT ? 'aht'      : metric==='Precision' ? 'prec'      : metric==='Recall' ? 'rec'      : 'acc';
-        var bKey   = isAHT ? 'b_aht'    : metric==='Precision' ? 'b_prec'    : metric==='Recall' ? 'b_rec'    : 'b_acc';
-        var latestBand = latestEntry[bKey];
-        var latestVal  = latestEntry[valKey];
-        var bandObj    = latestEntry[bndKey];
-        if(!latestBand || latestVal === null || latestVal === undefined) return;
-        var hist = last4.map(function(wk){ return weekMap[wk] ? weekMap[wk][bKey] : null; });
-
-        var prevEntry = prevWk ? weekMap[prevWk] : null;
-        var prevBand  = prevEntry ? prevEntry[bKey] : null;
-        if(prevBand && latestBand && BAND_RANK[latestBand] < BAND_RANK[prevBand] && (latestBand==='ni'||latestBand==='app')) {
-          signals.push({ reviewer:reviewer, sw:sw, workflow:latestEntry.workflow, type:'red', metric:metric, latestVal:latestVal, latestBand:latestBand, prevBand:prevBand, hist:hist });
-        }
-
-        if(latestBand==='ni'||latestBand==='app') {
-          var runLen = 0;
-          for(var i=hist.length-1;i>=0;i--){ if(hist[i]==='ni'||hist[i]==='app') runLen++; else break; }
-          var alreadyRed = signals.find(function(s){ return s.reviewer===reviewer&&s.sw===sw&&s.metric===metric&&s.type==='red'; });
-          if(runLen >= 3 && !alreadyRed) {
-            signals.push({ reviewer:reviewer, sw:sw, workflow:latestEntry.workflow, type:'yellow', metric:metric, latestVal:latestVal, latestBand:latestBand, runLen:runLen, hist:hist });
-          }
-        }
-
-        var rankedHist = hist.map(function(b){ return b ? BAND_RANK[b] : null; });
-        var last3      = rankedHist.filter(function(v){ return v!==null; }).slice(-3);
-        if(last3.length===3 && last3[0]>last3[1] && last3[1]>last3[2]) {
-          var alreadyFl = signals.find(function(s){ return s.reviewer===reviewer&&s.sw===sw&&s.metric===metric&&(s.type==='red'||s.type==='yellow'); });
-          if(!alreadyFl) {
-            signals.push({ reviewer:reviewer, sw:sw, workflow:latestEntry.workflow, type:'orange', metric:metric, latestVal:latestVal, latestBand:latestBand, hist:hist });
-          }
-        }
-
-        if(bandObj && latestVal !== null && (latestBand==='app'||latestBand==='ni')) {
-          var achTgt = bandObj.ach;
-          if(achTgt !== null && achTgt !== undefined) {
-            var gap = isAHT ? latestVal - achTgt : achTgt - latestVal;
-            borderline.push({ reviewer:reviewer, sw:sw, metric:metric, val:latestVal, band:latestBand, bandObj:bandObj, gap:gap, isAHT:isAHT });
-          }
-        }
-      });
-    });
+  // Count distinct failing SWs per reviewer (a SW counts once even if both P&R fail on it)
+  var swFailCount = {};
+  Object.keys(failsByReviewer).forEach(function(rev){
+    var swSet = new Set(failsByReviewer[rev].map(function(f){ return f.sw; }));
+    swFailCount[rev] = swSet.size;
   });
-
-  var movement = [];
-  if(prevWk) {
-    Object.entries(matrix).forEach(function(rvEntry) {
-      var reviewer = rvEntry[0], swMap = rvEntry[1];
-      Object.entries(swMap).forEach(function(swEntry) {
-        var sw = swEntry[0], weekMap = swEntry[1];
-        var cur = weekMap[latestWk], prev = weekMap[prevWk];
-        if(!cur||!prev) return;
-        var metrics = cur.useAR ? ['Precision','Recall'] : ['Accuracy'];
-        metrics.forEach(function(metric) {
-          var valKey = metric==='Precision'?'prec':metric==='Recall'?'rec':'acc';
-          var bKey   = metric==='Precision'?'b_prec':metric==='Recall'?'b_rec':'b_acc';
-          var cv=cur[valKey], pv=prev[valKey];
-          if(cv===null||pv===null||cv===undefined||pv===undefined) return;
-          var delta = cv - pv;
-          if(Math.abs(delta)<0.001) return;
-          movement.push({ reviewer:reviewer, sw:sw, metric:metric, prevVal:pv, latestVal:cv, delta:delta, prevBand:prev[bKey], latestBand:cur[bKey], workflow:cur.workflow });
-        });
-      });
-    });
-    movement.sort(function(a,b){ return Math.abs(b.delta)-Math.abs(a.delta); });
-  }
 
   var fmtPct  = function(v){ return v!==null&&v!==undefined ? (v*100).toFixed(1)+'%' : '\u2014'; };
   var fmtSecs = function(v){ return v!==null&&v!==undefined ? Math.round(v)+'s' : '\u2014'; };
@@ -4542,59 +4458,95 @@ function renderPrioritySurface() {
     var pair = cfg[b]||['#555','#eee'];
     return '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:'+pair[1]+';color:'+pair[0]+';white-space:nowrap">'+(labels[b]||b)+'</span>';
   };
-  var sigIcon  = function(t){ return t==='red'?'\uD83D\uDD34':t==='yellow'?'\uD83D\uDFE1':'\uD83D\uDFE0'; };
-  var sigBdCol = function(t){ return t==='red'?'#FCA5A5':t==='yellow'?'#FCD34D':'#FDBA74'; };
-  var sigBgCol = function(t){ return t==='red'?'#FEF2F2':t==='yellow'?'#FEFCE8':'#FFF7ED'; };
 
-  var reviewerSignals = {};
-  signals.forEach(function(s){ if(!reviewerSignals[s.reviewer]) reviewerSignals[s.reviewer]=[]; reviewerSignals[s.reviewer].push(s); });
-  var typeOrd = {red:0,yellow:1,orange:2};
-  var sortedRevs = Object.keys(reviewerSignals).sort(function(a,b){
-    var wa = Math.min.apply(null, reviewerSignals[a].map(function(s){ return typeOrd[s.type]; }));
-    var wb = Math.min.apply(null, reviewerSignals[b].map(function(s){ return typeOrd[s.type]; }));
-    return wa - wb;
+  // ── Tier assignment: Red >=3 failing SWs, Amber =2, Yellow =1 ──────────────
+  var tierOf = function(n){ return n>=3 ? 'red' : n===2 ? 'amber' : 'yellow'; };
+  var tierIcon = function(t){ return t==='red'?'\uD83D\uDD34':t==='amber'?'\uD83D\uDFE0':'\uD83D\uDFE1'; };
+  var tierBdCol = function(t){ return t==='red'?'#FCA5A5':t==='amber'?'#FDBA74':'#FCD34D'; };
+  var tierBgCol = function(t){ return t==='red'?'#FEF2F2':t==='amber'?'#FFF7ED':'#FEFCE8'; };
+
+  var flaggedRevs = Object.keys(swFailCount).filter(function(r){ return swFailCount[r] > 0; });
+  var sortedRevs = flaggedRevs.slice().sort(function(a,b){
+    var diff = swFailCount[b] - swFailCount[a];
+    if(diff !== 0) return diff;
+    return a.localeCompare(b);
   });
 
+  // ── SECTION 1 — Priority Cards ──────────────────────────────────────────────
   if(sortedRevs.length===0) {
-    flagsEl.innerHTML = '<div style="grid-column:1/-1;background:#F0FDF4;border:1px solid #86EFAC;border-radius:var(--r);padding:14px 16px;text-align:center"><div style="font-size:14px;margin-bottom:4px">&#x2705;</div><div style="font-size:12px;font-weight:700;color:#15803D">No signals detected</div><div style="font-size:11px;color:#15803D;margin-top:2px">All reviewers within target bands across '+last4.length+' weeks</div></div>';
+    cardsEl.innerHTML = '<div style="grid-column:1/-1;background:#F0FDF4;border:1px solid #86EFAC;border-radius:var(--r);padding:14px 16px;text-align:center"><div style="font-size:14px;margin-bottom:4px">&#x2705;</div><div style="font-size:12px;font-weight:700;color:#15803D">No priority flags</div><div style="font-size:11px;color:#15803D;margin-top:2px">All reviewers within target bands MTD ('+fmtMonth(mtdMonth)+')</div></div>';
   } else {
-    flagsEl.innerHTML = sortedRevs.map(function(reviewer) {
-      var rvSigs = reviewerSignals[reviewer].slice().sort(function(a,b){ return typeOrd[a.type]-typeOrd[b.type]; });
-      var worstType = rvSigs[0].type;
-      var sigRows = rvSigs.map(function(s){
-        var valStr = s.metric==='AHT' ? fmtSecs(s.latestVal) : fmtPct(s.latestVal);
-        return '<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:0.5px solid '+sigBdCol(s.type)+'40">'
-          +'<span style="font-size:10px">'+sigIcon(s.type)+'</span>'
-          +'<span style="font-size:10px;font-weight:700;color:var(--ts);flex:1">'+s.metric+' \u00b7 '+s.sw+'</span>'
-          +'<span style="font-size:10px;color:var(--tm)">'+valStr+'</span>'
-          +bandPill(s.latestBand)
-          +'</div>';
+    cardsEl.innerHTML = sortedRevs.map(function(reviewer) {
+      var fails = failsByReviewer[reviewer];
+      var n = swFailCount[reviewer];
+      var tier = tierOf(n);
+      var bySW = {};
+      fails.forEach(function(f){ (bySW[f.sw] = bySW[f.sw] || []).push(f); });
+      var rowsHtml = Object.keys(bySW).map(function(sw){
+        var items = bySW[sw];
+        var qualItems = items.filter(function(f){ return !f.isAHT; });
+        var ahtItems  = items.filter(function(f){ return f.isAHT; });
+        var lines = [];
+
+        if(qualItems.length) {
+          // Worse band wins (ni beats app); combine P+R or just show Accuracy alone
+          var BRANK = {ni:0, app:1, ach:2, exc:3};
+          var worst = qualItems.reduce(function(a,b){ return BRANK[b.band] < BRANK[a.band] ? b : a; });
+          var qualLabel = qualItems.length > 1
+            ? qualItems.map(function(f){ return f.metric+' '+fmtPct(f.val); }).join(' / ')
+            : qualItems[0].metric+' '+fmtPct(qualItems[0].val);
+          lines.push('<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:0.5px solid '+tierBdCol(tier)+'40">'
+            +'<span style="font-size:10px;font-weight:700;color:var(--ts);flex:1">'+qualLabel+' \u00b7 '+sw+'</span>'
+            +bandPill(worst.band)
+            +'</div>');
+        }
+
+        ahtItems.forEach(function(f){
+          lines.push('<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:0.5px solid '+tierBdCol(tier)+'40">'
+            +'<span style="font-size:10px;font-weight:700;color:var(--ts);flex:1">AHT \u00b7 '+sw+'</span>'
+            +'<span style="font-size:10px;color:var(--tm)">'+fmtSecs(f.val)+'</span>'
+            +bandPill(f.band)
+            +'</div>');
+        });
+
+        return lines.join('');
       }).join('');
-      return '<div style="background:'+sigBgCol(worstType)+';border:1.5px solid '+sigBdCol(worstType)+';border-radius:var(--r);padding:10px 12px">'
+      return '<div style="background:'+tierBgCol(tier)+';border:1.5px solid '+tierBdCol(tier)+';border-radius:var(--r);padding:10px 12px">'
         +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">'
-        +'<span style="font-size:13px">'+sigIcon(worstType)+'</span>'
+        +'<span style="font-size:13px">'+tierIcon(tier)+'</span>'
         +'<span style="font-size:12px;font-weight:800;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+reviewer+'</span>'
-        +'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:var(--surface);border:1px solid '+sigBdCol(worstType)+';color:var(--ts)">'+rvSigs.length+' signal'+(rvSigs.length>1?'s':'')+'</span>'
-        +'</div>'+sigRows+'</div>';
+        +'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:var(--surface);border:1px solid '+tierBdCol(tier)+';color:var(--ts)">'+n+' SW'+(n>1?'s':'')+' failing</span>'
+        +'</div>'+rowsHtml+'</div>';
     }).join('');
   }
 
   if(legendEl) {
-    var reds=signals.filter(function(s){return s.type==='red';}).length;
-    var yels=signals.filter(function(s){return s.type==='yellow';}).length;
-    var orgs=signals.filter(function(s){return s.type==='orange';}).length;
+    var reds=sortedRevs.filter(function(r){return tierOf(swFailCount[r])==='red';}).length;
+    var ambers=sortedRevs.filter(function(r){return tierOf(swFailCount[r])==='amber';}).length;
+    var yels=sortedRevs.filter(function(r){return tierOf(swFailCount[r])==='yellow';}).length;
     legendEl.textContent = sortedRevs.length > 0
-      ? sortedRevs.length+' reviewer'+(sortedRevs.length!==1?'s':'')+' flagged \u00b7 '+reds+' red / '+yels+' yellow / '+orgs+' orange \u00b7 '+last4.length+' wks'
-      : last4.length+' wks analysed \u00b7 no signals';
+      ? sortedRevs.length+' reviewer'+(sortedRevs.length!==1?'s':'')+' flagged \u00b7 '+reds+' red / '+ambers+' amber / '+yels+' yellow \u00b7 MTD '+fmtMonth(mtdMonth)
+      : 'MTD '+fmtMonth(mtdMonth)+' \u00b7 no flags';
   }
 
+  // ── SECTION 2 — Borderline Watch (Approaching band, within reach of Achieving) ──
   if(borderEl) {
+    var borderline = [];
+    Object.keys(failsByReviewer).forEach(function(rev){
+      failsByReviewer[rev].forEach(function(f){
+        if(f.band !== 'app' || !f.bandObj) return;
+        var achTgt = f.bandObj.ach;
+        if(achTgt === null || achTgt === undefined) return;
+        var gap = f.isAHT ? f.val - achTgt : achTgt - f.val;
+        borderline.push({ reviewer:rev, sw:f.sw, metric:f.metric, val:f.val, bandObj:f.bandObj, gap:gap, isAHT:f.isAHT });
+      });
+    });
     if(borderline.length===0) {
-      borderEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">No reviewers within threshold of a KPI boundary.</div>';
+      borderEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">No reviewers within threshold of Achieving.</div>';
     } else {
       var sortedBL = borderline.slice().sort(function(a,b){ return a.gap-b.gap; });
       borderEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:5px">'
-        + sortedBL.slice(0,12).map(function(b){
+        + sortedBL.slice(0,15).map(function(b){
           var valStr = b.isAHT ? fmtSecs(b.val) : fmtPct(b.val);
           var tgtStr = b.isAHT ? fmtSecs(b.bandObj.ach) : fmtPct(b.bandObj.ach);
           var gapStr = b.isAHT ? '+'+Math.round(b.gap)+'s' : (b.gap*100).toFixed(1)+'pp';
@@ -4609,174 +4561,54 @@ function renderPrioritySurface() {
     }
   }
 
-  if(movementEl) {
-    if(!prevWk || movement.length===0) {
-      movementEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">Need at least 2 weeks of data for movement analysis.</div>';
-    } else {
-      movementEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:5px">'
-        + movement.slice(0,10).map(function(m){
-          var improved = m.delta > 0;
-          var arrow    = improved ? '\u2191' : '\u2193';
-          var aColor   = improved ? '#15803D' : '#B91C1C';
-          var deltaStr = (m.delta>0?'+':'')+(m.delta*100).toFixed(1)+'pp';
-          return '<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;border-bottom:0.5px solid var(--divider)">'
-            +'<span style="font-size:13px;font-weight:800;color:'+aColor+';flex-shrink:0">'+arrow+'</span>'
-            +'<span style="font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+m.reviewer+'</span>'
-            +'<span style="color:var(--tm);flex-shrink:0">'+m.metric+' \u00b7 '+m.sw+'</span>'
-            +'<span style="font-size:10px;color:var(--tm);flex-shrink:0">'+fmtPct(m.prevVal)+' \u2192 '+fmtPct(m.latestVal)+'</span>'
-            +'<span style="font-size:10px;font-weight:700;color:'+aColor+';font-family:monospace;flex-shrink:0">'+deltaStr+'</span>'
-            +bandPill(m.latestBand)
-            +'</div>';
-        }).join('')+'</div>';
-    }
-  }
-
-  // ── PANEL A — Band Distribution Table ─────────────────────────────────────
-  var bandTableEl = document.getElementById('ti-ps-band-table');
-  if(bandTableEl) {
-    // Collect all reviewer+SW combos that have a latestWk entry
-    var panelARows = [];
-    var BCOL  = {exc:'#15803D',ach:'#1D4ED8',app:'#92400E',ni:'#B91C1C'};
-    var BBGCOL= {exc:'#DCFCE7',ach:'#EFF6FF',app:'#FEF9C3',ni:'#FEF2F2'};
-    var BLAB  = {exc:'EXC',ach:'ACH',app:'APP',ni:'NI'};
-    var BRANK2= {ni:0,app:1,ach:2,exc:3};
-
-    var kpiPill = function(b){
-      if(!b) return '<span style="font-size:9px;color:var(--tm)">—</span>';
-      return '<span style="font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;background:'+BBGCOL[b]+';color:'+BCOL[b]+'">'+BLAB[b]+'</span>';
-    };
-
-    Object.entries(matrix).forEach(function(rvEntry) {
-      var reviewer = rvEntry[0], swMap = rvEntry[1];
-      Object.entries(swMap).forEach(function(swEntry) {
-        var sw = swEntry[0], weekMap = swEntry[1];
-        var le = weekMap[latestWk];
-        if(!le) return;
-        // Worst KPI across AR-gated quality + AHT
-        var qualKeys = le.useAR ? ['b_prec','b_rec'] : ['b_acc'];
-        var allKeys  = qualKeys.concat(['b_aht']);
-        var worstBand = null;
-        allKeys.forEach(function(k){ var b=le[k]; if(b && (worstBand===null||BRANK2[b]<BRANK2[worstBand])) worstBand=b; });
-        panelARows.push({ reviewer:reviewer, sw:sw, workflow:le.workflow, le:le, weekMap:weekMap, worstBand:worstBand });
-      });
-    });
-
-    if(panelARows.length===0) {
-      bandTableEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">No reviewer data for latest week.</div>';
-    } else {
-      // Sort: NI first, then APP, then ACH, then EXC; within band by reviewer name
-      panelARows.sort(function(a,b){
-        var ra = a.worstBand!==null ? (BRANK2[a.worstBand]||4) : 4;
-        var rb = b.worstBand!==null ? (BRANK2[b.worstBand]||4) : 4;
-        if(ra!==rb) return ra-rb;
-        return a.reviewer.localeCompare(b.reviewer);
-      });
-
-      var rows = panelARows.slice(0,50).map(function(row){
-        var le  = row.le;
-        var useAR = le.useAR;
-        var arStr = (le.ar*100).toFixed(0)+'%';
-
-        // Per-KPI pills — AR-gated
-        var precCell = useAR
-          ? kpiPill(le.b_prec)
-          : '<span style="font-size:9px;color:var(--tm)">n/a</span>';
-        var recCell  = useAR
-          ? kpiPill(le.b_rec)
-          : '<span style="font-size:9px;color:var(--tm)">n/a</span>';
-        var accCell  = !useAR
-          ? kpiPill(le.b_acc)
-          : '<span style="font-size:9px;color:var(--tm)">n/a</span>';
-        var ahtCell  = kpiPill(le.b_aht);
-
-        // 4-wk trend spark using primary quality key
-        var primaryKey = useAR ? 'b_prec' : 'b_acc';
-        var spark = last4.map(function(wk){
-          var e = row.weekMap[wk];
-          var b = e ? e[primaryKey] : null;
-          if(!b) return '<span style="font-size:9px;color:var(--tm);padding:0 1px">·</span>';
-          return '<span style="font-size:9px;font-weight:800;color:'+BCOL[b]+';padding:0 1px">'+BLAB[b]+'</span>';
-        }).join('');
-
-        return '<tr style="border-bottom:0.5px solid var(--divider)">'
-          +'<td style="padding:5px 8px;font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis">'+row.reviewer+'</td>'
-          +'<td style="padding:5px 8px;font-size:10px;color:var(--tm);white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis">'+row.sw+'</td>'
-          +'<td style="padding:5px 8px;font-size:10px;text-align:center;color:var(--tm)">'+arStr+'</td>'
-          +'<td style="padding:5px 8px;text-align:center">'+precCell+'</td>'
-          +'<td style="padding:5px 8px;text-align:center">'+recCell+'</td>'
-          +'<td style="padding:5px 8px;text-align:center">'+accCell+'</td>'
-          +'<td style="padding:5px 8px;text-align:center">'+ahtCell+'</td>'
-          +'<td style="padding:5px 8px;text-align:center;white-space:nowrap">'+spark+'</td>'
-          +'</tr>';
-      }).join('');
-
-      bandTableEl.innerHTML = '<table style="width:100%;border-collapse:collapse">'
-        +'<thead><tr style="border-bottom:1px solid var(--border);background:var(--bg)">'
-        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:left">Reviewer</th>'
-        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:left">Sub-workflow</th>'
-        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">AR</th>'
-        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">Precision</th>'
-        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">Recall</th>'
-        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">Accuracy</th>'
-        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">AHT</th>'
-        +'<th style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--tm);text-align:center">4-wk</th>'
-        +'</tr></thead>'
-        +'<tbody>'+rows+'</tbody></table>'
-        +(panelARows.length>50 ? '<div style="font-size:10px;color:var(--tm);padding:6px 0">Showing 50 of '+panelARows.length+' entries.</div>' : '');
-    }
-  }
-
-  // ── PANEL C — Coaching Loop Closure ───────────────────────────────────────
-  var coachingEl = document.getElementById('ti-ps-coaching');
+  // ── SECTION 3 — Coaching Loop (MCD status vs flagged reviewers) ────────────
   if(coachingEl) {
-    var flaggedRevs = Object.keys(reviewerSignals);
-    // Read MCD state from _mcd global (set by coaching doc module)
     var mcdState = window._mcd || {};
     var mcdKeys  = Object.keys(mcdState);
 
-    if(flaggedRevs.length===0) {
+    if(sortedRevs.length===0) {
       coachingEl.innerHTML = '<div style="font-size:11px;color:var(--tm);padding:4px 0">No flagged reviewers — no coaching actions needed.</div>';
     } else {
-      var rows = flaggedRevs.slice(0,15).map(function(rev){
-        // Find matching MCD entry (case-insensitive partial match)
+      var rowsHtml2 = sortedRevs.slice(0,20).map(function(rev){
         var mcdEntry = null;
         mcdKeys.forEach(function(k){
           if(k.toLowerCase().includes(rev.toLowerCase().split(' ')[0]) || rev.toLowerCase().includes(k.toLowerCase().split(' ')[0])) {
             mcdEntry = mcdState[k];
           }
         });
-        var sigs  = reviewerSignals[rev];
-        var worst = sigs.reduce(function(a,b){ return ({red:0,yellow:1,orange:2}[a.type]||3) <= ({red:0,yellow:1,orange:2}[b.type]||3) ? a : b; });
+        var tier = tierOf(swFailCount[rev]);
         var hasMCD = mcdEntry && (mcdEntry.entries || []).length > 0;
         var statusIcon = hasMCD ? '\u2705' : '\u26A0\uFE0F';
         var statusColor = hasMCD ? '#15803D' : '#B91C1C';
         var statusLabel = hasMCD ? 'MCD logged' : 'No MCD';
         return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:0.5px solid var(--divider)">'
-          +'<span style="font-size:11px">'+sigIcon(worst.type)+'</span>'
+          +'<span style="font-size:11px">'+tierIcon(tier)+'</span>'
           +'<span style="font-size:11px;font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+rev+'</span>'
           +'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:'+(hasMCD?'#DCFCE7':'#FEF2F2')+';color:'+statusColor+'">'+statusIcon+' '+statusLabel+'</span>'
           +'</div>';
       }).join('');
 
-      var closedCount = flaggedRevs.filter(function(rev){
+      var closedCount = sortedRevs.filter(function(rev){
         return mcdKeys.some(function(k){
           return (k.toLowerCase().includes(rev.toLowerCase().split(' ')[0]) || rev.toLowerCase().includes(k.toLowerCase().split(' ')[0]))
             && mcdState[k] && (mcdState[k].entries||[]).length > 0;
         });
       }).length;
 
-      var rate = flaggedRevs.length > 0 ? Math.round(closedCount/flaggedRevs.length*100) : 0;
+      var rate = sortedRevs.length > 0 ? Math.round(closedCount/sortedRevs.length*100) : 0;
       var rateColor = rate >= 80 ? '#15803D' : rate >= 50 ? '#92400E' : '#B91C1C';
       var rateBg    = rate >= 80 ? '#DCFCE7' : rate >= 50 ? '#FEF9C3' : '#FEF2F2';
 
       coachingEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-        +'<span style="font-size:10px;color:var(--tm)">'+flaggedRevs.length+' flagged</span>'
+        +'<span style="font-size:10px;color:var(--tm)">'+sortedRevs.length+' flagged</span>'
         +'<span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;background:'+rateBg+';color:'+rateColor+'">'+rate+'% MCD closure</span>'
         +'</div>'
-        +'<div style="display:flex;flex-direction:column">'+rows+'</div>'
-        +(flaggedRevs.length>15 ? '<div style="font-size:10px;color:var(--tm);padding:4px 0">Showing 15 of '+flaggedRevs.length+'.</div>' : '');
+        +'<div style="display:flex;flex-direction:column">'+rowsHtml2+'</div>'
+        +(sortedRevs.length>20 ? '<div style="font-size:10px;color:var(--tm);padding:4px 0">Showing 20 of '+sortedRevs.length+'.</div>' : '');
     }
   }
+
+  window._psExportData = { mtdMonth: mtdMonth, flaggedRevs: sortedRevs, swFailCount: swFailCount, failsByReviewer: failsByReviewer };
 }
 // END PRIORITY SURFACE
 
@@ -7427,6 +7259,16 @@ function renderOutlierCallout(validRevs, qData, ahtData, teamAvg, sws) {
             return row(sn(d.rv), `${(d.nhtPct*100).toFixed(1)}% NHT — ${((d.nhtPct-nhtThreshold)*100).toFixed(1)}pp above 5% threshold`, d.rv);
         }).join('');
     }
+
+    const qualColor = qualOutliers.length > 0 ? 'var(--coral)' : 'var(--teal)';
+    const qualBg    = qualOutliers.length > 0 ? 'var(--csec)'  : 'var(--tsec)';
+    const qualBdr   = qualOutliers.length > 0 ? 'var(--cbd)'   : 'var(--tbd)';
+    const qualLabel = qualOutliers.length > 0 ? `Quality — needs attention (${qualOutliers.length})` : 'Quality — within control';
+
+    const ahtColor = ahtOutliers.length > 0 ? 'var(--coral)' : 'var(--teal)';
+    const ahtBg    = ahtOutliers.length > 0 ? 'var(--csec)'  : 'var(--tsec)';
+    const ahtBdr   = ahtOutliers.length > 0 ? 'var(--cbd)'   : 'var(--tbd)';
+    const ahtLabel = ahtOutliers.length > 0 ? `AHT — needs attention (${ahtOutliers.length})` : 'AHT — within control';
 
     const nhtColor = nhtOutliers.length > 0 ? 'var(--purple)' : 'var(--teal)';
     const nhtBg    = nhtOutliers.length > 0 ? 'var(--psec)'  : 'var(--tsec)';
@@ -15405,16 +15247,56 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         .filter(p => p.total>0)
         .sort((a,b) => b.total-a.total);
 
+    // ── Quality fail-SW detection — mirrors AHT's failingSWs but for P/R/Accuracy ──
+    const swQualByMonth = {};
+    currRows.forEach(r => {
+        if(!r.sw) return;
+        if(!swQualByMonth[r.sw]) swQualByMonth[r.sw] = {tpa:0,fpa:0,fna:0,tna:0,workflow:r.workflow};
+        const s = swQualByMonth[r.sw];
+        s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0;
+    });
+    const failingQualSWs = Object.keys(swQualByMonth).map(sw => {
+        const d = swQualByMonth[sw];
+        const tot = d.tpa+d.fpa+d.fna+d.tna;
+        if(tot===0) return null;
+        const ar = (d.tpa+d.fpa)/tot;
+        const useAR = ar>=0.10;
+        const bAcc  = getBandTargets(d.workflow, sw, 'Accuracy');
+        const bPrec = getBandTargets(d.workflow, sw, 'Precision');
+        const bRec  = getBandTargets(d.workflow, sw, 'Recall');
+        if(useAR) {
+            const prec = (d.tpa+d.fpa)>0 ? d.tpa/(d.tpa+d.fpa) : null;
+            const rec  = (d.tpa+d.fna)>0 ? d.tpa/(d.tpa+d.fna) : null;
+            const bP = assignBand(prec, bPrec, false), bR = assignBand(rec, bRec, false);
+            if(bP==='ni'||bP==='app') return {sw, metric:'Precision', val:prec, band:bP};
+            if(bR==='ni'||bR==='app') return {sw, metric:'Recall', val:rec, band:bR};
+        } else {
+            const acc = (d.tpa+d.tna)/tot;
+            const bA = assignBand(acc, bAcc, false);
+            if(bA==='ni'||bA==='app') return {sw, metric:'Accuracy', val:acc, band:bA};
+        }
+        return null;
+    }).filter(Boolean);
+    const topFailQualSW = failingQualSWs[0] || null;
+
     // Quality focus
     const topErrPol = sortedPolRows[0];
     const qualFocusTitle = topErrPol
         ? `${topErrPol.pol} \u2014 active error area. Keep it clean heading into ${fmtMonth(allMonths[currIdx+1]||currMonth)}.`
+        : topFailQualSW
+        ? `${topFailQualSW.sw} \u2014 ${topFailQualSW.metric} below target. Keep it clean heading into ${fmtMonth(allMonths[currIdx+1]||currMonth)}.`
         : `Quality \u2014 strong month. Lock in the consistency.`;
     const qualBullets = topErrPol
         ? [
             `Go over ${topErrPol.pol} and make sure you\u2019re clear on where the line is \u2014 pay close attention to edge cases`,
             `Escalate any case you\u2019re unsure about \u2014 don\u2019t decide solo on this policy`,
             `Check IPB and CCVE for the latest alignment on ${topErrPol.pol}`
+          ]
+        : topFailQualSW
+        ? [
+            `${topFailQualSW.sw} ${topFailQualSW.metric} is below target this month \u2014 review your audited jobs on this SW for patterns`,
+            `Escalate any boundary case you\u2019re unsure about \u2014 don\u2019t decide solo on this sub-workflow`,
+            `Check IPB and CCVE for the latest alignment guidance on ${topFailQualSW.sw}`
           ]
         : [
             `Accuracy held above target all month \u2014 the goal now is to make this the new normal, not a one-month result`,
@@ -15423,14 +15305,18 @@ function generateReviewerMonthlyDoc(mcdConfig) {
           ];
     const qualGoalText = topErrPol
         ? `3 clean weeks \u2014 zero new ${topErrPol.pol} errors in ${fmtMonth(allMonths[currIdx+1]||currMonth)}`
+        : topFailQualSW
+        ? `${topFailQualSW.sw} ${topFailQualSW.metric} at or above target for all 4 weeks in ${fmtMonth(allMonths[currIdx+1]||currMonth)}`
         : `Accuracy at or above target for all 4 weeks in ${fmtMonth(allMonths[currIdx+1]||currMonth)}`;
-    const qualNumBg = topErrPol ? redBg : greenBg;
-    const qualNumTc = topErrPol ? red   : green;
-    const qualGoalBg = topErrPol ? redBg : greenBg;
-    const qualGoalTc = topErrPol ? red   : green;
-    const qualGoalBd = topErrPol ? redBd : greenBd;
+    const qualNumBg = (topErrPol||topFailQualSW) ? redBg : greenBg;
+    const qualNumTc = (topErrPol||topFailQualSW) ? red   : green;
+    const qualGoalBg = (topErrPol||topFailQualSW) ? redBg : greenBg;
+    const qualGoalTc = (topErrPol||topFailQualSW) ? red   : green;
+    const qualGoalBd = (topErrPol||topFailQualSW) ? redBd : greenBd;
     const qualTLLines = topErrPol
         ? [`Review ${topErrPol.pol} with job-level examples in the next 1:1`,`Run spot checks on ${topErrPol.pol} decisions this month`]
+        : topFailQualSW
+        ? [`Review ${topFailQualSW.sw} ${topFailQualSW.metric} with job-level examples in the next 1:1`,`Run spot checks on ${topFailQualSW.sw} decisions this month`]
         : [`Acknowledge the performance in the next 1:1 \u2014 this month was above the team average`,`Tap this reviewer to share what\u2019s working in the next team calibration`];
 
     // AHT focus
@@ -15493,7 +15379,7 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         <span style="font-size:10px;font-weight:600;color:${textMuted}">3 items</span>
       </div>
       <div style="padding:14px 16px">
-        ${focusItem(1, qualNumBg, qualNumTc, qualFocusTitle, qualBullets, goalRow('Quality', qualGoalBg, qualGoalTc, qualGoalBd, qualGoalText, !!topErrPol), qualTLLines)}
+        ${focusItem(1, qualNumBg, qualNumTc, qualFocusTitle, qualBullets, goalRow('Quality', qualGoalBg, qualGoalTc, qualGoalBd, qualGoalText, !!(topErrPol||topFailQualSW)), qualTLLines)}
         <div style="height:0.5px;background:${divider};margin:12px 0"></div>
         ${focusItem(2, ahtNumBg, ahtNumTc, ahtFocusTitle, ahtBullets, goalRow(ahtFocusSW?'Primary':'AHT', ahtGoalBg, ahtGoalTc, ahtGoalBd, ahtGoalText, !!ahtFocusSW), ahtTLLines)}
         <div style="height:0.5px;background:${divider};margin:12px 0"></div>
@@ -15580,6 +15466,8 @@ function generateReviewerMonthlyDoc(mcdConfig) {
       ${secHead('QA & AHT \u2014 last 3 months by sub-workflow', red)}
       <div style="font-size:11px;color:${textMuted};margin-bottom:8px">AR \u226510% \u2192 Precision &amp; Recall shown \u00b7 AR &lt;10% \u2192 Accuracy shown \u00b7 AHT in italics, color-coded \u22655 decisions</div>
       ${errTable}
+      ${divSection}
+      ${focusBlock}
       ${coachingSection}
     </div>`;
 
@@ -16982,7 +16870,7 @@ function processCSVData(csvString) {
             month:      parseMonth(getVal(r,'Month')),
             date:       parseDateToYMD(r['Date']||''),
             reviewer,
-            supervisor: r['Supervisor name']||'',
+            supervisor: (r['Supervisor name']||'').trim(),
             tenure:     r['Tenure']||'',
             role:       r['Role']||'',
             language:   r['Language']||'',
