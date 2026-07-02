@@ -3284,9 +3284,11 @@ function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount, opts)
     if (compact) {
         // Compact variant (Site Health Tier 1 cards): status color is the dominant
         // signal — tinted background + left border bar + status dot — read before
-        // any number is parsed. Label stays dark/legible (not the muted grey used
-        // elsewhere) since it's the second thing scanned, not decoration. VSF is
-        // kept as the corner pill exactly as in the standard card.
+        // any number is parsed. Fixed height + flex column so every card is the
+        // same size regardless of whether VSF/sub-line are present. Typographic
+        // hierarchy: the VALUE is the one bold/dark element; the label is smaller
+        // and medium-weight (readable, but clearly secondary) instead of the
+        // previous bold-everywhere treatment that gave no visual priority.
         const statusMap = {
             good: {bar:'var(--teal)',  bg:'var(--tbg)', dot:'var(--teal)'},
             warn: {bar:'var(--amber)', bg:'var(--abg)', dot:'var(--amber)'},
@@ -3299,22 +3301,19 @@ function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount, opts)
             let vsfBg = vsf > 1.0 ? '#FEF2F2' : (vsf > 0.7 ? '#FFFBEB' : '#F0FDF4');
             let vsfCol = vsf > 1.0 ? '#B91C1C' : (vsf > 0.7 ? '#92400E' : '#15803D');
             let suffix = (nCount !== undefined && nCount !== null && nCount < 5) ? ' *Low n' : '';
-            vsfHtml = `<div style="font-size:8px; font-weight:800; padding:1px 6px; border-radius:100px; background:${vsfBg}; color:${vsfCol}; flex-shrink:0; margin-left:6px">VSF ${vsf.toFixed(2)}${suffix}</div>`;
+            vsfHtml = `<div style="font-size:8px; font-weight:700; padding:1px 6px; border-radius:100px; background:${vsfBg}; color:${vsfCol}; flex-shrink:0; margin-left:6px">VSF ${vsf.toFixed(2)}${suffix}</div>`;
         }
-        let subLineHtml = '';
-        if (passRateStr !== '' && passRateStr !== undefined) {
-            subLineHtml = `<div style="font-size:10px; font-weight:600; margin-top:3px; color:${st.dot}">${passRateStr}</div>`;
-        }
+        const subLineHtml = `<div style="font-size:10px; font-weight:500; margin-top:auto; padding-top:3px; color:${st.dot}; min-height:13px">${(passRateStr !== '' && passRateStr !== undefined) ? passRateStr : ''}</div>`;
         const clickStyle = clickable ? 'cursor:pointer;' : '';
-        return `<div class="kcard kcard-compact" style="position:relative; background:${st.bg}; border-left:3px solid ${st.bar}; border-radius:10px; padding:9px 11px; ${clickStyle}"${clickAttr}>
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:3px">
+        return `<div class="kcard kcard-compact" style="position:relative; background:${st.bg}; border-left:3px solid ${st.bar}; border-radius:10px; padding:9px 11px; height:78px; display:flex; flex-direction:column; ${clickStyle}"${clickAttr}>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:4px">
         <div style="display:flex; align-items:center; gap:5px; min-width:0">
           <span style="width:6px; height:6px; border-radius:50%; background:${st.dot}; flex-shrink:0"></span>
-          <span class="kcard-lbl" style="color:var(--text); font-size:10px; font-weight:700; text-transform:none; letter-spacing:0; margin-bottom:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${label}</span>
+          <span class="kcard-lbl" style="color:var(--ts); font-size:10px; font-weight:500; text-transform:none; letter-spacing:0; margin-bottom:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${label}</span>
         </div>
         ${vsfHtml}
       </div>
-      <div class="kcard-val" style="font-size:18px; color:var(--text); line-height:1.05">${val}</div>
+      <div class="kcard-val" style="font-size:19px; font-weight:800; color:var(--text); line-height:1.05">${val}</div>
       ${subLineHtml}
     </div>`;
     }
@@ -3625,16 +3624,16 @@ function renderExec(){
   qualRowsLM.forEach(r => { viol+=r.viol; enf+=r.enf; });
   const ar = (tp+fp+fn+tn)>0?(tp+fp)/(tp+fp+fn+tn):null;
 
-  // Click-through target: Reviewer Scorecard, keeping current filters (goToTab re-uses showTab)
-  const TO_SCORECARD = "goToTab('scorecard','.t-sc')";
-  const TO_SUPERVISOR = "goToTab('supervisor','.t-sv')";
-  const TO_DATAEXPLORER = "goToTab('dataexplorer','.t-de')";
+  // Click-through target: Data Explorer, auto-filtered to the current global filter
+  // selection, grouped by Reviewer, sorted ascending by the metric on the card that
+  // was clicked (worst performer surfaces as the first row). See goToDataExplorerFiltered.
+  const deLink = col => `goToDataExplorerFiltered('${col}')`;
 
   document.getElementById('e-quality-cards').innerHTML = 
-    kcard(`${qLabel} Accuracy ↑`, p(acc), 'adj_acc', passStr(accPass,n), passPct(accPass,n), vsfAcc, n, {compact:true, onClick:TO_SCORECARD}) + 
-    kcard(`${qLabel} Precision ↑`, p(prec), 'prec', passStr(precPass,rvPrecVals.length), passPct(precPass,rvPrecVals.length), vsfPrec, rvPrecVals.length, {compact:true, onClick:TO_SCORECARD}) + 
-    kcard(`${qLabel} Recall ↑`, p(rec), 'rec', passStr(recPass,rvRecVals.length), passPct(recPass,rvRecVals.length), vsfRec, rvRecVals.length, {compact:true, onClick:TO_SCORECARD}) +
-    kcard('Action Rate ↑', ar!==null?p(ar):'—', 'ar', ar!==null?(ar<0.10?'Below 10% — check Accuracy':'Above 10% — check Prec/Rec'):'', ar!==null?(ar<0.10?Math.round(ar*100):100):null, null, null, {compact:true, onClick:TO_SCORECARD});
+    kcard(`${qLabel} Accuracy ↑`, p(acc), 'adj_acc', passStr(accPass,n), passPct(accPass,n), vsfAcc, n, {compact:true, onClick:deLink('adj_acc')}) + 
+    kcard(`${qLabel} Precision ↑`, p(prec), 'prec', passStr(precPass,rvPrecVals.length), passPct(precPass,rvPrecVals.length), vsfPrec, rvPrecVals.length, {compact:true, onClick:deLink('adj_prec')}) + 
+    kcard(`${qLabel} Recall ↑`, p(rec), 'rec', passStr(recPass,rvRecVals.length), passPct(recPass,rvRecVals.length), vsfRec, rvRecVals.length, {compact:true, onClick:deLink('adj_rec')}) +
+    kcard('Action Rate ↑', ar!==null?p(ar):'—', 'ar', ar!==null?(ar<0.10?'Below 10% — check Accuracy':'Above 10% — check Prec/Rec'):'', ar!==null?(ar<0.10?Math.round(ar*100):100):null, null, null, {compact:true, onClick:deLink('ar')});
 
   const nhtPct = (dht+nht)>0 ? nht/(dht+nht) : null;
 
@@ -3671,17 +3670,17 @@ function renderExec(){
 
   // Row 1: AHT · NHT% · Total Decisions · Throughput
   document.getElementById('e-efficiency-row1').innerHTML =
-    kcard('Avg AHT ↓', aht!==null?aht.toFixed(2)+'s':'—', 'aht', passStr(ahtPass,wn), passPct(ahtPass,wn), vsfAHT, wn, {compact:true, onClick:TO_SCORECARD}) +
-    kcard('NHT% ↓', nhtPct!==null?p(nhtPct):'—', 'aht', sws.length===1?'':'Multi-SW avg', null, null, null, {compact:true, onClick:TO_SCORECARD}) +
-    kcard('Total Decisions', dec>0?dec.toLocaleString():'—', 'na', rvNames.length+' reviewer'+(rvNames.length!==1?'s':''), null, null, null, {compact:true, onClick:TO_DATAEXPLORER}) +
-    kcard('Throughput ↑', throughput!==null?throughput.toFixed(1)+' dec/rv-wk':'—', 'na', reviewerWeeks+' reviewer-week'+(reviewerWeeks!==1?'s':''), null, null, null, {compact:true, onClick:TO_DATAEXPLORER});
+    kcard('Avg AHT ↓', aht!==null?aht.toFixed(2)+'s':'—', 'aht', passStr(ahtPass,wn), passPct(ahtPass,wn), vsfAHT, wn, {compact:true, onClick:deLink('aht')}) +
+    kcard('NHT% ↓', nhtPct!==null?p(nhtPct):'—', 'aht', sws.length===1?'':'Multi-SW avg', null, null, null, {compact:true, onClick:deLink('nht_pct')}) +
+    kcard('Total Decisions', dec>0?dec.toLocaleString():'—', 'na', rvNames.length+' reviewer'+(rvNames.length!==1?'s':''), null, null, null, {compact:true, onClick:deLink('dec')}) +
+    kcard('Throughput ↑', throughput!==null?throughput.toFixed(1)+' dec/rv-wk':'—', 'na', reviewerWeeks+' reviewer-week'+(reviewerWeeks!==1?'s':''), null, null, null, {compact:true, onClick:deLink('dec')});
 
   // Row 2: Absenteeism · Utilization · Occupancy · Workforce SLA
   document.getElementById('e-efficiency-row2').innerHTML =
-    kcard('Absenteeism ↓', p(abs), 'abs', '', null, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
-    kcard('Utilization ↑', p(util), 'util', '', null, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
-    kcard('Occupancy ↑', p(occ), 'occ', '', null, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
-    kcard('Workforce SLA ↑', wfSla!==null?p(wfSla):'—', 'wfSla', '', null, null, null, {compact:true, onClick:TO_SUPERVISOR});
+    kcard('Absenteeism ↓', p(abs), 'abs', '', null, null, null, {compact:true, onClick:deLink('abs')}) +
+    kcard('Utilization ↑', p(util), 'util', '', null, null, null, {compact:true, onClick:deLink('util')}) +
+    kcard('Occupancy ↑', p(occ), 'occ', '', null, null, null, {compact:true, onClick:deLink('occ')}) +
+    kcard('Workforce SLA ↑', wfSla!==null?p(wfSla):'—', 'wfSla', '', null, null, null, {compact:true, onClick:deLink('wfSla')});
 
   // Legend chips — month-based (defined here, used for all legend elements below)
   const selMonthLabels = selMonths.length ? selMonths.map(fmtMonth).join(', ') : 'All months';
@@ -3693,30 +3692,31 @@ function renderExec(){
 
   const alignEl = document.getElementById('e-alignment-cards');
   if(alignEl) alignEl.innerHTML =
-    kcard('AOA ↑', alignment!==null?p(alignment):'—', 'aoa', 'Target: 98%', 98, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
-    kcard('MSV ↑', msv!==null?p(msv):'—', 'msv', 'Target: 98%', 98, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
-    kcard('Q Alignment ↑', qaln!==null?p(qaln):'—', 'qaln', 'Target: 98%', 98, null, null, {compact:true, onClick:TO_SUPERVISOR});
+    kcard('AOA ↑', alignment!==null?p(alignment):'—', 'aoa', 'Target: 98%', 98, null, null, {compact:true, onClick:deLink('aoa')}) +
+    kcard('MSV ↑', msv!==null?p(msv):'—', 'msv', 'Target: 98%', 98, null, null, {compact:true, onClick:deLink('msv')}) +
+    kcard('Q Alignment ↑', qaln!==null?p(qaln):'—', 'qaln', 'Target: 98%', 98, null, null, {compact:true, onClick:deLink('qaln')});
 
   document.getElementById('e-nht-note').innerHTML = sws.length !== 1 ? "*NHT% tracking is suppressed across blended workflows to prevent skewed averages." : "";
 
   // ── Attention banner — surfaces every metric currently flagged bad/warn ────
   // Reuses the same flag() thresholds already driving each card's color, so
-  // this can never disagree with what the cards themselves show.
+  // this can never disagree with what the cards themselves show. Each chip
+  // routes through the same goToDataExplorerFiltered() as the cards.
   (function renderAttentionBanner(){
     const bannerEl = document.getElementById('e-attention-banner');
     if(!bannerEl) return;
     const checks = [
-      {label:`${qLabel} Accuracy`, val:acc, key:'adj_acc', fmt:p},
-      {label:`${qLabel} Precision`, val:prec, key:'prec', fmt:p},
-      {label:`${qLabel} Recall`, val:rec, key:'rec', fmt:p},
-      {label:'Avg AHT', val:aht, key:'aht', fmt:v=>v.toFixed(2)+'s'},
-      {label:'Absenteeism', val:abs, key:'abs', fmt:p},
-      {label:'Utilization', val:util, key:'util', fmt:p},
-      {label:'Occupancy', val:occ, key:'occ', fmt:p},
-      {label:'Workforce SLA', val:wfSla, key:'wfSla', fmt:p},
-      {label:'AOA', val:alignment, key:'aoa', fmt:p},
-      {label:'MSV', val:msv, key:'msv', fmt:p},
-      {label:'Q Alignment', val:qaln, key:'qaln', fmt:p},
+      {label:`${qLabel} Accuracy`, val:acc, key:'adj_acc', deCol:'adj_acc', fmt:p},
+      {label:`${qLabel} Precision`, val:prec, key:'prec', deCol:'adj_prec', fmt:p},
+      {label:`${qLabel} Recall`, val:rec, key:'rec', deCol:'adj_rec', fmt:p},
+      {label:'Avg AHT', val:aht, key:'aht', deCol:'aht', fmt:v=>v.toFixed(2)+'s'},
+      {label:'Absenteeism', val:abs, key:'abs', deCol:'abs', fmt:p},
+      {label:'Utilization', val:util, key:'util', deCol:'util', fmt:p},
+      {label:'Occupancy', val:occ, key:'occ', deCol:'occ', fmt:p},
+      {label:'Workforce SLA', val:wfSla, key:'wfSla', deCol:'wfSla', fmt:p},
+      {label:'AOA', val:alignment, key:'aoa', deCol:'aoa', fmt:p},
+      {label:'MSV', val:msv, key:'msv', deCol:'msv', fmt:p},
+      {label:'Q Alignment', val:qaln, key:'qaln', deCol:'qaln', fmt:p},
     ];
     const flagged = checks
       .filter(c => c.val !== null && c.val !== undefined)
@@ -3736,10 +3736,10 @@ function renderExec(){
     const bgColor  = severity === 'bad' ? 'var(--cbg)'   : 'var(--abg)';
     const textColor= severity === 'bad' ? 'var(--coral)' : 'var(--amber)';
     const summary = [badCount ? `${badCount} below target` : '', warnCount ? `${warnCount} approaching threshold` : ''].filter(Boolean).join(', ');
-    const chips = flagged.map(c => `<span style="background:var(--surface);border:1px solid ${c.status==='bad'?'var(--cbd)':'var(--abd)'};color:${c.status==='bad'?'var(--coral)':'var(--amber)'};border-radius:var(--pill);font-size:11px;font-weight:700;padding:2px 9px;cursor:pointer" onclick="${TO_SCORECARD}">${c.label}: ${c.fmt(c.val)}</span>`).join(' ');
+    const chips = flagged.map(c => `<span style="background:var(--surface);border:1px solid ${c.status==='bad'?'var(--cbd)':'var(--abd)'};color:${c.status==='bad'?'var(--coral)':'var(--amber)'};border-radius:var(--pill);font-size:11px;font-weight:700;padding:2px 9px;cursor:pointer" onclick="goToDataExplorerFiltered('${c.deCol}')">${c.label}: ${c.fmt(c.val)}</span>`).join(' ');
     bannerEl.style.display = 'block';
     bannerEl.style.cssText = `background:${bgColor};border-left:4px solid ${barColor};border-radius:var(--r);padding:10px 14px;margin-bottom:1rem;`;
-    bannerEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:${textColor};font-weight:800;margin-bottom:7px">⚠ ${summary} — click a metric to jump to Reviewer Scorecard</div><div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>`;
+    bannerEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:${textColor};font-weight:800;margin-bottom:7px">⚠ ${summary} — click a metric to jump to Data Explorer</div><div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>`;
   })();
 
   // ── Data freshness indicator ────────────────────────────────────────────
@@ -11814,12 +11814,16 @@ function toggleCtrlSwPol(i) {
 
 // RENDER CHARTS ENGINE
 function renderExecCharts(qRows, wfmRows, targetsObj, qualType, vsfs, passRates) {
-    // Trend charts use the FULL dataset (ignores month filter, same as before) —
-    // previously hard-capped to the last 12 weeks; removed so switching to
-    // Monthly view (or accumulating more weeks of data) shows every available
-    // period instead of stopping at ~3 months.
+    // Trend charts default to the universal filter bar's selected month range —
+    // if the OM has picked specific months up top, the trend charts reflect that
+    // same window on load. If no months are selected, charts show the FULL
+    // dataset (no cap — previously hard-capped to the last 12 weeks, removed so
+    // switching to Monthly view, or simply accumulating more weeks of data,
+    // shows every available period instead of stopping at ~3 months).
+    const selMonthsForCharts = getSelMonths();
     const tls = getSel('g-tl'), tenures = getSel('g-tenure'), sws = getSel('g-sw'), workflows = getSel('g-workflow'), roles = getSel('g-role'), reviewTypes = getSel('g-review-type');
-    const baseRows = filterRows(RAW_ROWS, tls, tenures, sws, workflows, roles, reviewTypes);
+    const monthScopedRows = selMonthsForCharts.length ? RAW_ROWS.filter(r => selMonthsForCharts.includes(r.month)) : RAW_ROWS;
+    const baseRows = filterRows(monthScopedRows, tls, tenures, sws, workflows, roles, reviewTypes);
     const trendQRows  = baseRows;
     const trendWFMRows = baseRows;
 
@@ -17135,6 +17139,46 @@ function showTab(id,btn){
 function goToTab(id, tabSelector) {
   const btn = document.querySelector(tabSelector);
   if(btn) showTab(id, btn);
+}
+
+// Jump to Data Explorer with filters auto-applied to surface the reviewers/SWs
+// behind a flagged Site Health metric. Data Explorer keeps its own independent
+// filter state (de-tl, de-tenure, etc. — not the same DOM elements as the
+// global filter bar), so this mirrors the current global filter selections
+// into DE's local filters, then groups by Reviewer and sorts by the relevant
+// metric ascending (worst first) so the person to talk to is the top row.
+function goToDataExplorerFiltered(sortCol) {
+  goToTab('dataexplorer', '.t-de');
+
+  // Mirror current global filter selections (TL/tenure/SW/workflow/role/reviewType)
+  // into DE's independent local filters — same underlying field values, different
+  // <select> elements, so this is a value copy, not a shared reference.
+  const mirror = [
+    ['g-tl', 'de-tl'], ['g-tenure', 'de-tenure'], ['g-sw', 'de-subworkflow'],
+    ['g-workflow', 'de-workflow'], ['g-role', 'de-role'], ['g-review-type', 'de-review-type-de']
+  ];
+  mirror.forEach(([srcId, dstId]) => {
+    const srcVals = new Set(getSel(srcId));
+    const dstEl = document.getElementById(dstId);
+    if(!dstEl) return;
+    Array.from(dstEl.options).forEach(o => { o.selected = srcVals.has(o.value); });
+    if(dstEl._rebuildOptions) dstEl._rebuildOptions();
+  });
+
+  // Mirror the universal month filter too, if any months are selected there.
+  const monthEl = document.getElementById('de-month');
+  if(monthEl) {
+    const selMonths = new Set(getSelMonths ? getSelMonths() : []);
+    Array.from(monthEl.options).forEach(o => { o.selected = selMonths.has(o.value); });
+    if(monthEl._rebuildOptions) monthEl._rebuildOptions();
+  }
+
+  // Group by Reviewer (the actionable coaching unit) and sort by the flagged
+  // metric ascending so the worst performer is the very first row.
+  DE_DIMS = ['reviewer'];
+  DE_SORT = { col: sortCol, dir: 'asc', userSet: true };
+
+  renderDataExplorer();
 }
 
 function parseCSVRow(text) {
