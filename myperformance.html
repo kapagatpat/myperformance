@@ -199,6 +199,10 @@ select,input{font-family:var(--f);font-size:11px;padding:4px 7px;border:1px soli
 .kpi-section-label{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--tm);margin-bottom:8px;margin-top:4px}
 .kcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:13px 15px;box-shadow:var(--shadow-card);transition:box-shadow .15s}
 .kcard:hover{box-shadow:var(--shadow-hover)}
+.kcard[onclick]:hover{border-color:var(--blue);box-shadow:0 2px 10px rgba(26,86,219,.12)}
+.kcard[onclick]:active{transform:translateY(1px)}
+.kcard-compact .kcard-lbl{font-size:9px;margin-bottom:3px}
+.kcard-compact .kcard-val{line-height:1.05}
 .kcard-lbl{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tm);margin-bottom:5px; display:flex; align-items:center;}
 .kcard-val{font-size:22px;font-weight:800;line-height:1.1}
 .kcard-val.good{color:var(--teal)}.kcard-val.warn{color:var(--amber)}.kcard-val.bad{color:var(--coral)}.kcard-val.na{color:var(--tm)}
@@ -500,9 +504,11 @@ tr:hover td{background:#F8F9FB}
 
     <section id="tab-exec" class="section">
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-        <div><h1>Site Health</h1><p>Macro-level operational health across Quality, Efficiency, and Attendance.</p></div>
+        <div><h1>Site Health</h1><p>Macro-level operational health across Quality, Efficiency, and Attendance. <span id="e-data-asof" style="color:var(--tm);font-weight:600"></span></p></div>
         <button onclick="copyTabToHTML('tab-exec','Site Health',this)" style="flex-shrink:0;font-size:11px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">📋 Copy as HTML</button>
       </div>
+
+      <div id="e-attention-banner" style="display:none"></div>
 
       <div id="e-qual-type-warn" style="display:none;background:var(--abg);border-left:4px solid var(--amber);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber);font-weight:600;margin-bottom:1rem;"></div>
 
@@ -3266,7 +3272,8 @@ function qaFilter(rows) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount) {
+function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount, opts) {
+    opts = opts || {};
     let fClass = flag(parseFloat(val.toString().replace(/[^0-9.-]/g,'')) * (val.toString().includes('%') ? 0.01 : 1), flagKey);
     let vsfHtml = '';
     if (vsf !== null && vsf !== undefined && vsf !== '') {
@@ -3280,10 +3287,17 @@ function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount) {
         let prColor = passRatePct >= 80 ? 'var(--teal)' : (passRatePct >= 60 ? 'var(--amber)' : 'var(--coral)');
         passRateHtml = `<div style="font-size:11px; font-weight:600; margin-top:6px; color:${prColor}">${passRateStr}</div>`;
     }
-    return `<div class="kcard" style="position:relative; padding-top:28px">
+    const compact = !!opts.compact;
+    const cardPad = compact ? '9px 12px' : '13px 15px';
+    const topPad  = compact ? '22px' : '28px';
+    const valSize = compact ? '18px' : '22px';
+    const clickable = !!opts.onClick;
+    const clickAttr = clickable ? ` onclick="${opts.onClick.replace(/"/g,'&quot;')}" role="button" tabindex="0"` : '';
+    const clickStyle = clickable ? 'cursor:pointer;' : '';
+    return `<div class="kcard${compact?' kcard-compact':''}" style="position:relative; padding:${cardPad}; padding-top:${topPad}; ${clickStyle}"${clickAttr}>
       ${vsfHtml}
       <div class="kcard-lbl">${label}</div>
-      <div class="kcard-val ${fClass}">${val}</div>
+      <div class="kcard-val ${fClass}" style="font-size:${valSize}">${val}</div>
       ${passRateHtml}
     </div>`;
 }
@@ -3572,11 +3586,16 @@ function renderExec(){
   qualRowsLM.forEach(r => { viol+=r.viol; enf+=r.enf; });
   const ar = (tp+fp+fn+tn)>0?(tp+fp)/(tp+fp+fn+tn):null;
 
+  // Click-through target: Reviewer Scorecard, keeping current filters (goToTab re-uses showTab)
+  const TO_SCORECARD = "goToTab('scorecard','.t-sc')";
+  const TO_SUPERVISOR = "goToTab('supervisor','.t-sv')";
+  const TO_DATAEXPLORER = "goToTab('dataexplorer','.t-de')";
+
   document.getElementById('e-quality-cards').innerHTML = 
-    kcard(`${qLabel} Accuracy ↑`, p(acc), 'adj_acc', passStr(accPass,n), passPct(accPass,n), vsfAcc, n) + 
-    kcard(`${qLabel} Precision ↑`, p(prec), 'prec', passStr(precPass,rvPrecVals.length), passPct(precPass,rvPrecVals.length), vsfPrec, rvPrecVals.length) + 
-    kcard(`${qLabel} Recall ↑`, p(rec), 'rec', passStr(recPass,rvRecVals.length), passPct(recPass,rvRecVals.length), vsfRec, rvRecVals.length) +
-    kcard('Action Rate ↑', ar!==null?p(ar):'—', 'ar', ar!==null?(ar<0.10?'Below 10% — check Accuracy':'Above 10% — check Prec/Rec'):'', ar!==null?(ar<0.10?Math.round(ar*100):100):null, null, null);
+    kcard(`${qLabel} Accuracy ↑`, p(acc), 'adj_acc', passStr(accPass,n), passPct(accPass,n), vsfAcc, n, {compact:true, onClick:TO_SCORECARD}) + 
+    kcard(`${qLabel} Precision ↑`, p(prec), 'prec', passStr(precPass,rvPrecVals.length), passPct(precPass,rvPrecVals.length), vsfPrec, rvPrecVals.length, {compact:true, onClick:TO_SCORECARD}) + 
+    kcard(`${qLabel} Recall ↑`, p(rec), 'rec', passStr(recPass,rvRecVals.length), passPct(recPass,rvRecVals.length), vsfRec, rvRecVals.length, {compact:true, onClick:TO_SCORECARD}) +
+    kcard('Action Rate ↑', ar!==null?p(ar):'—', 'ar', ar!==null?(ar<0.10?'Below 10% — check Accuracy':'Above 10% — check Prec/Rec'):'', ar!==null?(ar<0.10?Math.round(ar*100):100):null, null, null, {compact:true, onClick:TO_SCORECARD});
 
   const nhtPct = (dht+nht)>0 ? nht/(dht+nht) : null;
 
@@ -3613,17 +3632,17 @@ function renderExec(){
 
   // Row 1: AHT · NHT% · Total Decisions · Throughput
   document.getElementById('e-efficiency-row1').innerHTML =
-    kcard('Avg AHT ↓', aht!==null?aht.toFixed(2)+'s':'—', 'aht', passStr(ahtPass,wn), passPct(ahtPass,wn), vsfAHT, wn) +
-    kcard('NHT% ↓', nhtPct!==null?p(nhtPct):'—', 'aht', sws.length===1?'':'Multi-SW avg', null, null, null) +
-    kcard('Total Decisions', dec>0?dec.toLocaleString():'—', 'na', rvNames.length+' reviewer'+(rvNames.length!==1?'s':''), null, null, null) +
-    kcard('Throughput ↑', throughput!==null?throughput.toFixed(1)+' dec/rv-wk':'—', 'na', reviewerWeeks+' reviewer-week'+(reviewerWeeks!==1?'s':''), null, null, null);
+    kcard('Avg AHT ↓', aht!==null?aht.toFixed(2)+'s':'—', 'aht', passStr(ahtPass,wn), passPct(ahtPass,wn), vsfAHT, wn, {compact:true, onClick:TO_SCORECARD}) +
+    kcard('NHT% ↓', nhtPct!==null?p(nhtPct):'—', 'aht', sws.length===1?'':'Multi-SW avg', null, null, null, {compact:true, onClick:TO_SCORECARD}) +
+    kcard('Total Decisions', dec>0?dec.toLocaleString():'—', 'na', rvNames.length+' reviewer'+(rvNames.length!==1?'s':''), null, null, null, {compact:true, onClick:TO_DATAEXPLORER}) +
+    kcard('Throughput ↑', throughput!==null?throughput.toFixed(1)+' dec/rv-wk':'—', 'na', reviewerWeeks+' reviewer-week'+(reviewerWeeks!==1?'s':''), null, null, null, {compact:true, onClick:TO_DATAEXPLORER});
 
   // Row 2: Absenteeism · Utilization · Occupancy · Workforce SLA
   document.getElementById('e-efficiency-row2').innerHTML =
-    kcard('Absenteeism ↓', p(abs), 'abs', '', null, null, null) +
-    kcard('Utilization ↑', p(util), 'util', '', null, null, null) +
-    kcard('Occupancy ↑', p(occ), 'occ', '', null, null, null) +
-    kcard('Workforce SLA ↑', wfSla!==null?p(wfSla):'—', 'wfSla', '', null, null, null);
+    kcard('Absenteeism ↓', p(abs), 'abs', '', null, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
+    kcard('Utilization ↑', p(util), 'util', '', null, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
+    kcard('Occupancy ↑', p(occ), 'occ', '', null, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
+    kcard('Workforce SLA ↑', wfSla!==null?p(wfSla):'—', 'wfSla', '', null, null, null, {compact:true, onClick:TO_SUPERVISOR});
 
   // Legend chips — month-based (defined here, used for all legend elements below)
   const selMonthLabels = selMonths.length ? selMonths.map(fmtMonth).join(', ') : 'All months';
@@ -3635,11 +3654,71 @@ function renderExec(){
 
   const alignEl = document.getElementById('e-alignment-cards');
   if(alignEl) alignEl.innerHTML =
-    kcard('AOA ↑', alignment!==null?p(alignment):'—', 'aoa', 'Target: 98%', 98, null, null) +
-    kcard('MSV ↑', msv!==null?p(msv):'—', 'msv', 'Target: 98%', 98, null, null) +
-    kcard('Q Alignment ↑', qaln!==null?p(qaln):'—', 'qaln', 'Target: 98%', 98, null, null);
+    kcard('AOA ↑', alignment!==null?p(alignment):'—', 'aoa', 'Target: 98%', 98, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
+    kcard('MSV ↑', msv!==null?p(msv):'—', 'msv', 'Target: 98%', 98, null, null, {compact:true, onClick:TO_SUPERVISOR}) +
+    kcard('Q Alignment ↑', qaln!==null?p(qaln):'—', 'qaln', 'Target: 98%', 98, null, null, {compact:true, onClick:TO_SUPERVISOR});
 
   document.getElementById('e-nht-note').innerHTML = sws.length !== 1 ? "*NHT% tracking is suppressed across blended workflows to prevent skewed averages." : "";
+
+  // ── Attention banner — surfaces every metric currently flagged bad/warn ────
+  // Reuses the same flag() thresholds already driving each card's color, so
+  // this can never disagree with what the cards themselves show.
+  (function renderAttentionBanner(){
+    const bannerEl = document.getElementById('e-attention-banner');
+    if(!bannerEl) return;
+    const checks = [
+      {label:`${qLabel} Accuracy`, val:acc, key:'adj_acc', fmt:p},
+      {label:`${qLabel} Precision`, val:prec, key:'prec', fmt:p},
+      {label:`${qLabel} Recall`, val:rec, key:'rec', fmt:p},
+      {label:'Avg AHT', val:aht, key:'aht', fmt:v=>v.toFixed(2)+'s'},
+      {label:'Absenteeism', val:abs, key:'abs', fmt:p},
+      {label:'Utilization', val:util, key:'util', fmt:p},
+      {label:'Occupancy', val:occ, key:'occ', fmt:p},
+      {label:'Workforce SLA', val:wfSla, key:'wfSla', fmt:p},
+      {label:'AOA', val:alignment, key:'aoa', fmt:p},
+      {label:'MSV', val:msv, key:'msv', fmt:p},
+      {label:'Q Alignment', val:qaln, key:'qaln', fmt:p},
+    ];
+    const flagged = checks
+      .filter(c => c.val !== null && c.val !== undefined)
+      .map(c => ({...c, status: flag(c.val, c.key)}))
+      .filter(c => c.status === 'bad' || c.status === 'warn');
+
+    if(!flagged.length) {
+      bannerEl.style.display = 'block';
+      bannerEl.style.cssText = 'display:flex;align-items:center;gap:8px;background:var(--gbg);border-left:4px solid var(--green);border-radius:var(--r);padding:9px 14px;font-size:12px;color:#15803D;font-weight:700;margin-bottom:1rem;';
+      bannerEl.innerHTML = `✓ All tracked metrics are within target for the current filter selection.`;
+      return;
+    }
+    const badCount = flagged.filter(c=>c.status==='bad').length;
+    const warnCount = flagged.filter(c=>c.status==='warn').length;
+    const severity = badCount > 0 ? 'bad' : 'warn';
+    const barColor = severity === 'bad' ? 'var(--coral)' : 'var(--amber)';
+    const bgColor  = severity === 'bad' ? 'var(--cbg)'   : 'var(--abg)';
+    const textColor= severity === 'bad' ? 'var(--coral)' : 'var(--amber)';
+    const summary = [badCount ? `${badCount} below target` : '', warnCount ? `${warnCount} approaching threshold` : ''].filter(Boolean).join(', ');
+    const chips = flagged.map(c => `<span style="background:var(--surface);border:1px solid ${c.status==='bad'?'var(--cbd)':'var(--abd)'};color:${c.status==='bad'?'var(--coral)':'var(--amber)'};border-radius:var(--pill);font-size:11px;font-weight:700;padding:2px 9px;cursor:pointer" onclick="${TO_SCORECARD}">${c.label}: ${c.fmt(c.val)}</span>`).join(' ');
+    bannerEl.style.display = 'block';
+    bannerEl.style.cssText = `background:${bgColor};border-left:4px solid ${barColor};border-radius:var(--r);padding:10px 14px;margin-bottom:1rem;`;
+    bannerEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:${textColor};font-weight:800;margin-bottom:7px">⚠ ${summary} — click a metric to jump to Reviewer Scorecard</div><div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>`;
+  })();
+
+  // ── Data freshness indicator ────────────────────────────────────────────
+  (function renderDataAsOf(){
+    const el = document.getElementById('e-data-asof');
+    if(!el) return;
+    const latestDate = RAW_ROWS.reduce((max,r) => (r.date && r.date > max) ? r.date : max, '');
+    const latestWeek = WEEKS.length ? WEEKS[WEEKS.length-1] : '';
+    if(latestDate) {
+      const d = new Date(latestDate+'T00:00:00');
+      const label = isNaN(d.getTime()) ? latestDate : d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+      el.textContent = `· Data as of ${label}`;
+    } else if(latestWeek) {
+      el.textContent = `· Data as of week ending ${fmtW(latestWeek)}`;
+    } else {
+      el.textContent = '';
+    }
+  })();
 
   document.getElementById('lbl-acc-trend').textContent = qLabel + ' Accuracy';
   document.getElementById('lbl-prec-trend').textContent = qLabel + ' Precision';
@@ -11696,12 +11775,14 @@ function toggleCtrlSwPol(i) {
 
 // RENDER CHARTS ENGINE
 function renderExecCharts(qRows, wfmRows, targetsObj, qualType, vsfs, passRates) {
-    // Trend charts always use last 12 weeks of full dataset (ignores month filter)
-    const last12Weeks = WEEKS.slice(-12);
+    // Trend charts use the FULL dataset (ignores month filter, same as before) —
+    // previously hard-capped to the last 12 weeks; removed so switching to
+    // Monthly view (or accumulating more weeks of data) shows every available
+    // period instead of stopping at ~3 months.
     const tls = getSel('g-tl'), tenures = getSel('g-tenure'), sws = getSel('g-sw'), workflows = getSel('g-workflow'), roles = getSel('g-role'), reviewTypes = getSel('g-review-type');
     const baseRows = filterRows(RAW_ROWS, tls, tenures, sws, workflows, roles, reviewTypes);
-    const trendQRows  = baseRows.filter(r => last12Weeks.includes(r.week));
-    const trendWFMRows = baseRows.filter(r => last12Weeks.includes(r.week));
+    const trendQRows  = baseRows;
+    const trendWFMRows = baseRows;
 
     // Group by current CHART_VIEW (weekly or monthly)
     const qPeriods = groupByPeriod(trendQRows, CHART_VIEW, rows => {
@@ -11746,22 +11827,29 @@ function renderExecCharts(qRows, wfmRows, targetsObj, qualType, vsfs, passRates)
     });
     const tputData = tputPeriods.map(d => d.rvWeekCount > 0 ? d.dec / d.rvWeekCount : null);
 
-    buildLine('chart-e-acc',  qLabels,   accData,  targetsObj.acc,  'Accuracy',     'up', '#1A56DB', '#B91C1C', true);
+    // Point-click navigation: quality/AHT charts → Reviewer Scorecard, WFM charts → Supervisor Scorecard.
+    // Period label isn't currently consumable as a filter elsewhere in the app, so this jumps to the
+    // relevant scorecard view rather than attempting to also select that exact week — same click-through
+    // pattern as the KPI cards above.
+    const onQualPointClick = () => goToTab('scorecard','.t-sc');
+    const onWfmPointClick  = () => goToTab('supervisor','.t-sv');
+
+    buildLine('chart-e-acc',  qLabels,   accData,  targetsObj.acc,  'Accuracy',     'up', '#1A56DB', '#B91C1C', true, onQualPointClick);
     const r2Acc = buildLine._lastR2;
-    buildLine('chart-e-prec', qLabels,   precData, targetsObj.prec, 'Precision',    'up', '#4F46E5', '#B91C1C', true);
+    buildLine('chart-e-prec', qLabels,   precData, targetsObj.prec, 'Precision',    'up', '#4F46E5', '#B91C1C', true, onQualPointClick);
     const r2Prec = buildLine._lastR2;
-    buildLine('chart-e-rec',  qLabels,   recData,  targetsObj.rec,  'Recall',       'up', '#0EA5E9', '#B91C1C', true);
+    buildLine('chart-e-rec',  qLabels,   recData,  targetsObj.rec,  'Recall',       'up', '#0EA5E9', '#B91C1C', true, onQualPointClick);
     const r2Rec = buildLine._lastR2;
-    buildLine('chart-e-ar',   qLabels,   arData,   0.10,            'Action Rate',  'up', '#B91C1C', '#1A56DB', true);
+    buildLine('chart-e-ar',   qLabels,   arData,   0.10,            'Action Rate',  'up', '#B91C1C', '#1A56DB', true, onQualPointClick);
     const r2Ar = buildLine._lastR2;
     const slaData = wfmPeriods.map(d=> d.slaD>0?d.slaN/d.slaD:null);
-    buildLine('chart-e-util', wfmLabels, utilData, targetsObj.util, 'Utilization',  'up', '#0F766E', '#B91C1C');
-    buildLine('chart-e-occ',  wfmLabels, occData,  null,            'Occupancy',    'up', '#8B5CF6', '#B91C1C');
-    buildLine('chart-e-abs',  wfmLabels, absData,  targetsObj.abs,  'Absenteeism',  'dn', '#BE123C', '#1A56DB');
-    buildLine('chart-e-aht',  qLabels,   ahtData,  targetsObj.aht,  'AHT',          'dn', '#92400E', '#1A56DB', true);
+    buildLine('chart-e-util', wfmLabels, utilData, targetsObj.util, 'Utilization',  'up', '#0F766E', '#B91C1C', false, onWfmPointClick);
+    buildLine('chart-e-occ',  wfmLabels, occData,  null,            'Occupancy',    'up', '#8B5CF6', '#B91C1C', false, onWfmPointClick);
+    buildLine('chart-e-abs',  wfmLabels, absData,  targetsObj.abs,  'Absenteeism',  'dn', '#BE123C', '#1A56DB', false, onWfmPointClick);
+    buildLine('chart-e-aht',  qLabels,   ahtData,  targetsObj.aht,  'AHT',          'dn', '#92400E', '#1A56DB', true, onQualPointClick);
     const r2Aht = buildLine._lastR2;
-    buildLine('chart-e-nht',  qLabels,   nhtData,  0.05,            'NHT%',         'dn', '#0F766E', '#B91C1C');
-    buildLine('chart-e-sla',  wfmLabels, slaData,  0.98,            'Workforce SLA','up', '#1A56DB', '#B91C1C');
+    buildLine('chart-e-nht',  qLabels,   nhtData,  0.05,            'NHT%',         'dn', '#0F766E', '#B91C1C', false, onQualPointClick);
+    buildLine('chart-e-sla',  wfmLabels, slaData,  0.98,            'Workforce SLA','up', '#1A56DB', '#B91C1C', false, onWfmPointClick);
     buildLineCount('chart-e-dec',  qLabels, decData,  'Decisions',   '#6366F1');
     buildLineCount('chart-e-tput', qLabels, tputData, 'Throughput',  '#0EA5E9');
 
@@ -12639,7 +12727,7 @@ function renderStackRank() {
         ${table}`;
 }
 
-function buildLine(canvasId, labels, vals, target, label, dir, color, targetColor, showR2){
+function buildLine(canvasId, labels, vals, target, label, dir, color, targetColor, showR2, onPointClick){
     if(charts[canvasId]){charts[canvasId].destroy();delete charts[canvasId];}
     const ctx = document.getElementById(canvasId);
     if(!ctx) return;
@@ -12707,6 +12795,14 @@ function buildLine(canvasId, labels, vals, target, label, dir, color, targetColo
         type:'line', data:{labels,datasets},
         options:{
             responsive:true,maintainAspectRatio:false,
+            onClick: onPointClick ? function(evt, elements) {
+                if(!elements || !elements.length) return;
+                const idx = elements[0].index;
+                onPointClick(idx, labels[idx]);
+            } : undefined,
+            onHover: onPointClick ? function(evt, elements) {
+                evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+            } : undefined,
             plugins:{
                 legend:{display:false},
                 tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${_fmtVal(ctx.raw)}` } }
@@ -16992,6 +17088,14 @@ function showTab(id,btn){
   btn.classList.add('active');
   document.getElementById('global-fbar').className = 'fbar tab-' + id;
   renderActiveTab();
+}
+
+// Programmatic tab navigation (e.g. from Site Health card click-throughs) —
+// reuses showTab but looks up the sidebar button itself so callers don't need
+// a DOM reference. tabSelector matches the '.t-xx' class used on that button.
+function goToTab(id, tabSelector) {
+  const btn = document.querySelector(tabSelector);
+  if(btn) showTab(id, btn);
 }
 
 function parseCSVRow(text) {
