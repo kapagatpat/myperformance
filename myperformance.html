@@ -238,6 +238,48 @@ tr:hover td{background:#F8F9FB}
 .mv{font-family:var(--m);font-size:11px;font-weight:600;cursor:help}
 .mv.good{color:var(--teal)}.mv.warn{color:var(--amber)}.mv.bad{color:var(--coral)}.mv.na{color:var(--tm);font-weight:400}
 
+/* SNAP CARD — 4-column KPI grid */
+.snap-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border)}
+.snap-kpi-col{border-right:1px solid var(--border);padding:0}
+.snap-kpi-col:last-child{border-right:none}
+.snap-kpi-col-head{padding:3px 10px;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--tm);background:var(--sa);border-bottom:1px solid var(--divider)}
+.snap-kpi-row{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;border-bottom:1px solid var(--divider)}
+.snap-kpi-row:last-child{border-bottom:none}
+.snap-kpi-label{font-size:11px;color:var(--ts);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.snap-kpi-val{font-family:var(--m);font-size:12px;font-weight:700;margin-left:6px;white-space:nowrap}
+.snap-kpi-dim{font-family:var(--m);font-size:10px;font-weight:400;color:var(--tm);margin-left:3px}
+
+/* CELL COLOR UTILITIES */
+.c-good{background:var(--gbg);color:var(--green)}
+.c-warn{background:var(--abg);color:var(--amber)}
+.c-bad{background:var(--cbg);color:var(--coral)}
+.c-na{color:var(--tm)}
+
+/* OPP PANEL */
+.dr-opp-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:1.25rem}
+.opp-panel-head{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--sa)}
+.opp-panel-title{font-size:12px;font-weight:700;color:var(--text)}
+.opp-panel-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:var(--pill);background:var(--cbg);color:var(--coral)}
+.opp-panel-badge.zero{background:var(--gbg);color:var(--green)}
+.opp-legend{display:flex;gap:8px;margin-left:auto;align-items:center;font-size:10px;color:var(--tm)}
+.opp-legend-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:2px}
+.opp-cols{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid var(--divider)}
+.opp-col{border-right:1px solid var(--divider)}
+.opp-col:last-child{border-right:none}
+.opp-col-head{padding:4px 10px;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--tm);background:var(--sa);border-bottom:1px solid var(--divider)}
+.opp-line{display:flex;align-items:center;gap:5px;padding:4px 10px;border-bottom:1px solid var(--divider);font-size:11px}
+.opp-line:last-child{border-bottom:none}
+.opp-kpill{font-size:9px;font-weight:700;padding:1px 5px;border-radius:var(--pill);white-space:nowrap;flex-shrink:0}
+.opp-kpill.ni{background:var(--cbg);color:var(--coral)}
+.opp-kpill.app{background:var(--abg);color:var(--amber)}
+.opp-kpill.ach{background:var(--gbg);color:var(--green)}
+.opp-sw{color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.opp-val{font-family:var(--m);font-size:11px;font-weight:600;margin-left:auto;flex-shrink:0}
+.opp-val.ni{color:var(--coral)}
+.opp-val.app{color:var(--amber)}
+.opp-action-row{padding:6px 12px;background:var(--pbg);border-top:1px solid var(--pbd);font-size:11px;color:var(--purple)}
+.opp-goal-row{padding:4px 12px;background:var(--sa);border-top:1px solid var(--divider);font-size:10px;color:var(--tm)}
+
 /* STRIKE BADGES */
 .strike-1   { background:var(--bsec); color:var(--blue); }
 .strike-act { background:var(--csec); color:var(--coral); }
@@ -886,6 +928,7 @@ tr:hover td{background:#F8F9FB}
         <div id="drill-compare-body" style="padding:14px 16px"></div>
       </div>
       <div id="dr-snapshot-card" style="margin-bottom:1.25rem"></div>
+      <div id="dr-opp-panel" style="margin-bottom:1.25rem"></div>
 
       <div class="kpi-section-label" style="display:flex;align-items:center;justify-content:space-between">
         <span>Performance Summary Table (Weekly Pivot) <span id="d-summary-table-legend"></span></span>
@@ -908,8 +951,26 @@ tr:hover td{background:#F8F9FB}
         </div>
       </div>
       <div class="charts-grid col-2">
-        <div class="chart-card"><div class="chart-title">Reviewer Adj Accuracy Trend <span id="dr-acc-title-extra" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-dr-acc',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-dr-acc"></canvas></div><div id="diag-dr-acc"></div></div>
-        <div class="chart-card"><div class="chart-title">Reviewer Average AHT Trend <span id="dr-aht-title-extra" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-dr-aht',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-dr-aht"></canvas></div><div id="diag-dr-aht"></div></div>
+        <div class="chart-card">
+          <div class="chart-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
+            <span>Quality Trend</span>
+            <span id="dr-acc-title-extra" style="font-size:10px;color:var(--tm);font-weight:600"></span>
+            <span id="dr-qual-pills" style="display:flex;gap:4px;margin-left:4px">
+              <button onclick="drToggleQualLine('acc')" id="dr-pill-acc" style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--bbd);background:var(--blue);color:#fff">Accuracy</button>
+              <button onclick="drToggleQualLine('prec')" id="dr-pill-prec" style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--cbd);background:var(--coral);color:#fff">Precision</button>
+              <button onclick="drToggleQualLine('rec')" id="dr-pill-rec" style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--tbd);background:var(--teal);color:#fff">Recall</button>
+              <button onclick="drToggleQualLine('ar')" id="dr-pill-ar" style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--border);background:var(--sa);color:var(--ts)">AR</button>
+            </span>
+            <button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-dr-acc',this.closest('.chart-card').querySelector('.chart-title span').textContent.trim())" title="Expand chart">⛶ Expand</button>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-dr-acc"></canvas></div>
+          <div id="diag-dr-acc"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Reviewer AHT Trend <span id="dr-aht-title-extra" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-dr-aht',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div>
+          <div class="chart-wrap"><canvas id="chart-dr-aht"></canvas></div>
+          <div id="diag-dr-aht"></div>
+        </div>
       </div>
 
       <div class="kpi-section-label" style="display:flex;align-items:center;gap:8px">AHT vs Quality Over Time <span id="dr-dual-legend"></span>
@@ -3291,12 +3352,20 @@ function renderSummaryTable(rows, tableId, showSW) {
     groupRow+=`</tr>`; weekRow+=`</tr>`;
     if(thead) thead.innerHTML=groupRow+weekRow;
 
-    // Data rows
-    const tcell=(val,key,bg)=>{
-        const cls=flag(val,key);
-        const disp=val!==null?(key==='aht'?Number(val).toFixed(2)+'s':p(val)):'—';
-        const sty=bg?`style="background:var(--bbg);border-left:2px solid var(--bbd)"`:`style="border-left:1px solid var(--divider)"`;
-        return `<td ${sty}><span class="mv ${cls}"${bg?' style="font-weight:700"':''}>${disp}</span></td>`;
+    // Data rows — full-cell coloring, AR-gated
+    // tcell(val, key, isMTD, ar) — ar used to gate quality coloring
+    const cellBg  = (cls) => cls==='good'?'var(--gbg)':cls==='warn'?'var(--abg)':cls==='bad'?'var(--cbg)':'';
+    const cellFg  = (cls) => cls==='good'?'var(--green)':cls==='warn'?'var(--amber)':cls==='bad'?'var(--coral)':'';
+    const tcell=(val,key,isMTD,ar)=>{
+        // AR gating: skip color on Acc if AR>=10%, skip P&R if AR<10%
+        const skip = (key==='adj_acc'&&ar!==null&&ar>=0.10) || ((key==='prec'||key==='rec')&&(ar===null||ar<0.10));
+        const cls  = skip?'na':flag(val,key);
+        const disp = val!==null?(key==='aht'?Number(val).toFixed(2)+'s':p(val)):'—';
+        const bg   = isMTD ? 'var(--bbg)' : (skip?'':cellBg(cls));
+        const fg   = isMTD ? (skip?'var(--blue)':cellFg(cls)||'var(--blue)') : (skip?'var(--tm)':cellFg(cls)||'var(--text)');
+        const borderL = isMTD ? '2px solid var(--bbd)' : '1px solid var(--divider)';
+        const fw   = isMTD ? '700' : '600';
+        return `<td style="background:${bg};border-left:${borderL};padding:3px 7px"><span style="font-family:var(--m);font-size:11px;font-weight:${fw};color:${fg}">${disp}</span></td>`;
     };
 
     let accRow=`<tr><td><strong>Adj Accuracy ↑</strong></td>`;
@@ -3312,8 +3381,8 @@ function renderSummaryTable(rows, tableId, showSW) {
             const rec=(s.tpa+s.fna)>0?s.tpa/(s.tpa+s.fna):null;
             const aht=s.dec>0?(s.dht+s.nht)/s.dec:null;
             const ar=(s.tpa+s.fpa+s.fna+s.tna)>0?(s.tpa+s.fpa)/(s.tpa+s.fpa+s.fna+s.tna):null;
-            accRow+=tcell(acc,'adj_acc',false); precRow+=tcell(prec,'prec',false);
-            recRow+=tcell(rec,'rec',false); ahtRow+=tcell(aht,'aht',false); arRow+=tcell(ar,'ar',false);
+            accRow+=tcell(acc,'adj_acc',false,ar); precRow+=tcell(prec,'prec',false,ar);
+            recRow+=tcell(rec,'rec',false,ar); ahtRow+=tcell(aht,'aht',false,ar); arRow+=tcell(ar,'ar',false,null);
         });
         const mt=monthTotals[m], errs=mt.fpa+mt.fna;
         const mAcc=(mt.tpa+mt.tna+errs)>0?(mt.tpa+mt.tna)/(mt.tpa+mt.tna+errs):null;
@@ -3321,8 +3390,8 @@ function renderSummaryTable(rows, tableId, showSW) {
         const mRec=(mt.tpa+mt.fna)>0?mt.tpa/(mt.tpa+mt.fna):null;
         const mAht=mt.dec>0?(mt.dht+mt.nht)/mt.dec:null;
         const mAr=(mt.tpa+mt.fpa+mt.fna+mt.tna)>0?(mt.tpa+mt.fpa)/(mt.tpa+mt.fpa+mt.fna+mt.tna):null;
-        accRow+=tcell(mAcc,'adj_acc',true); precRow+=tcell(mPrec,'prec',true);
-        recRow+=tcell(mRec,'rec',true); ahtRow+=tcell(mAht,'aht',true); arRow+=tcell(mAr,'ar',true);
+        accRow+=tcell(mAcc,'adj_acc',true,mAr); precRow+=tcell(mPrec,'prec',true,mAr);
+        recRow+=tcell(mRec,'rec',true,mAr); ahtRow+=tcell(mAht,'aht',true,mAr); arRow+=tcell(mAr,'ar',true,null);
     });
 
     let swRows = '';
@@ -3355,17 +3424,17 @@ function renderSummaryTable(rows, tableId, showSW) {
                     const rec=(s.tpa+s.fna)>0?s.tpa/(s.tpa+s.fna):null;
                     const aht=s.dec>0?(s.dht+s.nht)/s.dec:null;
                     const ar=(s.tpa+s.fpa+s.fna+s.tna)>0?(s.tpa+s.fpa)/(s.tpa+s.fpa+s.fna+s.tna):null;
-                    swAccRow+=tcell(acc,'adj_acc',false); swPrecRow+=tcell(prec,'prec',false);
-                    swRecRow+=tcell(rec,'rec',false); swAhtRow+=tcell(aht,'aht',false); swArRow+=tcell(ar,'ar',false);
+                    swAccRow+=tcell(acc,'adj_acc',false,ar); swPrecRow+=tcell(prec,'prec',false,ar);
+                    swRecRow+=tcell(rec,'rec',false,ar); swAhtRow+=tcell(aht,'aht',false,ar); swArRow+=tcell(ar,'ar',false,null);
                 });
                 const mt=swMonthTotals[m], errs=mt.fpa+mt.fna;
                 const mAcc=(mt.tpa+mt.tna+errs)>0?(mt.tpa+mt.tna)/(mt.tpa+mt.tna+errs):null;
                 const mPrec=(mt.tpa+mt.fpa)>0?mt.tpa/(mt.tpa+mt.fpa):null;
-                const mRec=(mt.tpa+mt.fna)>0?mt.tpa/(mt.tpa+mt.fna):null;
+                const mRec=(mt.tpa+mt.fna)>0?mt.tna/(mt.tpa+mt.fna):null;
                 const mAht=mt.dec>0?(mt.dht+mt.nht)/mt.dec:null;
                 const mAr=(mt.tpa+mt.fpa+mt.fna+mt.tna)>0?(mt.tpa+mt.fpa)/(mt.tpa+mt.fpa+mt.fna+mt.tna):null;
-                swAccRow+=tcell(mAcc,'adj_acc',true); swPrecRow+=tcell(mPrec,'prec',true);
-                swRecRow+=tcell(mRec,'rec',true); swAhtRow+=tcell(mAht,'aht',true); swArRow+=tcell(mAr,'ar',true);
+                swAccRow+=tcell(mAcc,'adj_acc',true,mAr); swPrecRow+=tcell(mPrec,'prec',true,mAr);
+                swRecRow+=tcell(mRec,'rec',true,mAr); swAhtRow+=tcell(mAht,'aht',true,mAr); swArRow+=tcell(mAr,'ar',true,null);
             });
             swRows += swAccRow+`</tr>`+swPrecRow+`</tr>`+swRecRow+`</tr>`+swAhtRow+`</tr>`+swArRow+`</tr>`;
         });
@@ -7871,202 +7940,287 @@ function renderDrillDown(){
       const dotsHTML=dotHistory.map(d=>`<span title="${d.mo}" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${dotColorMap[d.status]};margin-right:2px"></span>`).join('');
       const dotMonthLabels=dotHistory.map(d=>`<span style="font-size:9px;color:var(--tm);width:9px;text-align:center;display:inline-block;margin-right:2px">${d.mo.slice(5)}</span>`).join('');
 
+      // ── NHT % helper ──
+      const cNhtPct = (sDht+sNht)>0 ? sNht/(sDht+sNht) : null;
+
+      // ── WFM lookup for this reviewer — key is "reviewer|week" ──
+      const rvWeeks = [...new Set(rows.map(r=>r.week).filter(Boolean))];
+      const rvWfmEntries = (typeof WFM_LOOKUP!=='undefined' && WFM_LOOKUP)
+          ? rvWeeks.map(wk=>WFM_LOOKUP[(rv.trim())+'|'+wk]).filter(Boolean) : [];
+      const _wAvail  = rvWfmEntries.reduce((s,w)=>s+(w.avail||0),0);
+      const _wBill   = rvWfmEntries.reduce((s,w)=>s+(w.bill||0),0);
+      const _wRev    = rvWfmEntries.reduce((s,w)=>s+(w.rev||0),0);
+      const _wSched  = rvWfmEntries.reduce((s,w)=>s+(w.sched||0),0);
+      const _wActual = rvWfmEntries.reduce((s,w)=>s+(w.actual||0),0);
+      const wfmUtil = _wBill>0  ? _wAvail/_wBill  : null;
+      const wfmOcc  = _wAvail>0 ? _wRev/_wAvail   : null;
+      const wfmAbs  = _wSched>0 ? Math.max(0,(_wSched-_wActual)/_wSched) : null;
+
+      // ── KPI coloring helper (full-cell bg) ──
+      const cellCls=(v,key)=>{const c=flag(v,key);return c==='good'?'c-good':c==='warn'?'c-warn':c==='bad'?'c-bad':'c-na';};
+
       snapCard.innerHTML=`
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
 
         <!-- Header -->
-        <div style="padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--divider)">
-          <div style="width:44px;height:44px;border-radius:50%;background:var(--psec);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--purple);flex-shrink:0">${initials}</div>
+        <div style="padding:8px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--divider)">
+          <div style="width:34px;height:34px;border-radius:50%;background:var(--psec);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--purple);flex-shrink:0">${initials}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:15px;font-weight:800;color:var(--text);line-height:1.3">${rv}</div>
-            <div style="font-size:12px;color:var(--tm);margin-top:2px">TL: ${supName} · Tenure: ${tenureLabel} · ${topWF}</div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">${rv}</div>
+            <div style="font-size:11px;color:var(--tm)">TL: ${supName} · ${tenureLabel} · ${topWF}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-            <span style="background:${pspBg};color:${pspC};border-radius:var(--pill);font-size:11px;font-weight:700;padding:4px 12px">● ${pspStatus}</span>${consecFlag}
-            <span style="font-size:11px;color:var(--tm);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:4px 10px">${fmtMonth(latestM)||'—'}</span>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+            <span style="background:${pspBg};color:${pspC};border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px">● ${pspStatus}</span>${consecFlag}
+            <span style="font-size:10px;color:var(--tm);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:2px 8px">${fmtMonth(latestM)||'—'}</span>
           </div>
         </div>
 
-        <!-- 6 KPI cards -->
-        <div style="display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--divider)">
-
-          <div style="padding:14px 16px;border-right:1px solid var(--divider)">
-            <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Adj Accuracy</div>
-            ${(()=>{
-              const _highAR=cAr!==null&&cAr>=0.10;
-              const _accC=_highAR?'var(--tm)':(accMet?'var(--green)':'var(--coral)');
-              const _barC=_highAR?'var(--divider)':(accMet?'var(--green)':'var(--coral)');
-              const _gapTxt=_highAR?'<span style="font-size:10px;color:var(--tm);font-style:italic">AR≥10% — see P&amp;R</span>':(accGap?accMet?accGap+'pp above':accGap+'pp below':'—');
-              return '<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">'
-                +'<span style="font-size:20px;font-weight:800;color:'+_accC+';font-family:var(--m)">'+fmt(cAcc)+'</span>'
-                +(!_highAR?deltaStr(cAcc,pAcc,'positive'):'')
-                +'</div>'
-                +'<div style="font-size:11px;color:var(--tm);margin-top:4px">Target '+fmt(accTgtVal)+'</div>'
-                +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_barC+';width:'+(!_highAR?barFill(cAcc,accTgtVal,'positive'):0)+'%"></div></div>'
-                +'<div style="font-size:10px;color:'+_accC+';margin-top:4px">'+_gapTxt+'</div>';
-            })()}
-          </div>
-
-          <div style="padding:14px 16px;border-right:1px solid var(--divider)">
-            <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Precision</div>
-            ${(()=>{
-              const _highAR=cAr!==null&&cAr>=0.10;
-              const _precC=!_highAR?'var(--tm)':(cPrec!==null&&cPrec>=accTgtVal?'var(--green)':cPrec!==null&&cPrec>=0.93?'var(--amber)':'var(--coral)');
-              const _barC=!_highAR?'var(--divider)':(cPrec!==null&&cPrec>=accTgtVal?'var(--green)':'var(--amber)');
-              const _subTxt=!_highAR?'<span style="font-size:10px;color:var(--tm);font-style:italic">AR&lt;10% — see Accuracy</span>':(teamPrec!==null?'Team '+fmt(teamPrec):'—');
-              return '<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">'
-                +'<span style="font-size:20px;font-weight:800;color:'+_precC+';font-family:var(--m)">'+fmt(cPrec)+'</span>'
-                +(_highAR?deltaStr(cPrec,pPrec,'positive'):'')
-                +'</div>'
-                +'<div style="font-size:11px;color:var(--tm);margin-top:4px">FP control</div>'
-                +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_barC+';width:'+(_highAR?barFill(cPrec,accTgtVal,'positive'):0)+'%"></div></div>'
-                +'<div style="font-size:10px;color:var(--tm);margin-top:4px">'+_subTxt+'</div>';
-            })()}
-          </div>
-
-          <div style="padding:14px 16px;border-right:1px solid var(--divider)">
-            <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Recall</div>
-            ${(()=>{
-              const _highAR=cAr!==null&&cAr>=0.10;
-              const _recC=!_highAR?'var(--tm)':(cRec!==null&&cRec>=accTgtVal?'var(--green)':cRec!==null&&cRec>=0.93?'var(--amber)':'var(--coral)');
-              const _barC=!_highAR?'var(--divider)':(cRec!==null&&cRec>=accTgtVal?'var(--green)':'var(--amber)');
-              const _subTxt=!_highAR?'<span style="font-size:10px;color:var(--tm);font-style:italic">AR&lt;10% — see Accuracy</span>':(teamRec!==null?'Team '+fmt(teamRec):'—');
-              return '<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">'
-                +'<span style="font-size:20px;font-weight:800;color:'+_recC+';font-family:var(--m)">'+fmt(cRec)+'</span>'
-                +(_highAR?deltaStr(cRec,pRec,'positive'):'')
-                +'</div>'
-                +'<div style="font-size:11px;color:var(--tm);margin-top:4px">FN control</div>'
-                +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_barC+';width:'+(_highAR?barFill(cRec,accTgtVal,'positive'):0)+'%"></div></div>'
-                +'<div style="font-size:10px;color:var(--tm);margin-top:4px">'+_subTxt+'</div>';
-            })()}
-          </div>
-
+        <!-- 4-column KPI snap grid -->
+        <div class="snap-kpi-grid">
+          <!-- Col 1: Quality -->
           ${(()=>{
-            const _drJt = calcJobTarget(rows);
-            const _drWt = _drJt.weightedAHTTarget;
-            const _drAa = cAht;
-            const _drC  = _drAa!==null&&_drWt!==null ? ahtTargetColor(_drAa,_drWt) : (_drAa!==null?'var(--blue)':'var(--tm)');
-            const _drFill = _drAa!==null&&_drWt!==null ? Math.min(100,Math.round(_drWt/_drAa*100)) : 0;
-            const _drDelta = deltaS(_drAa, pAht);
-            const _drTgt = _drWt!==null ? Math.round(_drWt)+'s (weighted)' : (ahtTgtVal ? ahtTgtVal+'s' : '—');
-            const _drStatus = _drAa!==null&&_drWt!==null ? (_drAa<=_drWt?Number(_drWt-_drAa).toFixed(2)+'s within target':Number(_drAa-_drWt).toFixed(2)+'s over target') : (ahtGap?( ahtMet?Math.round(ahtGap)+'s within target':Math.round(ahtGap)+'s over target'):'—');
-            return '<div style="padding:14px 16px;border-right:1px solid var(--divider)">'
-              +'<div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">AHT</div>'
-              +'<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">'
-              +'<span style="font-size:20px;font-weight:800;color:'+_drC+';font-family:var(--m)">'+fmtS(_drAa)+'</span>'
-              +_drDelta
-              +'</div>'
-              +'<div style="font-size:11px;color:var(--tm);margin-top:4px">Target '+_drTgt+'</div>'
-              +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_drC+';width:'+_drFill+'%"></div></div>'
-              +'<div style="font-size:10px;color:'+_drC+';margin-top:4px">'+_drStatus+'</div>'
-              +'</div>';
+            const _highAR = cAr!==null&&cAr>=0.10;
+            const _accCls = _highAR ? 'c-na' : cellCls(cAcc,'adj_acc');
+            const _preCls = !_highAR ? 'c-na' : cellCls(cPrec,'prec');
+            const _recCls = !_highAR ? 'c-na' : cellCls(cRec,'rec');
+            return `<div class="snap-kpi-col">
+              <div class="snap-kpi-col-head">Quality</div>
+              <div class="snap-kpi-row ${_accCls}">
+                <span class="snap-kpi-label">Adj Accuracy</span>
+                <span class="snap-kpi-val">${fmt(cAcc)}</span>
+                ${deltaStr(cAcc,pAcc,'positive')}
+              </div>
+              <div class="snap-kpi-row ${_preCls}">
+                <span class="snap-kpi-label">Precision</span>
+                <span class="snap-kpi-val">${fmt(cPrec)}</span>
+                ${_highAR?deltaStr(cPrec,pPrec,'positive'):'<span class="snap-kpi-dim">AR&lt;10%</span>'}
+              </div>
+              <div class="snap-kpi-row ${_recCls}">
+                <span class="snap-kpi-label">Recall</span>
+                <span class="snap-kpi-val">${fmt(cRec)}</span>
+                ${_highAR?deltaStr(cRec,pRec,'positive'):'<span class="snap-kpi-dim">AR&lt;10%</span>'}
+              </div>
+              <div class="snap-kpi-row">
+                <span class="snap-kpi-label">Action Rate</span>
+                <span class="snap-kpi-val">${fmt(cAr)}</span>
+                <span class="snap-kpi-dim">${_highAR?'P&amp;R active':'Acc mode'}</span>
+              </div>
+            </div>`;
           })()}
 
-          <div style="padding:14px 16px;border-right:1px solid var(--divider)">
-            <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Action Rate</div>
-            <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
-              <span style="font-size:20px;font-weight:800;color:var(--text);font-family:var(--m)">${fmt(cAr)}</span>
-              ${teamAr!==null?`<span style="font-size:11px;color:var(--tm)">Team ${fmt(teamAr)}</span>`:''}
-            </div>
-            <div style="font-size:11px;color:var(--tm);margin-top:4px">Enforcement rate</div>
-            <div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:var(--blue);width:${cAr?Math.min(100,Math.round(cAr*100))+'%':'0%'}"></div></div>
-            <div style="font-size:10px;color:var(--tm);margin-top:4px">${cAr!==null&&teamAr!==null?(cAr>=teamAr?'Above team avg':'Below team avg'):'—'}</div>
-          </div>
-
+          <!-- Col 2: Efficiency — no bg override, text color only -->
           ${(()=>{
-            const _ddJt  = calcJobTarget(rows);
-            const _ddExp = _ddJt.expected!==null ? Math.round(_ddJt.expected) : null;
-            const _ddC   = _ddJt.expected!==null ? jobGapColor(_ddJt.gap,_ddJt.expected) : 'var(--blue)';
-            const _ddGap = _ddJt.gap!==null ? (_ddJt.gap>=0?'+':'')+Math.round(_ddJt.gap) : null;
-            const _ddFill= _ddJt.expected!==null ? Math.min(100,Math.round(sDec/(_ddJt.expected||1)*100)) : (teamAvgDec?Math.min(100,Math.round(sDec/(teamAvgDec||1)*100)):50);
-            const _ddSub = _ddExp!==null ? 'Target '+_ddExp.toLocaleString()+(_ddGap?' · Gap '+_ddGap:'') : 'Avg '+teamAvgDec+'/rv';
-            const _ddStatus = _ddJt.expected!==null&&_ddJt.gapPct!==null ? (_ddJt.gapPct*100).toFixed(1)+'% of target' : (teamAvgDec?sDec>=teamAvgDec?'Above team avg':'Below team avg':'—');
-            return '<div style="padding:14px 16px">'
-              +'<div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Decisions</div>'
-              +'<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">'
-              +'<span style="font-size:20px;font-weight:800;color:'+_ddC+';font-family:var(--m)">'+(sDec>0?sDec.toLocaleString():'—')+'</span>'
-              +'</div>'
-              +'<div style="font-size:11px;color:var(--tm);margin-top:4px">'+_ddSub+'</div>'
-              +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_ddC+';width:'+_ddFill+'%"></div></div>'
-              +'<div style="font-size:10px;color:'+_ddC+';margin-top:4px">'+_ddStatus+'</div>'
-              +'</div>';
+            const _jt = calcJobTarget(rows);
+            const _wt = _jt.weightedAHTTarget;
+            const _aC = cAht!==null&&_wt!==null ? ahtTargetColor(cAht,_wt) : 'var(--ts)';
+            const _ddExp = _jt.expected!==null ? Math.round(_jt.expected) : null;
+            const _ddC   = _jt.expected!==null ? jobGapColor(_jt.gap,_jt.expected) : 'var(--ts)';
+            const _nhtCls = cNhtPct!==null ? (cNhtPct<=0.15?'c-good':cNhtPct<=0.25?'c-warn':'c-bad') : '';
+            return `<div class="snap-kpi-col">
+              <div class="snap-kpi-col-head">Efficiency</div>
+              <div class="snap-kpi-row">
+                <span class="snap-kpi-label">AHT</span>
+                <span class="snap-kpi-val" style="color:${_aC}">${fmtS(cAht)}</span>
+                ${deltaS(cAht,pAht)}
+              </div>
+              <div class="snap-kpi-row">
+                <span class="snap-kpi-label">Decisions</span>
+                <span class="snap-kpi-val" style="color:${_ddC}">${sDec>0?sDec.toLocaleString():'—'}</span>
+                ${_ddExp!==null?`<span class="snap-kpi-dim">Tgt ${_ddExp.toLocaleString()}</span>`:''}
+              </div>
+              <div class="snap-kpi-row ${_nhtCls}">
+                <span class="snap-kpi-label">No Handle %</span>
+                <span class="snap-kpi-val">${cNhtPct!==null?(cNhtPct*100).toFixed(1)+'%':'—'}</span>
+                <span class="snap-kpi-dim">${sNht>0?Math.round(sNht).toLocaleString()+'s':''}
+              </div>
+            </div>`;
+          })()}
+
+          <!-- Col 3: WFM — Util + Occ + Abs -->
+          ${(()=>{
+            // Util: good>=87%, warn>=80%, bad<80%
+            const _utilCls = wfmUtil===null?'':wfmUtil>=0.87?'c-good':wfmUtil>=0.80?'c-warn':'c-bad';
+            // Occ: good>=95%, warn>=85%, bad<85%
+            const _occCls  = wfmOcc===null?'':wfmOcc>=0.95?'c-good':wfmOcc>=0.85?'c-warn':'c-bad';
+            // Abs: good<=5%, warn<=10%, bad>10%
+            const _absCls  = wfmAbs===null?'':wfmAbs<=0.05?'c-good':wfmAbs<=0.10?'c-warn':'c-bad';
+            return `<div class="snap-kpi-col">
+              <div class="snap-kpi-col-head">WFM Metrics</div>
+              <div class="snap-kpi-row ${_utilCls}">
+                <span class="snap-kpi-label">Utilization</span>
+                <span class="snap-kpi-val">${wfmUtil!==null?(wfmUtil*100).toFixed(1)+'%':'—'}</span>
+              </div>
+              <div class="snap-kpi-row ${_occCls}">
+                <span class="snap-kpi-label">Occupancy</span>
+                <span class="snap-kpi-val">${wfmOcc!==null?(wfmOcc*100).toFixed(1)+'%':'—'}</span>
+              </div>
+              <div class="snap-kpi-row ${_absCls}">
+                <span class="snap-kpi-label">Absenteeism</span>
+                <span class="snap-kpi-val">${wfmAbs!==null?(wfmAbs*100).toFixed(1)+'%':'—'}</span>
+              </div>
+            </div>`;
           })()}
 
         </div>
 
-        <!-- Signals strip -->
-        <div style="padding:10px 18px;display:flex;align-items:center;gap:0;flex-wrap:wrap;background:var(--sa)">
-
-          <div style="display:flex;align-items:center;gap:8px;padding:4px 16px 4px 0;border-right:1px solid var(--border);margin-right:16px">
-            <span style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">History</span>
-            <div>
-              <div style="display:flex;align-items:center">${dotsHTML}</div>
-              <div style="display:flex;align-items:center;margin-top:2px">${dotMonthLabels}</div>
-            </div>
+        <!-- Signals strip — single compact row -->
+        <div style="padding:5px 12px;display:flex;align-items:center;gap:14px;background:var(--sa);border-top:1px solid var(--divider);flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <span style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">History</span>
+            <span style="display:flex;align-items:center;gap:1px">${dotsHTML}</span>
           </div>
-
-          <div style="display:flex;align-items:center;gap:8px;padding:4px 16px 4px 0;border-right:1px solid var(--border);margin-right:16px">
-            <span style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Repeat Errors <span style="font-size:9px;font-weight:600;color:var(--tm);text-transform:none;letter-spacing:0">(active · 60d)</span></span>
-            <span style="font-size:12px;font-weight:700;color:${repeatCount>0?'var(--coral)':'var(--green)'}">${repeatCount>0?repeatCount+' ★ active':'None active'}</span>
+          <div style="display:flex;align-items:center;gap:5px;padding-left:12px;border-left:1px solid var(--divider);flex-shrink:0">
+            <span style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Repeats</span>
+            <span style="font-size:11px;font-weight:700;color:${repeatCount>0?'var(--coral)':'var(--green)'}">${repeatCount>0?repeatCount+' ★':'—'}</span>
           </div>
-
-          <!-- Top 3 Error Policies -->
-          ${top3ErrPols.length?`<div style="padding:4px 16px 4px 0;border-right:1px solid var(--border);margin-right:16px">
-            <div style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Top Error Policies</div>
-            ${top3ErrPols.map((p,i)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
-              <span style="font-size:9px;color:var(--tm);min-width:10px">${i+1}.</span>
-              <span style="font-size:11px;font-weight:700;color:var(--coral);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.pol}</span>
-              <span style="font-size:9px;font-weight:700;background:var(--csec);color:var(--coral);border-radius:var(--pill);padding:1px 5px">${p.pct}%</span>
-              <span style="font-size:9px;color:var(--tm)">${p.cnt}</span>
-            </div>`).join('')}
+          ${top3ErrPols.length?`<div style="display:flex;align-items:center;gap:5px;padding-left:12px;border-left:1px solid var(--divider)">
+            <span style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Top Err</span>
+            ${top3ErrPols.slice(0,2).map(p=>`<span style="font-size:9px;font-weight:700;background:var(--csec);color:var(--coral);border-radius:var(--pill);padding:1px 6px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.pol}</span>`).join('')}
           </div>`:''}
-
-          <!-- Top 3 AHT Policies -->
-          ${top3AhtPols.length?`<div style="padding:4px 0">
-            <div style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Top AHT Policies <span style="font-weight:600;text-transform:none;letter-spacing:0">(impact)</span></div>
-            ${top3AhtPols.map((p,i)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
-              <span style="font-size:9px;color:var(--tm);min-width:10px">${i+1}.</span>
-              <span style="font-size:11px;font-weight:700;color:var(--amber);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.pol}</span>
-              <span style="font-size:9px;font-weight:700;background:var(--asec);color:var(--amber);border-radius:var(--pill);padding:1px 5px">${Math.round(p.avgAht)}s</span>
-              <span style="font-size:9px;color:var(--tm)">${Math.round(p.pct*100)}% dec</span>
-            </div>`).join('')}
+          ${top3AhtPols.length?`<div style="display:flex;align-items:center;gap:5px;padding-left:12px;border-left:1px solid var(--divider)">
+            <span style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Top AHT</span>
+            ${top3AhtPols.slice(0,2).map(p=>`<span style="font-size:9px;font-weight:700;background:var(--asec);color:var(--amber);border-radius:var(--pill);padding:1px 6px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.pol}</span>`).join('')}
           </div>`:''}
-
         </div>
-
-        <!-- RCA Strip — only shown when RCA Masterfile is loaded -->
-        ${(()=>{
-          const rcaRows = (window.RCA_ROWS||[]).filter(r => r.rv === rv);
-          if(!rcaRows.length) return '';
-          const revErrors = rcaRows.filter(r => r.rca1==='People' && (r.rca2||'').includes('Reviewer'));
-          const vendor    = rcaRows.filter(r => r.rca1==='People').length;
-          const meta      = rcaRows.filter(r => r.rca1!=='People').length;
-          // Top L2 pattern
-          const l2map = {};
-          revErrors.forEach(r => { if(r.rca2) l2map[r.rca2]=(l2map[r.rca2]||0)+1; });
-          const topL2 = Object.entries(l2map).sort((a,b)=>b[1]-a[1])[0];
-          // Top L3
-          const l3map = {};
-          revErrors.forEach(r => { if(r.rca3) l3map[r.rca3]=(l3map[r.rca3]||0)+1; });
-          const topL3 = Object.entries(l3map).sort((a,b)=>b[1]-a[1])[0];
-          // Pattern flag
-          const monthL3 = {};
-          revErrors.forEach(r => { const k=(r.month||'')+'|'+(r.rca3||''); monthL3[k]=(monthL3[k]||0)+1; });
-          const hasPattern = Object.values(monthL3).some(v=>v>=2);
-          return `<div style="padding:12px 18px;border-top:1px solid var(--divider);background:var(--sa);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-            <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;flex-shrink:0">RCA</div>
-            <span style="font-size:11px;font-weight:700;background:var(--csec);color:var(--coral);border-radius:var(--pill);padding:2px 9px">${vendor} Vendor</span>
-            <span style="font-size:11px;font-weight:700;background:var(--bbg);color:var(--blue);border-radius:var(--pill);padding:2px 9px">${meta} Meta</span>
-            ${topL2?`<span style="font-size:11px;color:var(--ts)">Top pattern: <strong>${topL2[0]}</strong> (${topL2[1]})</span>`:''}
-            ${topL3?`<span style="font-size:11px;color:var(--tm)">→ ${topL3[0]}</span>`:''}
-            ${hasPattern?`<span style="font-size:10px;font-weight:700;background:var(--csec);color:var(--coral);border-radius:var(--pill);padding:2px 8px">⚠ Pattern</span>`:''}
-            <button onclick="rcaShowActionPlan('${rv.replace(/'/g,"\\'")}','${(topL2?topL2[0]:'').replace(/'/g,"\\'")}','${(topL3?topL3[0]:'').replace(/'/g,"\\'")}',${hasPattern})"
-              style="font-size:10px;font-weight:700;color:#fff;background:var(--purple);border:none;border-radius:var(--pill);padding:3px 10px;cursor:pointer;font-family:var(--f);margin-left:auto">Actions →</button>
-          </div>`;
-        })()}
 
       </div>`;
+
+      // Render Open Opportunities panel
+      const oppPanel = document.getElementById('dr-opp-panel');
+      if(oppPanel) renderDrillOppPanel(rows, rv, oppPanel);
   }
+}
+
+// ── OPEN OPPORTUNITIES PANEL ──────────────────────────────────────────────────
+function renderDrillOppPanel(rows, rv, el) {
+  if(!el) return;
+
+  // Group rows by SW, compute per-SW metrics
+  const swMap = {};
+  rows.forEach(r => {
+    const key = r.sw||'Unknown';
+    if(!swMap[key]) swMap[key] = {sw:key, workflow:r.workflow||'', tpa:0,tna:0,fpa:0,fna:0,dht:0,nht:0,dec:0};
+    const s = swMap[key];
+    s.tpa+=r.tpa; s.tna+=r.tna; s.fpa+=r.fpa; s.fna+=r.fna;
+    s.dht+=r.dht; s.nht+=r.nht; s.dec+=r.decisions;
+  });
+
+  const qualFails=[], ahtFails=[], passing=[];
+  const METRICS = ['Accuracy','Precision','Recall'];
+  const AHT_M   = 'AHT';
+
+  Object.values(swMap).forEach(s => {
+    const tot = s.tpa+s.tna+s.fpa+s.fna;
+    const acc  = tot>0  ? (s.tpa+s.tna)/tot : null;
+    const prec = (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
+    const rec  = (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
+    const aht  = s.dec>0 ? (s.dht+s.nht)/s.dec : null;
+    const ar   = tot>0  ? (s.tpa+s.fpa)/tot : null;
+    const useAcc = ar===null||ar<0.10;
+
+    let hasQFail=false, hasAFail=false;
+
+    // Quality checks
+    if(useAcc && acc!==null) {
+      const b = getBandTargets(s.workflow, s.sw, 'Accuracy');
+      const band = assignBand(acc, b, false);
+      if(band==='ni'||band==='app') {
+        qualFails.push({sw:s.sw, metric:'Accuracy', band, val:acc, bandObj:b, isAHT:false});
+        hasQFail=true;
+      }
+    } else {
+      if(prec!==null) {
+        const b = getBandTargets(s.workflow, s.sw, 'Precision');
+        const band = assignBand(prec, b, false);
+        if(band==='ni'||band==='app') { qualFails.push({sw:s.sw, metric:'Precision', band, val:prec, bandObj:b, isAHT:false}); hasQFail=true; }
+      }
+      if(rec!==null) {
+        const b = getBandTargets(s.workflow, s.sw, 'Recall');
+        const band = assignBand(rec, b, false);
+        if(band==='ni'||band==='app') { qualFails.push({sw:s.sw, metric:'Recall', band, val:rec, bandObj:b, isAHT:false}); hasQFail=true; }
+      }
+    }
+
+    // AHT check — skip SWs with fewer than 5 decisions (insufficient sample)
+    if(aht!==null && s.dec>=5) {
+      const b = getBandTargets(s.workflow, s.sw, AHT_M);
+      const band = assignBand(aht, b, true);
+      if(band==='ni'||band==='app') {
+        ahtFails.push({sw:s.sw, metric:AHT_M, band, val:aht, bandObj:b, isAHT:true});
+        hasAFail=true;
+      }
+    }
+
+    if(!hasQFail && !hasAFail) passing.push(s.sw);
+  });
+
+  const totalFails = qualFails.length + ahtFails.length;
+  const badgeCls   = totalFails===0 ? 'zero' : '';
+
+  const renderLine = (f) => {
+    const valStr = f.isAHT ? Math.round(f.val)+'s' : (f.val*100).toFixed(1)+'%';
+    const tgtStr = f.isAHT
+      ? (f.bandObj&&f.bandObj.ach ? Math.round(f.bandObj.ach)+'s' : '—')
+      : (f.bandObj&&f.bandObj.ach ? (f.bandObj.ach*100).toFixed(1)+'%' : '—');
+    return `<div class="opp-line">
+      <span class="opp-kpill ${f.band}">${f.metric}</span>
+      <span class="opp-sw">${f.sw}</span>
+      <span class="opp-val ${f.band}">${valStr}<span style="font-size:8px;color:var(--tm);font-weight:400">/${tgtStr}</span></span>
+    </div>`;
+  };
+
+  const qualHTML = qualFails.length  ? qualFails.map(renderLine).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No quality gaps</span></div>';
+  const ahtHTML  = ahtFails.length   ? ahtFails.map(renderLine).join('')   : '<div class="opp-line"><span class="snap-kpi-dim">No AHT gaps</span></div>';
+  // Passing SWs — all on one line as pills, readable size
+  const passHTML = passing.length
+    ? `<div class="opp-line" style="flex-wrap:wrap;gap:4px;padding:6px 10px">${passing.map(sw=>`<span class="opp-kpill ach" style="font-size:10px;padding:2px 7px">✓ ${sw}</span>`).join('')}</div>`
+    : '<div class="opp-line"><span class="snap-kpi-dim">—</span></div>';
+
+  // Action row — list ALL NI gaps, then Approaching gaps
+  const allNI  = [...qualFails,...ahtFails].filter(f=>f.band==='ni');
+  const allApp = [...qualFails,...ahtFails].filter(f=>f.band==='app');
+  const fmtGap = f => {
+    const v = f.isAHT ? Math.round(f.val)+'s' : (f.val*100).toFixed(1)+'%';
+    const t = f.bandObj&&f.bandObj.ach ? (f.isAHT?Math.round(f.bandObj.ach)+'s':(f.bandObj.ach*100).toFixed(1)+'%') : '—';
+    return `<span style="background:var(--csec);color:var(--coral);border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700;white-space:nowrap">${f.metric} · ${f.sw}</span> <span style="font-family:var(--m);font-size:10px">${v}/${t}</span>`;
+  };
+  const fmtGapApp = f => {
+    const v = f.isAHT ? Math.round(f.val)+'s' : (f.val*100).toFixed(1)+'%';
+    const t = f.bandObj&&f.bandObj.ach ? (f.isAHT?Math.round(f.bandObj.ach)+'s':(f.bandObj.ach*100).toFixed(1)+'%') : '—';
+    return `<span style="background:var(--asec);color:var(--amber);border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700;white-space:nowrap">${f.metric} · ${f.sw}</span> <span style="font-family:var(--m);font-size:10px">${v}/${t}</span>`;
+  };
+  const actionHTML = (allNI.length||allApp.length) ? `<div class="opp-action-row" style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
+    <span style="flex-shrink:0;font-weight:700">🎯 Focus:</span>
+    ${allNI.map(fmtGap).join(' ')}
+    ${allApp.length?`<span style="color:var(--tm);font-size:10px;font-weight:700;align-self:center">· Approaching:</span> ${allApp.map(fmtGapApp).join(' ')}`:''}
+  </div>` : '';
+
+  el.innerHTML = `<div class="dr-opp-panel">
+    <div class="opp-panel-head">
+      <span class="opp-panel-title">Open Opportunities</span>
+      <span class="opp-panel-badge ${badgeCls}">${totalFails} gap${totalFails!==1?'s':''}</span>
+      <span class="opp-legend">
+        <span><span class="opp-legend-dot" style="background:var(--coral)"></span>NI</span>
+        <span><span class="opp-legend-dot" style="background:var(--amber)"></span>App</span>
+        <span><span class="opp-legend-dot" style="background:var(--green)"></span>Pass</span>
+      </span>
+    </div>
+    <div class="opp-cols">
+      <div class="opp-col">
+        <div class="opp-col-head">Quality Gaps</div>
+        ${qualHTML}
+      </div>
+      <div class="opp-col">
+        <div class="opp-col-head">AHT Gaps</div>
+        ${ahtHTML}
+      </div>
+      <div class="opp-col">
+        <div class="opp-col-head">Passing SWs</div>
+        ${passHTML}
+      </div>
+    </div>
+    ${actionHTML}
+  </div>`;
 }
 
 // PSP status filter state
@@ -11630,12 +11784,90 @@ function renderTrendCharts(rows, accId, ahtId, utilId, ahtTarget = 900, accTarge
         return {tpa,fpa,fna,tna,dec,dht,nht};
     });
     if(!periods.length) return;
-    const labels = periods.map(d=>d.label);
+    const labels  = periods.map(d=>d.label);
     const accData = periods.map(d=>{ const tot=d.tpa+d.tna+d.fpa+d.fna; return tot>0?(d.tpa+d.tna)/tot:null; });
+    const precData= periods.map(d=>{ const tot=d.tpa+d.fpa; return tot>0?d.tpa/tot:null; });
+    const recData = periods.map(d=>{ const tot=d.tpa+d.fna; return tot>0?d.tpa/tot:null; });
+    const arData  = periods.map(d=>{ const tot=d.tpa+d.tna+d.fpa+d.fna; return tot>0?(d.tpa+d.fpa)/tot:null; });
     const ahtData = periods.map(d=> d.dec>0?(d.dht+d.nht)/d.dec:null);
+    const decData = periods.map(d=> d.dec>0?d.dec:null);
 
-    if(accId) buildLine(accId, labels, accData, accTarget, 'Accuracy', 'up', '#1A56DB', '#B91C1C', true);
-    if(ahtId) buildLine(ahtId, labels, ahtData, isBlended?null:ahtTarget, 'AHT', 'dn', '#92400E', '#1A56DB', true);
+    // ── Quality chart — multi-line ──────────────────────────────────────────
+    if(accId) {
+        if(charts[accId]){charts[accId].destroy();delete charts[accId];}
+        const ctx = document.getElementById(accId);
+        if(ctx) {
+            // y-axis range: pad 3pp below lowest of all active series
+            const allQual = [...accData,...precData,...recData].filter(v=>v!==null);
+            const qMin = allQual.length ? Math.max(0, Math.floor((Math.min(...allQual)-0.03)*100)/100) : 0.8;
+            const qMax = allQual.length ? Math.min(1, Math.ceil((Math.max(...allQual)+0.01)*100)/100) : 1;
+
+            const tgtLine = labels.map(()=>accTarget);
+            const _nPts = labels.length;
+            const _maxTicks = _nPts<=15?_nPts:_nPts<=31?15:10;
+
+            charts[accId] = new Chart(ctx.getContext('2d'), {
+                type:'line',
+                data:{labels, datasets:[
+                    {label:'Adj Accuracy', data:accData, borderColor:'#1A56DB', backgroundColor:'transparent', borderWidth:2.5, pointRadius:3, spanGaps:true, tension:0, hidden:false},
+                    {label:'Precision',    data:precData, borderColor:'#B91C1C', backgroundColor:'transparent', borderWidth:2,   pointRadius:3, spanGaps:true, tension:0, hidden:false},
+                    {label:'Recall',       data:recData,  borderColor:'#0F766E', backgroundColor:'transparent', borderWidth:2,   pointRadius:3, spanGaps:true, tension:0, hidden:false},
+                    {label:'Action Rate',  data:arData,   borderColor:'#92400E', backgroundColor:'transparent', borderWidth:1.5, pointRadius:2, spanGaps:true, tension:0, borderDash:[4,3], hidden:true},
+                    {label:'Target',       data:tgtLine,  borderColor:'#B91C1C', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, spanGaps:true, tension:0, borderDash:[5,4], hidden:false}
+                ]},
+                options:{
+                    responsive:true, maintainAspectRatio:false,
+                    plugins:{
+                        legend:{display:true, position:'bottom', labels:{font:{size:9},boxWidth:12,padding:8}},
+                        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw!==null?(c.raw*100).toFixed(1)+'%':'—'}`}}
+                    },
+                    scales:{
+                        x:{ticks:{font:{size:9},color:'#8E95A3',maxRotation:45,autoSkip:true,maxTicksLimit:_maxTicks},grid:{color:'rgba(0,0,0,.04)'}},
+                        y:{min:qMin,max:qMax,ticks:{font:{size:9},color:'#8E95A3',callback:v=>(v*100).toFixed(0)+'%'},grid:{color:'rgba(0,0,0,.04)'}}
+                    }
+                }
+            });
+            // Store ref for pill toggling
+            window._drQualChart = charts[accId];
+        }
+    }
+
+    // ── AHT chart — AHT line + Decisions bar (secondary axis) ──────────────
+    if(ahtId) {
+        if(charts[ahtId]){charts[ahtId].destroy();delete charts[ahtId];}
+        const ctx = document.getElementById(ahtId);
+        if(ctx) {
+            const validAht = ahtData.filter(v=>v!==null);
+            const allAht = [...validAht, ...(isBlended?[]:[ahtTarget])];
+            const ahtMax = allAht.length ? Math.ceil(Math.max(...allAht)*1.15) : 120;
+            const tgtLine = isBlended ? null : labels.map(()=>ahtTarget);
+            const decMax  = Math.max(...decData.filter(v=>v!==null),1);
+            const _nPts = labels.length;
+            const _maxTicks = _nPts<=15?_nPts:_nPts<=31?15:10;
+
+            charts[ahtId] = new Chart(ctx.getContext('2d'), {
+                type:'bar',
+                data:{labels, datasets:[
+                    {type:'line', label:'AHT (s)', data:ahtData, borderColor:'#92400E', backgroundColor:'transparent', borderWidth:2.5, pointRadius:3, spanGaps:true, tension:0, yAxisID:'y', order:1},
+                    ...(tgtLine?[{type:'line', label:'AHT Target', data:tgtLine, borderColor:'#B91C1C', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[5,4], yAxisID:'y', order:2}]:[]),
+                    {type:'bar',  label:'Decisions', data:decData, backgroundColor:'rgba(100,116,139,0.15)', borderColor:'transparent', borderRadius:2, yAxisID:'y2', order:3}
+                ]},
+                options:{
+                    responsive:true, maintainAspectRatio:false,
+                    plugins:{
+                        legend:{display:true, position:'bottom', labels:{font:{size:9},boxWidth:12,padding:8}},
+                        tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y2'?`${c.dataset.label}: ${c.raw?.toLocaleString()||'—'}`:`${c.dataset.label}: ${c.raw!==null?Number(c.raw).toFixed(1)+'s':'—'}`}}
+                    },
+                    scales:{
+                        x:{ticks:{font:{size:9},color:'#8E95A3',maxRotation:45,autoSkip:true,maxTicksLimit:_maxTicks},grid:{color:'rgba(0,0,0,.04)'}},
+                        y:{min:0, max:ahtMax, ticks:{font:{size:9},color:'#92400E',callback:v=>v+'s'},grid:{color:'rgba(0,0,0,.04)'},title:{display:true,text:'AHT',font:{size:9},color:'#92400E'}},
+                        y2:{position:'right', min:0, max:Math.ceil(decMax*1.3), ticks:{font:{size:9},color:'#64748B',callback:v=>v.toLocaleString()},grid:{display:false},title:{display:true,text:'Decisions',font:{size:9},color:'#64748B'}}
+                    }
+                }
+            });
+        }
+    }
+
     syncToggleButtons();
 
     // Diagnosis — only for Deep-Dive trend charts (not exec/supervisor)
@@ -11646,6 +11878,28 @@ function renderTrendCharts(rows, accId, ahtId, utilId, ahtTarget = 900, accTarge
     if(ahtId === 'chart-dr-aht') {
         const weekData = periods.map((d,i)=>({week:d.label, aht:ahtData[i]}));
         diagAhtTrend(weekData, isBlended?null:ahtTarget);
+    }
+}
+
+// ── Quality chart KPI line toggle ─────────────────────────────────────────────
+// Dataset indices: 0=Acc, 1=Prec, 2=Rec, 3=AR, 4=Target
+const _drQualLineMap = {acc:0, prec:1, rec:2, ar:3};
+const _drQualActive  = {acc:true, prec:true, rec:true, ar:false};
+const _drPillColors  = {acc:{on:'var(--blue)',border:'var(--bbd)'}, prec:{on:'var(--coral)',border:'var(--cbd)'}, rec:{on:'var(--teal)',border:'var(--tbd)'}, ar:{on:'var(--amber)',border:'var(--abd)'}};
+
+function drToggleQualLine(key) {
+    const chart = window._drQualChart;
+    if(!chart) return;
+    _drQualActive[key] = !_drQualActive[key];
+    const idx = _drQualLineMap[key];
+    chart.data.datasets[idx].hidden = !_drQualActive[key];
+    chart.update();
+    // Sync pill styling
+    const btn = document.getElementById('dr-pill-'+key);
+    if(btn) {
+        btn.style.background = _drQualActive[key] ? _drPillColors[key].on : 'var(--sa)';
+        btn.style.borderColor = _drQualActive[key] ? _drPillColors[key].border : 'var(--border)';
+        btn.style.color = _drQualActive[key] ? '#fff' : 'var(--ts)';
     }
 }
 
@@ -23113,9 +23367,27 @@ function openExpandChart(canvasId, titleText) {
   document.body.style.overflow = 'hidden';
   if (_expandChart) { _expandChart.destroy(); _expandChart = null; }
 
-  const meta = srcChart._expandMeta;
-  if (!meta) return; // non-buildLine chart — skip
+  // ── Multi-dataset charts (quality trend, AHT+decisions) — clone config ──
+  if (!srcChart._expandMeta) {
+    const cfg = srcChart.config;
+    const _nPts = (cfg.data?.labels||[]).length;
+    const _maxTicks = _nPts<=31?_nPts:_nPts<=60?30:20;
+    // Deep-clone data and options, bump tick sizes
+    const clonedData = JSON.parse(JSON.stringify(cfg.data));
+    const clonedOpts = JSON.parse(JSON.stringify(cfg.options||{}));
+    if(clonedOpts.scales?.x?.ticks) clonedOpts.scales.x.ticks.font = {size:11};
+    if(clonedOpts.scales?.x?.ticks) clonedOpts.scales.x.ticks.maxTicksLimit = _maxTicks;
+    if(clonedOpts.scales?.y?.ticks) clonedOpts.scales.y.ticks.font = {size:11};
+    if(clonedOpts.scales?.y2?.ticks) clonedOpts.scales.y2.ticks.font = {size:11};
+    if(clonedOpts.plugins?.legend) clonedOpts.plugins.legend.labels = {font:{size:11},boxWidth:14,padding:12};
+    clonedOpts.animation = false;
+    clonedOpts.responsive = true;
+    clonedOpts.maintainAspectRatio = false;
+    _expandChart = new Chart(canvas.getContext('2d'), {type:cfg.type, data:clonedData, options:clonedOpts});
+    return;
+  }
 
+  const meta = srcChart._expandMeta;
   const { label, dir, labels, vals, target, color, targetColor } = meta;
   const _nPts = labels.length;
   const _maxTicks = _nPts <= 31 ? _nPts : _nPts <= 60 ? 30 : 20;
