@@ -201,8 +201,7 @@ select,input{font-family:var(--f);font-size:11px;padding:4px 7px;border:1px soli
 .kcard:hover{box-shadow:var(--shadow-hover)}
 .kcard[onclick]:hover{border-color:var(--blue);box-shadow:0 2px 10px rgba(26,86,219,.12)}
 .kcard[onclick]:active{transform:translateY(1px)}
-.kcard-compact .kcard-lbl{font-size:9px;margin-bottom:3px}
-.kcard-compact .kcard-val{line-height:1.05}
+.kcard-compact[onclick]:hover{box-shadow:0 0 0 1.5px var(--blue),0 2px 8px rgba(26,86,219,.15)}
 .kcard-lbl{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tm);margin-bottom:5px; display:flex; align-items:center;}
 .kcard-val{font-size:22px;font-weight:800;line-height:1.1}
 .kcard-val.good{color:var(--teal)}.kcard-val.warn{color:var(--amber)}.kcard-val.bad{color:var(--coral)}.kcard-val.na{color:var(--tm)}
@@ -512,16 +511,18 @@ tr:hover td{background:#F8F9FB}
 
       <div id="e-qual-type-warn" style="display:none;background:var(--abg);border-left:4px solid var(--amber);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber);font-weight:600;margin-bottom:1rem;"></div>
 
+      <!-- Tier 1: at-a-glance KPI cards (Quality / Efficiency & WFM / Alignment) — compact, always open -->
       <div class="kpi-section-label" style="display:flex;align-items:center">Quality Metrics <span id="e-cards-legend"></span></div>
-      <div class="kpi-grid" id="e-quality-cards"></div>
+      <div class="kpi-grid" id="e-quality-cards" style="gap:8px;margin-bottom:1rem"></div>
       
       <div class="kpi-section-label" style="display:flex;align-items:center">Efficiency &amp; WFM Metrics <span id="e-wfm-legend"></span></div>
-      <div class="kpi-row" id="e-efficiency-row1" style="grid-template-columns:repeat(4,1fr);margin-bottom:11px"></div>
-      <div class="kpi-row" id="e-efficiency-row2" style="grid-template-columns:repeat(4,1fr)"></div>
-      <div id="e-nht-note" style="font-size:11px; color:var(--tm); margin-top:-10px; margin-bottom:1rem;"></div>
+      <div class="kpi-row" id="e-efficiency-row1" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px"></div>
+      <div class="kpi-row" id="e-efficiency-row2" style="grid-template-columns:repeat(4,1fr);gap:8px"></div>
+      <div id="e-nht-note" style="font-size:11px; color:var(--tm); margin-top:-6px; margin-bottom:1rem;"></div>
 
-      <div class="kpi-section-label" style="display:flex;align-items:center;margin-top:1.5rem">Alignment Metrics <span id="e-align-legend"></span></div>
-      <div class="kpi-row" id="e-alignment-cards" style="grid-template-columns:repeat(3,1fr);margin-bottom:2rem"></div>
+      <div class="kpi-section-label" style="display:flex;align-items:center;margin-top:1rem">Alignment Metrics <span id="e-align-legend"></span></div>
+      <div class="kpi-row" id="e-alignment-cards" style="grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:2rem"></div>
+      <!-- End Tier 1 -->
 
       <div class="kpi-section-label" style="margin-top:2rem;display:flex;align-items:center;gap:8px">Quality Trends <span id="e-trend-legend"></span>
         <div style="margin-left:auto;display:flex;gap:4px" id="chart-view-toggle-exec">
@@ -3274,7 +3275,51 @@ function qaFilter(rows) {
 
 function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount, opts) {
     opts = opts || {};
-    let fClass = flag(parseFloat(val.toString().replace(/[^0-9.-]/g,'')) * (val.toString().includes('%') ? 0.01 : 1), flagKey);
+    const numVal = parseFloat(val.toString().replace(/[^0-9.-]/g,'')) * (val.toString().includes('%') ? 0.01 : 1);
+    let fClass = flag(numVal, flagKey);
+    const compact = !!opts.compact;
+    const clickable = !!opts.onClick;
+    const clickAttr = clickable ? ` onclick="${opts.onClick.replace(/"/g,'&quot;')}" role="button" tabindex="0"` : '';
+
+    if (compact) {
+        // Compact variant (Site Health Tier 1 cards): status color is the dominant
+        // signal — tinted background + left border bar + status dot — read before
+        // any number is parsed. Label stays dark/legible (not the muted grey used
+        // elsewhere) since it's the second thing scanned, not decoration. VSF is
+        // kept as the corner pill exactly as in the standard card.
+        const statusMap = {
+            good: {bar:'var(--teal)',  bg:'var(--tbg)', dot:'var(--teal)'},
+            warn: {bar:'var(--amber)', bg:'var(--abg)', dot:'var(--amber)'},
+            bad:  {bar:'var(--coral)', bg:'var(--cbg)', dot:'var(--coral)'},
+            na:   {bar:'var(--border)',bg:'var(--surface)', dot:'var(--tm)'}
+        };
+        const st = statusMap[fClass] || statusMap.na;
+        let vsfHtml = '';
+        if (vsf !== null && vsf !== undefined && vsf !== '') {
+            let vsfBg = vsf > 1.0 ? '#FEF2F2' : (vsf > 0.7 ? '#FFFBEB' : '#F0FDF4');
+            let vsfCol = vsf > 1.0 ? '#B91C1C' : (vsf > 0.7 ? '#92400E' : '#15803D');
+            let suffix = (nCount !== undefined && nCount !== null && nCount < 5) ? ' *Low n' : '';
+            vsfHtml = `<div style="font-size:8px; font-weight:800; padding:1px 6px; border-radius:100px; background:${vsfBg}; color:${vsfCol}; flex-shrink:0; margin-left:6px">VSF ${vsf.toFixed(2)}${suffix}</div>`;
+        }
+        let subLineHtml = '';
+        if (passRateStr !== '' && passRateStr !== undefined) {
+            subLineHtml = `<div style="font-size:10px; font-weight:600; margin-top:3px; color:${st.dot}">${passRateStr}</div>`;
+        }
+        const clickStyle = clickable ? 'cursor:pointer;' : '';
+        return `<div class="kcard kcard-compact" style="position:relative; background:${st.bg}; border-left:3px solid ${st.bar}; border-radius:10px; padding:9px 11px; ${clickStyle}"${clickAttr}>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:3px">
+        <div style="display:flex; align-items:center; gap:5px; min-width:0">
+          <span style="width:6px; height:6px; border-radius:50%; background:${st.dot}; flex-shrink:0"></span>
+          <span class="kcard-lbl" style="color:var(--text); font-size:10px; font-weight:700; text-transform:none; letter-spacing:0; margin-bottom:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${label}</span>
+        </div>
+        ${vsfHtml}
+      </div>
+      <div class="kcard-val" style="font-size:18px; color:var(--text); line-height:1.05">${val}</div>
+      ${subLineHtml}
+    </div>`;
+    }
+
+    // Standard (non-compact) card — unchanged from before, used by every other tab.
     let vsfHtml = '';
     if (vsf !== null && vsf !== undefined && vsf !== '') {
         let vsfBg = vsf > 1.0 ? '#FEF2F2' : (vsf > 0.7 ? '#FFFBEB' : '#F0FDF4');
@@ -3287,17 +3332,11 @@ function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount, opts)
         let prColor = passRatePct >= 80 ? 'var(--teal)' : (passRatePct >= 60 ? 'var(--amber)' : 'var(--coral)');
         passRateHtml = `<div style="font-size:11px; font-weight:600; margin-top:6px; color:${prColor}">${passRateStr}</div>`;
     }
-    const compact = !!opts.compact;
-    const cardPad = compact ? '9px 12px' : '13px 15px';
-    const topPad  = compact ? '22px' : '28px';
-    const valSize = compact ? '18px' : '22px';
-    const clickable = !!opts.onClick;
-    const clickAttr = clickable ? ` onclick="${opts.onClick.replace(/"/g,'&quot;')}" role="button" tabindex="0"` : '';
     const clickStyle = clickable ? 'cursor:pointer;' : '';
-    return `<div class="kcard${compact?' kcard-compact':''}" style="position:relative; padding:${cardPad}; padding-top:${topPad}; ${clickStyle}"${clickAttr}>
+    return `<div class="kcard" style="position:relative; padding:13px 15px; padding-top:28px; ${clickStyle}"${clickAttr}>
       ${vsfHtml}
       <div class="kcard-lbl">${label}</div>
-      <div class="kcard-val ${fClass}" style="font-size:${valSize}">${val}</div>
+      <div class="kcard-val ${fClass}" style="font-size:22px">${val}</div>
       ${passRateHtml}
     </div>`;
 }
