@@ -2658,6 +2658,9 @@ const T={
 
 let RAW_ROWS=[], WEEKS=[], MONTHS=[], charts={};
 let WFM_LOOKUP = {};  // reviewer.trim()+'|'+week(YYYY-MM-DD) -> {aoaN,aoaD,msvN,msvD,quickN,quickD,...}
+let WFM_LOOKUP_DAILY = {};  // reviewer.trim()+'|'+date(YYYY-MM-DD) -> same shape as WFM_LOOKUP, day granularity.
+                             // Built alongside WFM_LOOKUP for Data Explorer date-level drill-downs only;
+                             // WFM_LOOKUP (week-keyed) remains the source for every week/month rollup elsewhere.
 
 // Aggregate WFM metrics directly from WFM_LOOKUP — never from quality rows.
 // WFM rows in BMS have no policy/SW attribute; they must be read independently.
@@ -13623,17 +13626,33 @@ function deAgg(rows) {
 }
 
 function deAggWfm(rows) {
-    // Dedupe per reviewer+week then pull from WFM_LOOKUP (correctly summed across all shifts)
-    // Use WFM_LOOKUP keys directly — avoids missing entries when a reviewer has QA rows
-    // but their blank-SW WFM row falls outside the filtered row set
+    // Dedupe per reviewer+week (or reviewer+date, see below) then pull from WFM_LOOKUP /
+    // WFM_LOOKUP_DAILY (correctly summed across all shifts). Use the lookup keys directly —
+    // avoids missing entries when a reviewer has QA rows but their blank-SW WFM row falls
+    // outside the filtered row set.
+    //
+    // Granularity: if every row passed in shares the same single date (i.e. this node sits
+    // under an active 'date' dimension), aggregate from WFM_LOOKUP_DAILY keyed by
+    // reviewer+date so each date gets its own figures instead of the whole week's total
+    // repeated on every day. Otherwise (week/month/other dims), keep using the week-keyed
+    // WFM_LOOKUP as before — unchanged behavior for every existing view.
+    let byDate = rows.length > 0;
+    let singleDate = rows.length ? rows[0].date : '';
+    if(!singleDate) byDate = false;
+    for(let i=0; byDate && i<rows.length; i++) {
+        if(rows[i].date !== singleDate) { byDate = false; break; }
+    }
+    const lookup = byDate ? WFM_LOOKUP_DAILY : WFM_LOOKUP;
+    const keyOf  = byDate ? (r => (r.reviewer||'').trim()+'|'+(r.date||'')) : (r => (r.reviewer||'').trim()+'|'+(r.week||''));
+
     const seen = new Set();
     let avail=0,bill=0,rev=0,sched=0,actual=0,aoaN=0,aoaD=0,msvN=0,msvD=0,quickN=0,quickD=0,slaN=0,slaD=0;
     let tsAvail=0,tsFbLearn=0,tsNonFbLearn=0,tsCoaching=0,tsMeeting=0,tsWellness=0,tsLunch=0,tsBreak=0,tsOnboarding=0;
     rows.forEach(r => {
-        const key = (r.reviewer||'').trim()+'|'+(r.week||'');
+        const key = keyOf(r);
         if(seen.has(key)) return;
         seen.add(key);
-        const w = WFM_LOOKUP[key];
+        const w = lookup[key];
         if(!w) return;
         avail+=w.avail||0; bill+=w.bill||0; rev+=w.rev||0;
         sched+=w.sched||0; actual+=w.actual||0;
@@ -17103,6 +17122,41 @@ function processCSVData(csvString) {
         wfmLookupNew[key].slaD += r.totalEvents||0;
     });
     WFM_LOOKUP = wfmLookupNew;
+
+    // WFM LOOKUP — DAILY GRANULARITY — same source rows as WFM_LOOKUP above, keyed by
+    // reviewer+date instead of reviewer+week. Source CSV rows carry their own Date and their
+    // own avail/bill/rev/sched/actual figures per day (not a repeated weekly total), so this
+    // is a legitimate daily rollup, not an interpolation. Used only by the Data Explorer's
+    // date-level drill (Reviewer > Date etc.); every week/month rollup elsewhere keeps
+    // reading WFM_LOOKUP unchanged.
+    const wfmLookupDailyNew = {};
+    RAW_ROWS.filter(r => !r.sw && r.date).forEach(r => {
+        const key = r.reviewer.trim()+'|'+r.date;
+        if(!wfmLookupDailyNew[key]) wfmLookupDailyNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month,week:r.week,tsAvail:0,tsFbLearn:0,tsNonFbLearn:0,tsCoaching:0,tsMeeting:0,tsWellness:0,tsLunch:0,tsBreak:0,tsOnboarding:0};
+        const e=wfmLookupDailyNew[key];
+        e.avail  +=r.avail;   e.bill  +=r.bill;   e.rev   +=r.rev;
+        e.sched  +=r.sched;   e.actual+=r.actual;
+        e.aoaN   +=r.aoaN;    e.aoaD  +=r.aoaD;
+        e.msvN   +=r.msvN;    e.msvD  +=r.msvD;
+        e.quickN +=r.quickN;  e.quickD+=r.quickD;
+        e.nhCount+=r.nhCount;
+        e.tsAvail      +=r.tsAvail||0;
+        e.tsFbLearn    +=r.tsFbLearn||0;
+        e.tsNonFbLearn +=r.tsNonFbLearn||0;
+        e.tsCoaching   +=r.tsCoaching||0;
+        e.tsMeeting    +=r.tsMeeting||0;
+        e.tsWellness   +=r.tsWellness||0;
+        e.tsLunch      +=r.tsLunch||0;
+        e.tsBreak      +=r.tsBreak||0;
+        e.tsOnboarding +=r.tsOnboarding||0;
+    });
+    RAW_ROWS.filter(r => r.sw && r.date && (r.slaHr||r.totalEvents)).forEach(r => {
+        const key = r.reviewer.trim()+'|'+r.date;
+        if(!wfmLookupDailyNew[key]) wfmLookupDailyNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month,week:r.week};
+        wfmLookupDailyNew[key].slaN += r.slaHr||0;
+        wfmLookupDailyNew[key].slaD += r.totalEvents||0;
+    });
+    WFM_LOOKUP_DAILY = wfmLookupDailyNew;
 
     WEEKS = [...new Set(RAW_ROWS.map(r=>r.week))].filter(w=>w).sort();
     initDropdowns();
