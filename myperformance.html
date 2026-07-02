@@ -67,7 +67,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--f);min-height:100v
 .tab.t-ex.active{background:var(--tsec);color:var(--teal)}.tab.t-ex.active .tab-icon{background:var(--teal)}
 .tab.t-sc.active{background:var(--bsec);color:var(--blue)}.tab.t-sc.active .tab-icon{background:var(--blue)}
 .tab.t-ti.active{background:var(--asec);color:var(--amber)}.tab.t-ti.active .tab-icon{background:var(--amber)}
-.tab.t-or.active{background:#F5F3FF;color:#5B21B6}.tab.t-or.active .tab-icon{background:#5B21B6}
 .tab.t-dr.active{background:var(--csec);color:var(--coral)}.tab.t-dr.active .tab-icon{background:var(--coral)}
 .tab.t-rca.active{background:var(--psec);color:var(--purple)}.tab.t-rca.active .tab-icon{background:var(--purple)}
 .rca-pdim-btn{font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f);transition:all .12s}
@@ -108,7 +107,6 @@ select,input{font-family:var(--f);font-size:11px;padding:4px 7px;border:1px soli
 .fbar.tab-scorecard .dyn-month,
 .fbar.tab-supervisor .dyn-month,
 .fbar.tab-team .dyn-month,
-.fbar.tab-outlier .dyn-month,
 .fbar.tab-drill .dyn-month,
 .fbar.tab-cp .dyn-month { display: flex !important; }
 
@@ -117,7 +115,6 @@ select,input{font-family:var(--f);font-size:11px;padding:4px 7px;border:1px soli
 .fbar.tab-supervisor .dyn-reviewer,
 .fbar.tab-psp .dyn-reviewer,
 .fbar.tab-team .dyn-reviewer,
-.fbar.tab-outlier .dyn-reviewer,
 .fbar.tab-drill .dyn-reviewer,
 .fbar.tab-cp .dyn-reviewer { display: block !important; }
 
@@ -408,7 +405,6 @@ tr:hover td{background:#F8F9FB}
 
     <div class="sb-label" style="margin-top:1rem">Measure and Analyze</div>
     <button class="tab t-ti" onclick="showTab('team',this)"><div class="tab-icon">🔎</div>Team Insights</button>
-    <button class="tab t-or" onclick="showTab('outlier',this)"><div class="tab-icon">📡</div>Outlier Radar</button>
     <button class="tab t-dr" onclick="showTab('drill',this)"><div class="tab-icon">🔬</div>Reviewer Deep-Dive</button>
     <button class="tab t-rca" onclick="showTab('rca-explorer',this)"><div class="tab-icon">🧩</div>RCA Explorer</button>
 
@@ -664,8 +660,7 @@ tr:hover td{background:#F8F9FB}
               <button class="de-toggle-btn de-col-on" data-colgrp="wfm" onclick="deToggleCol('wfm',this)">Workforce</button>
               <button class="de-toggle-btn" data-colgrp="timestamps" onclick="deToggleCol('timestamps',this)">Timestamps</button>
               <button class="de-toggle-btn" data-colgrp="aligngrp" onclick="deToggleCol('aligngrp',this)">AOA / MSV / Q Aln</button>
-              <button class="de-toggle-btn" data-colgrp="vsf" onclick="deToggleCol('vsf',this)">📐 VSF / UCL / LCL</button>
-              <button class="de-toggle-btn" data-colgrp="vsf" onclick="deToggleCol('vsf',this)" style="border-color:var(--pbd);color:var(--purple)" title="Variation Signal Factor — (StDev×6)/Mean per metric">📐 VSF</button>
+              <button class="de-toggle-btn" data-colgrp="vsf" onclick="deToggleCol('vsf',this)" title="Variation Signal Factor — (StDev×6)/Mean per metric, plus upper/lower control limits">📐 VSF / UCL / LCL</button>
             </div>
           </div>
         </div>
@@ -877,32 +872,6 @@ tr:hover td{background:#F8F9FB}
 
 
 
-    </section>
-
-    <section id="tab-outlier" class="section">
-        <div class="ph"><h1>Outlier Radar</h1><p>Who needs attention — quality and AHT outliers by impact.</p></div>
-
-        <div id="or-callout-strip" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:1.25rem"></div>
-        <div class="kpi-section-label" style="display:flex;align-items:center">Impact Paretos <span id="or-pareto-legend"></span></div>
-        <div class="charts-grid col-2">
-            <div class="chart-card">
-                <div class="chart-title">Quality Impact Pareto</div>
-                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;font-size:10px;color:var(--ts);align-items:center">
-                  <span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:#B91C1C;display:inline-block"></span>Above team avg</span>
-                  <span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:#0F766E;display:inline-block"></span>At or below</span>
-                  <span style="display:flex;align-items:center;gap:4px"><span style="width:16px;height:2px;background:#6B7280;border-top:2px dashed #6B7280;display:inline-block"></span>Team avg</span>
-                <button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-or-pareto-qual',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div>
-                <div class="chart-wrap large"><canvas id="chart-or-pareto-qual"></canvas></div>
-                <div style="font-size:10px;color:var(--tm);margin-top:6px;text-align:center">Defect rate per reviewer vs team average. Click any bar to open in Deep-Dive.</div>
-                <div id="diag-or-pareto-qual"></div>
-            </div>
-            <div class="chart-card">
-                <div class="chart-title">AHT vs Target<button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-or-pareto-aht',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div>
-                <div class="chart-wrap large"><canvas id="chart-or-pareto-aht"></canvas></div>
-                <div style="font-size:11px; color:var(--ts); margin-top:8px; text-align:center">Agent avg AHT (blue) vs queue target (grey). Sorted by largest gap above target.</div>
-                <div id="diag-or-pareto-aht"></div>
-            </div>
-        </div>
     </section>
 
     <section id="tab-drill" class="section">
@@ -3228,7 +3197,6 @@ function renderActiveTab() {
     if(activeId === 'tab-exec') renderExec();
     if(activeId === 'tab-dataexplorer') renderDataExplorer();
     if(activeId === 'tab-team') renderTeamInsights();
-    if(activeId === 'tab-outlier') renderOutlierRadar();
     if(activeId === 'tab-drill') renderDrillDown();
     if(activeId === 'tab-rca-explorer' && window.renderRCAExplorer) window.renderRCAExplorer();
     if(activeId === 'tab-scorecard') renderScorecard();
@@ -4476,7 +4444,6 @@ function renderTeamInsights(){
 
   renderScatterPanel(rvMap, tiAccTarget, tiAhtTarget, rangeLeg);
   renderDualAxis(rows, tiAccTarget, tiAhtTarget, rangeLeg);
-  renderOutlierRadar();
 
   // ── Seed team projection calculator
   let tmTpa2=0,tmTna2=0,tmFpa2=0,tmFna2=0,tmDht2=0,tmNht2=0,tmDec2=0;
@@ -7257,7 +7224,7 @@ function jumpToDrill(rv) {
 }
 
 
-// ─── STRIKE LOOKUP for Outlier Radar ────────────────────────────────────────
+// ─── STRIKE LOOKUP ──────────────────────────────────────────────────────────
 function getTopStrike(rvName) {
     // Compute cumulative per-policy strike for this reviewer
     const rvRows = RAW_ROWS.filter(r => r.reviewer === rvName)
@@ -7292,285 +7259,6 @@ function strikeTagHtml(strike) {
     return `<span class="badge strike-hist">${ord} · Historical</span>`;
 }
 
-function renderOutlierCallout(validRevs, qData, ahtData, teamAvg, sws) {
-    const strip = document.getElementById('or-callout-strip');
-    if(!strip) return;
-
-    const n = validRevs.length;
-    // Scale top-N by team size
-    const topN = n <= 5 ? 1 : n <= 15 ? Math.max(2, Math.round(n * 0.20)) : 4;
-
-    // Quality outliers — above team rate only
-    const qualOutliers = qData.filter(d => d.aboveAvg).slice(0, topN);
-
-    // AHT outliers — above target only
-    const ahtOutliers = ahtData.filter(d => d.gap > 0).slice(0, topN);
-
-    // Helper — build one outlier row
-    const row = (name, metricText, fullName) => {
-        const strike = getTopStrike(fullName);
-        const stTag  = strikeTagHtml(strike);
-        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--divider);flex-wrap:wrap">
-            <span style="font-size:11px;color:var(--ts);flex:1"><strong style="color:var(--text)">${name}</strong> &nbsp;${metricText}</span>
-            ${stTag}
-            <button onclick="jumpToDrill('${fullName}')" style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:var(--pill);border:1px solid var(--bbd);background:var(--bbg);color:var(--blue);cursor:pointer;font-family:var(--f);white-space:nowrap">Deep-Dive →</button>
-        </div>`;
-    };
-
-    // Build qual card
-    let qualCard = '';
-    if(qualOutliers.length === 0) {
-        qualCard = `<div style="display:flex;align-items:center;gap:8px;padding:8px 0">
-            <span style="font-size:18px">✓</span>
-            <span style="font-size:12px;color:var(--teal);font-weight:700">No quality outliers detected</span>
-        </div>`;
-    } else {
-        // Map sn() names back to full names via validRevs
-        qualCard = qualOutliers.map(d => {
-            const rv = validRevs.find(r => sn(r.rv) === d.name);
-            const full = rv ? rv.rv : d.name;
-            return row(d.name, `${(d.rate*100).toFixed(2)}% defect rate · ${((d.rate - (teamAvg||0))*100).toFixed(2)}pp above avg`, full);
-        }).join('');
-    }
-
-    // Build aht card
-    let ahtCard = '';
-    if(ahtOutliers.length === 0) {
-        ahtCard = `<div style="display:flex;align-items:center;gap:8px;padding:8px 0">
-            <span style="font-size:18px">✓</span>
-            <span style="font-size:12px;color:var(--teal);font-weight:700">No AHT outliers detected</span>
-        </div>`;
-    } else {
-        ahtCard = ahtOutliers.map(d => {
-            const rv = validRevs.find(r => sn(r.rv) === d.name);
-            const full = rv ? rv.rv : d.name;
-            return row(d.name, `+${d.gap}s above target &nbsp;·&nbsp; ${Math.round(d.wtdGap).toLocaleString()} weighted gap-secs`, full);
-        }).join('');
-    }
-
-    // NHT outliers — above 5% threshold, only when filtered to single SW
-    const nhtThreshold = 0.05;
-    const nhtOutliers = sws.length === 1
-        ? validRevs.filter(r => r.nhtPct > nhtThreshold).sort((a,b) => b.nhtPct - a.nhtPct).slice(0, topN)
-        : [];
-
-    let nhtCard = '';
-    if(sws.length !== 1) {
-        nhtCard = `<div style="font-size:10px;color:var(--tm);padding:8px 0;font-style:italic">Filter to a single SW to see NHT outliers.</div>`;
-    } else if(nhtOutliers.length === 0) {
-        nhtCard = `<div style="display:flex;align-items:center;gap:8px;padding:8px 0"><span style="font-size:18px">✓</span><span style="font-size:12px;color:var(--teal);font-weight:700">No NHT outliers detected</span></div>`;
-    } else {
-        nhtCard = nhtOutliers.map(d => {
-            return row(sn(d.rv), `${(d.nhtPct*100).toFixed(1)}% NHT — ${((d.nhtPct-nhtThreshold)*100).toFixed(1)}pp above 5% threshold`, d.rv);
-        }).join('');
-    }
-
-    const qualColor = qualOutliers.length > 0 ? 'var(--coral)' : 'var(--teal)';
-    const qualBg    = qualOutliers.length > 0 ? 'var(--csec)'  : 'var(--tsec)';
-    const qualBdr   = qualOutliers.length > 0 ? 'var(--cbd)'   : 'var(--tbd)';
-    const qualLabel = qualOutliers.length > 0 ? `Quality — needs attention (${qualOutliers.length})` : 'Quality — within control';
-
-    const ahtColor = ahtOutliers.length > 0 ? 'var(--coral)' : 'var(--teal)';
-    const ahtBg    = ahtOutliers.length > 0 ? 'var(--csec)'  : 'var(--tsec)';
-    const ahtBdr   = ahtOutliers.length > 0 ? 'var(--cbd)'   : 'var(--tbd)';
-    const ahtLabel = ahtOutliers.length > 0 ? `AHT — needs attention (${ahtOutliers.length})` : 'AHT — within control';
-
-    const nhtColor = nhtOutliers.length > 0 ? 'var(--purple)' : 'var(--teal)';
-    const nhtBg    = nhtOutliers.length > 0 ? 'var(--psec)'  : 'var(--tsec)';
-    const nhtBdr   = nhtOutliers.length > 0 ? 'var(--pbd)'   : 'var(--tbd)';
-    const nhtLabel = nhtOutliers.length > 0 ? `NHT% — needs attention (${nhtOutliers.length})` : 'NHT% — within control';
-
-    strip.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-        <div style="background:${qualBg};border:1px solid ${qualBdr};border-left:3px solid ${qualColor};border-radius:0 var(--r) var(--r) 0;padding:10px 14px">
-            <div style="font-size:11px;font-weight:800;color:${qualColor};text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${qualLabel}</div>
-            ${qualCard}
-        </div>
-        <div style="background:${ahtBg};border:1px solid ${ahtBdr};border-left:3px solid ${ahtColor};border-radius:0 var(--r) var(--r) 0;padding:10px 14px">
-            <div style="font-size:11px;font-weight:800;color:${ahtColor};text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${ahtLabel}</div>
-            ${ahtCard}
-        </div>
-        <div style="background:${nhtBg};border:1px solid ${nhtBdr};border-left:3px solid ${nhtColor};border-radius:0 var(--r) var(--r) 0;padding:10px 14px">
-            <div style="font-size:11px;font-weight:800;color:${nhtColor};text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${nhtLabel}</div>
-            ${nhtCard}
-        </div>
-    </div>`;
-}
-
-function renderOutlierRadar() {
-    const selMonths=getSelMonths();
-    const tls=getSel('g-tl'), tenures=getSel('g-tenure'), sws=getSel('g-sw'), workflows=getSel('g-workflow'), roles=getSel('g-role'), reviewTypes=getSel('g-review-type');
-
-    let filteredRows = filterRows(selMonths.length ? qaFilter(RAW_ROWS).filter(r=>selMonths.includes(r.month)) : qaFilter(RAW_ROWS), tls, tenures, sws, workflows);
-
-    const selMonthLabels = selMonths.length ? selMonths.map(fmtMonth).join(', ') : 'All months';
-    const orRangeLeg = `<span style="background:var(--bbg);color:var(--blue);border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 8px;margin-left:6px">${selMonthLabels}</span>`;
-    const orLeg = document.getElementById('ti-vsf-legend');
-    if(orLeg) orLeg.innerHTML = orRangeLeg;
-    const orAhtLeg = document.getElementById('ti-vsf-legend');
-    if(orAhtLeg) orAhtLeg.innerHTML = orRangeLeg;
-    const orParetoLeg = document.getElementById('or-pareto-legend');
-    if(orParetoLeg) orParetoLeg.innerHTML = orRangeLeg;
-
-    let rvMap = {};
-    let teamTotAudits = 0, teamTotErr = 0;
-    filteredRows.forEach(r => {
-        if(!rvMap[r.reviewer]) rvMap[r.reviewer] = {tpa:0, tna:0, fpa:0, fna:0, dht:0, nht:0, dec:0, audits:0, sw: r.sw};
-        let m = rvMap[r.reviewer];
-        m.tpa+=r.tpa; m.tna+=r.tna; m.fpa+=r.fpa; m.fna+=r.fna; 
-        m.dht+=r.dht; m.nht+=r.nht; m.dec+=r.decisions; m.audits+=r.audits;
-        teamTotAudits += r.audits;
-        teamTotErr += (r.fpa + r.fna);
-    });
-
-    let teamErrRate = teamTotAudits > 0 ? teamTotErr / teamTotAudits : 0;
-
-    let validRevs = [];
-    Object.keys(rvMap).forEach(rv => {
-        let m = rvMap[rv];
-        if(m.audits >= 1) { 
-            let acc = (m.tpa+m.tna+m.fpa+m.fna)>0 ? (m.tpa+m.tna)/(m.tpa+m.tna+m.fpa+m.fna) : 0;
-            let prec = (m.tpa+m.fpa)>0 ? m.tpa/(m.tpa+m.fpa) : 0;
-            let rec = (m.tpa+m.fna)>0 ? m.tpa/(m.tpa+m.fna) : 0;
-            let aht = m.dec>0 ? (m.dht+m.nht)/m.dec : 0;
-            let nhtPct = (m.dht+m.nht)>0 ? m.nht/(m.dht+m.nht) : 0;
-            
-            let agentErrRate = (m.fpa + m.fna) / m.audits;
-            let qualImpact = Math.max(0, (agentErrRate - teamErrRate) * m.audits);
-            
-            let targetAht = SW_TARGETS[m.sw] ? SW_TARGETS[m.sw].aht : 900;
-            let effImpact = m.dec > 0 ? Math.max(0, (aht - targetAht) * m.dec / 3600) : 0;
-
-            validRevs.push({ rv, acc, prec, rec, aht, nhtPct, fpa:m.fpa, fna:m.fna, audits:m.audits, dec:m.dec, qualImpact, effImpact, targetAht });
-        }
-    });
-
-    if(validRevs.length === 0) {
-        const vsfProc = document.getElementById('ti-vsf-process'); if(vsfProc) vsfProc.innerHTML = '<div style="background:var(--abg);border-left:4px solid var(--amber);border-radius:var(--r);padding:12px 16px;font-size:12px;color:var(--amber);font-weight:600">No reviewer data found for the selected filters.</div>';
-        return;
-    }
-
-    let accVals = validRevs.map(r => r.acc);
-    let tmAcc = accVals.reduce((a,b)=>a+b,0) / accVals.length;
-    let sdAcc = calcStdev(accVals);
-    let vsfQual = tmAcc > 0 ? (sdAcc * 6) / tmAcc : 0;
-
-    let ahtVals = validRevs.map(r => r.aht).filter(v => v > 0);
-    let tmAHT = ahtVals.length > 0 ? ahtVals.reduce((a,b)=>a+b,0) / ahtVals.length : 0;
-    let sdAHT = calcStdev(ahtVals);
-    let vsfAHT = tmAHT > 0 ? (sdAHT * 6) / tmAHT : 0;
-
-    const qSumColor  = vsfQual>1.0?'var(--coral)':vsfQual>0.7?'var(--amber)':'var(--green)';
-    const qSumBg     = vsfQual>1.0?'var(--csec)':vsfQual>0.7?'var(--asec)':'var(--gsec)';
-    const qSumBdr    = vsfQual>1.0?'var(--cbd)':vsfQual>0.7?'var(--abd)':'var(--gbd)';
-    const qSumLabel  = vsfQual>1.0?'High Variation':vsfQual>0.7?'Moderate Variation':'Low Variation';
-    const qSumText   = vsfQual>1.0?'Manage outliers before moving the average.':vsfQual>0.7?'Outlier management still valuable.':'Team is consistent.';
-    const qSumCard   = `<div class="kcard" style="background:${qSumBg};border-color:${qSumBdr};border-left:4px solid ${qSumColor};display:flex;flex-direction:column;justify-content:center;gap:4px">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:${qSumColor}">${qSumLabel}</div>
-        <div style="font-size:22px;font-weight:800;color:${qSumColor};font-family:var(--m)">${vsfQual.toFixed(2)}</div>
-        <div style="font-size:10px;color:var(--ts)">${qSumText}</div>
-    </div>`;
-
-    const aSumColor  = vsfAHT>1.0?'var(--coral)':vsfAHT>0.7?'var(--amber)':'var(--green)';
-    const aSumBg     = vsfAHT>1.0?'var(--csec)':vsfAHT>0.7?'var(--asec)':'var(--gsec)';
-    const aSumBdr    = vsfAHT>1.0?'var(--cbd)':vsfAHT>0.7?'var(--abd)':'var(--gbd)';
-    const aSumLabel  = vsfAHT>1.0?'High Variation':vsfAHT>0.7?'Moderate Variation':'Low Variation';
-    const aSumText   = vsfAHT>1.0?'Outlier management before coaching the average.':vsfAHT>0.7?'Monitor high-gap reviewers.':'AHT is consistent.';
-    const aSumCard   = `<div class="kcard" style="background:${aSumBg};border-color:${aSumBdr};border-left:4px solid ${aSumColor};display:flex;flex-direction:column;justify-content:center;gap:4px">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:${aSumColor}">${aSumLabel}</div>
-        <div style="font-size:22px;font-weight:800;color:${aSumColor};font-family:var(--m)">${vsfAHT.toFixed(2)}</div>
-        <div style="font-size:10px;color:var(--ts)">${aSumText}</div>
-    </div>`;
-
-    const vsfQualEl = document.getElementById('ti-vsf-quality');
-    if(vsfQualEl) vsfQualEl.innerHTML = qSumCard +
-        kcard('Team Mean Adj Acc', p(tmAcc,2), 'adj_acc', '', null, null, validRevs.length) +
-        kcard('Adj Acc STDEV', p(sdAcc,2), 'na', '', null, null, null) +
-        `<div class="kcard" style="position:relative"><div class="kcard-lbl">Quality VSF</div><div class="kcard-val ${vsfQual>1.0?'bad':vsfQual>0.7?'warn':'good'}">${vsfQual.toFixed(2)}</div><div style="font-size:10px;color:var(--tm);margin-top:4px">${vsfQual>1.0 ? 'High variation' : vsfQual>0.7 ? 'Moderate variation' : 'Low variation'}</div></div>`;
-
-    const vsfAhtEl = document.getElementById('ti-vsf-aht');
-    if(vsfAhtEl) vsfAhtEl.innerHTML = aSumCard +
-        kcard('Team Mean AHT', tmAHT>0 ? tmAHT.toFixed(2)+'s' : '—', 'aht', '', null, null, validRevs.length) +
-        kcard('AHT STDEV', sdAHT>0 ? sdAHT.toFixed(2)+'s' : '—', 'na', '', null, null, null) +
-        `<div class="kcard" style="position:relative"><div class="kcard-lbl">AHT VSF</div><div class="kcard-val ${vsfAHT>1.0?'bad':vsfAHT>0.7?'warn':'good'}">${vsfAHT.toFixed(2)}</div><div style="font-size:10px;color:var(--tm);margin-top:4px">${vsfAHT>1.0 ? 'High variation' : vsfAHT>0.7 ? 'Moderate variation' : 'Low variation'}</div></div>`;
-
-    let pState = "", pText = "", thresholdSD = 2.0;
-    if(vsfQual > 1.0) { pState = "High Variation — Action Required"; pText = "Too much spread across the team. Manage outliers before trying to move the average up."; thresholdSD = 1.0; } 
-    else if(vsfQual > 0.7) { pState = "Moderate Variation — Monitor"; pText = "Manageable spread. Outlier management is still valuable."; thresholdSD = 1.5; } 
-    else { pState = "Low Variation — Controlled"; pText = "Team is performing consistently. Only true outliers need attention."; thresholdSD = 2.0; }
-
-
-    const qualMetrics = [
-        { k:'acc',  label:'Adj Acc',  format: v=>p(v,2), badDir:'low', pts: v=>(v*100).toFixed(2)+'pp' },
-        { k:'prec', label:'Adj Prec', format: v=>p(v,2), badDir:'low', pts: v=>(v*100).toFixed(2)+'pp' },
-        { k:'rec',  label:'Adj Rec',  format: v=>p(v,2), badDir:'low', pts: v=>(v*100).toFixed(2)+'pp' }
-    ];
-    const ahtMetrics = [
-        { k:'aht',    label:'AHT',    format: v=>Number(v).toFixed(2)+'s', badDir:'high', pts: v=>Number(v).toFixed(2)+'s' },
-        { k:'nhtPct', label:'NHT %',  format: v=>p(v,2), badDir:'high', pts: v=>(v*100).toFixed(2)+'pp' }
-    ];
-
-    [...qualMetrics, ...ahtMetrics].forEach(m => {
-        let vals = validRevs.map(r => r[m.k]);
-        m.mean = vals.reduce((a,b)=>a+b,0)/vals.length;
-        m.sd = calcStdev(vals);
-    });
-
-    validRevs.forEach(r => {
-        r.cells = {};
-        [...qualMetrics, ...ahtMetrics].forEach(m => {
-            let val = r[m.k], z = m.sd > 0 ? (val - m.mean) / m.sd : 0;
-            let badSigma = m.badDir === 'low' ? -z : z;
-            
-            let bg = '#EAF3DE', color = '#27500A', dot = '';
-            if (badSigma >= thresholdSD) { bg = '#F7C1C1'; color = '#791F1F'; dot = '<span style="color:red;font-size:14px;line-height:0">●</span> '; }
-            else if (badSigma >= 2.0) { bg = '#F5C4B3'; color = '#712B13'; }
-            else if (badSigma >= 1.0) { bg = '#FAEEDA'; color = '#633806'; }
-
-            let subText = "Near team average";
-            if (Math.abs(z) > 0.5) {
-                let deltaAbs = Math.abs(val - m.mean);
-                let dirWord = val > m.mean ? "above" : "below";
-                subText = `${m.pts(deltaAbs)} ${dirWord} team avg`;
-            }
-
-            let cellClass = badSigma >= thresholdSD ? 'outlier-cell clickable' : 'outlier-cell';
-            let onclick = badSigma >= thresholdSD ? `onclick="document.getElementById('g-reviewer').value='${r.rv}'; document.querySelectorAll('.ms-list input[type=checkbox]').forEach(c=>c.checked=false); document.getElementById('global-fbar').className = 'fbar tab-drill'; showTab('drill', document.querySelector('.tab.t-dr'));"` : '';
-            r.cells[m.k] = `<div class="${cellClass}" style="background:${bg}; color:${color};" ${onclick}><div style="font-weight:700; font-family:var(--m)">${dot}${m.format(val)}</div><div style="font-size:9px; opacity:0.85">${subText}</div></div>`;
-        });
-    });
-
-    // Quality Pareto — all reviewers by defect rate, sorted desc, team avg line
-    const teamAvgErrRate = teamErrRate; // already computed above
-    let qData = validRevs
-        .filter(r => r.audits >= 1)
-        .map(r => ({
-            name: sn(r.rv), fullName: r.rv,
-            rate: (r.fpa + r.fna) / r.audits,
-            fpa: r.fpa, fna: r.fna, audits: r.audits,
-            aboveAvg: ((r.fpa + r.fna) / r.audits) > teamAvgErrRate
-        }))
-        .sort((a,b) => b.rate - a.rate);
-    buildQualPareto('chart-or-pareto-qual', qData, teamAvgErrRate);
-    diagOrQual('diag-or-pareto-qual', qData, teamAvgErrRate);
-
-    // AHT vs Target — sorted by volume-weighted gap (gap × decisions) so high-AHT low-volume agents don't jump the queue
-    let ahtChartData = validRevs
-        .filter(r => r.aht > 0 && r.targetAht > 0)
-        .map(r => ({
-            name: sn(r.rv),
-            fullName: r.rv,
-            aht: Math.round(r.aht),
-            target: r.targetAht,
-            gap: Math.round(r.aht - r.targetAht),
-            dec: r.dec || 0,
-            wtdGap: Math.max(0, r.aht - r.targetAht) * (r.dec || 1)
-        }))
-        .sort((a,b) => b.wtdGap - a.wtdGap);
-    buildAHTvsTarget('chart-or-pareto-aht', ahtChartData);
-    diagOrAht('diag-or-pareto-aht', ahtChartData);
-    renderOutlierCallout(validRevs, qData, ahtChartData, teamAvgErrRate, sws);
-}
 
 // ── COMPARE MODE ──────────────────────────────────────────────────────────────
 let _drCompareActive = false;
@@ -8992,13 +8680,13 @@ function renderGuide() {
             <div id="gp-coach" class="gp-panel" style="display:none">
                 ${sectionHead('🎯','Team Coaching — Where to Focus','var(--purple)','var(--psec)','var(--pbd)')}
                 ${callout('var(--purple)','var(--pbg)','var(--purple)','Don\'t start coaching with a name in mind. Start with the data — it tells you who needs attention and why. These steps give you the priority order before you open any reviewer profile.')}
-                ${step(1,'var(--purple)',`Open <strong>Outlier Radar</strong>. Filter to the current month. The <strong>Quality Impact Pareto</strong> shows all reviewers by defect rate. Coral bars are above the team average — those are your coaching priorities. Teal bars are at or below average. The dashed line is the team benchmark. Click any bar to open that reviewer in Deep-Dive.`)}
-                ${step(2,'var(--purple)',`Check <strong>AHT vs Target</strong>. The chart is sorted by volume-weighted gap — a reviewer with 2× the decisions at 150% AHT is more urgent than one with 10 decisions at 200%. Prioritise by impact, not percentage alone.`)}
-                ${step(3,'var(--purple)',`Cross-reference with <strong>PSP Tracker</strong>. If a Pareto outlier is already ${tag('PSP','var(--coral)','var(--csec)')} and showing ${tag('PSP-Regressing','var(--coral)','var(--csec)')}, that's your escalation case — not just your coaching case. Flag it before the week ends.`)}
+                ${step(1,'var(--purple)',`Open <strong>Team Insights</strong>. Filter to the current month. The <strong>Benchmarking Chart</strong> shows each reviewer's accuracy vs the team average line — names below the line are your coaching priorities. The <strong>AHT vs Quality Scatter</strong> flags Rushing/Struggling quadrant reviewers for the same reason.`)}
+                ${step(2,'var(--purple)',`Check <strong>Data Explorer</strong> with Reviewer rows and the AHT column enabled, sorted descending. Prioritise by decision volume × gap above target, not percentage alone — a reviewer with 2× the decisions at 150% AHT is more urgent than one with 10 decisions at 200%.`)}
+                ${step(3,'var(--purple)',`Cross-reference with <strong>PSP Tracker</strong>. If a flagged reviewer is already ${tag('PSP','var(--coral)','var(--csec)')} and showing ${tag('PSP-Regressing','var(--coral)','var(--csec)')}, that's your escalation case — not just your coaching case. Flag it before the week ends.`)}
                 ${step(4,'var(--purple)',`Use <strong>Team Insights → Root Cause Pareto</strong> to find which error category is driving the team's defect rate — FPA vs FNA, and which SW. Use this to pick your calibration topic. Coaching 5 people on the wrong thing is worse than coaching no one.`)}
                 ${qref([
-                    ['Who needs coaching most urgently?','Outlier Radar → Quality Impact Pareto'],
-                    ['Who has the worst AHT problem?','Outlier Radar → AHT vs Target'],
+                    ['Who needs coaching most urgently?','Team Insights → Benchmarking Chart'],
+                    ['Who has the worst AHT problem?','Data Explorer → sort by AHT'],
                     ['Is a top outlier already on PSP?','PSP Tracker'],
                     ['What error type should I calibrate?','Team Insights → Root Cause Pareto'],
                 ])}
@@ -9026,12 +8714,12 @@ function renderGuide() {
                 ${callout('var(--amber)','var(--abg)','var(--abd)','These are signals that go beyond coaching. When you see these patterns, document and escalate — don\'t wait for the next MPR cycle.')}
                 ${step(1,'var(--amber)',`<strong>PSP-Regressing for 2+ months.</strong> Check <strong>PSP Tracker</strong> → filter to ${tag('PSP-Regressing','var(--coral)','var(--csec)')}. Coaching hasn't worked. This is your formal performance management trigger — document the coaching history and initiate the PIP review process.`)}
                 ${step(2,'var(--amber)',`<strong>No trajectory improvement after 2 coached weeks.</strong> Go to <strong>Improve & Control → Team Level</strong>. If the Trajectory column still shows ↓ Sliding after two documented coaching sessions, the intervention isn't effective. Change the approach or escalate.`)}
-                ${step(3,'var(--amber)',`<strong>Team VSF > 1.0 on any SW.</strong> Go to <strong>Outlier Radar → Quality VSF</strong>. VSF over 1.0 means reviewers are deciding the same content differently. This is a calibration problem, not an individual coaching problem — schedule a team calibration session before coaching anyone in isolation.`)}
+                ${step(3,'var(--amber)',`<strong>Team VSF > 1.0 on any SW.</strong> Go to <strong>Data Explorer</strong>, enable the 📐 VSF / UCL / LCL columns, and group by Sub-workflow. VSF over 1.0 means reviewers are deciding the same content differently. This is a calibration problem, not an individual coaching problem — schedule a team calibration session before coaching anyone in isolation.`)}
                 ${step(4,'var(--amber)',`<strong>AHT trending up 3+ weeks with high NHT%.</strong> Go to <strong>Reviewer Deep-Dive</strong>, set to Weekly view. If NHT% is elevated alongside rising AHT, this may be a tool or workload issue — escalate to ops. Coaching won't fix a system problem.`)}
                 ${qref([
                     ['Who is PSP and not improving?','PSP Tracker → PSP-Regressing filter'],
                     ['Is coaching moving the trajectory?','Improve & Control → Team Level'],
-                    ['Is there a calibration problem?','Outlier Radar → Quality VSF'],
+                    ['Is there a calibration problem?','Data Explorer → VSF columns by SW'],
                     ['Is AHT a tool issue vs skill issue?','Reviewer Deep-Dive → Weekly AHT + NHT%'],
                 ])}
             </div>
@@ -9064,13 +8752,6 @@ function renderGuide() {
                     ${readRow('AHT vs Quality Over Time','Dual-axis line chart. Accuracy % on the left axis (blue), AHT in seconds on the right axis (amber). Dashed lines are targets for both. Correlation badge top-right shows whether the two metrics move together or independently across the selected period. Use Weekly for week-to-week signals, Monthly for the MPR narrative.')}
                     ${readRow('Scatter vs Dual-axis — when to use each','Scatter = coaching individuals. Dual-axis = ops story. Use scatter before a 1-on-1. Use dual-axis in a WBR.')}
                     ${readRow('TL Snapshot cards','Cards at the top of Team Insights. One per supervisor: team accuracy vs target, avg AHT vs team, action rate, decisions. Bottom strip shows Top 3 Error Policies (by error count) and Top 3 AHT Policies (by impact = avgAHT × decision share). Use before MPR to know which TL needs the most attention.')}
-                `)}
-
-                ${readCard('📡','Outlier Radar','var(--teal)','var(--tbg)','var(--tbd)',`
-                    ${readRow('Quality VSF','Variation Signal Factor per SW. Formula: (StDev × 6) / Mean. Below 0.7 = unified. 0.7–1.0 = watch. Above 1.0 = scattered. High VSF on a high-action-rate SW is the most urgent calibration signal.')}
-                    ${readRow('Quality Impact Pareto','Shows all reviewers ranked by defect rate (FPA+FNA ÷ Audits), sorted highest to lowest. Coral bars = above team average (coaching priority). Teal bars = at or below team average (performing well). Dashed line = team average rate. Hover for exact rate, gap vs average, FPA/FNA split, and audit count. Click any bar to jump to that reviewer\'s Deep-Dive.')}
-                    ${readRow('AHT vs Target chart','Bars sorted by weighted AHT gap: max(0, agentAHT − targetAHT) × decisions. Longest bar = most time wasted above target. A reviewer at 50% over target on 200 decisions outranks one at 100% over target on 20 decisions.')}
-
                 `)}
 
                 ${readCard('📈','Improve & Control','var(--blue)','var(--bbg)','var(--bbd)',`
@@ -9148,7 +8829,7 @@ function renderGuide() {
                             ${defn('VSF (Variation Signal Factor)','(StDev × 6) / Mean. Adapted from Six Sigma process width. < 0.7 = team is unified. 0.7–1.0 = watch for divergence. > 1.0 = scattered, calibration needed. Use on high-action-rate SWs first — that is where disagreement has the most impact.')}
                             ${defn('Standard Deviation (StDev)','Measures how spread out individual values are from the mean. A high StDev on accuracy means reviewers are not aligned. A low StDev means the team scores consistently — whether consistently good or consistently bad.')}
                             ${defn('Mean vs Median','Mean = sum / count. Sensitive to outliers. Median = middle value. Resistant to outliers. When one reviewer has extreme values, median better represents the typical team member. The scatter chart uses medians as quadrant split lines for this reason.')}
-                            ${defn('Outlier','A value more than 2 standard deviations from the mean. In the Outlier Radar, reviewers flagged here need individual investigation — they are statistically abnormal, not just below target.')}
+                            ${defn('Outlier','A value more than 2 standard deviations from the mean. Reviewers flagged this way in Team Insights or Data Explorer need individual investigation — they are statistically abnormal, not just below target.')}
                         </div>
                         <div style="font-size:11px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 10px">Process Capability</div>
                         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:0 14px;box-shadow:var(--shadow-card)">
@@ -10746,86 +10427,6 @@ function diagAhtBench(elId, ahtData) {
             `All queues are within their AHT targets — no overruns detected.`,
             'Team is pacing well across all queue types.',
             'No AHT coaching needed this period. Surface this as a positive signal in the WBR.');
-    }
-}
-
-// Outlier Radar — Quality Impact Pareto
-function diagOrQual(elId, qData, teamAvgRate) {
-    if(!qData || qData.length < 3) { clearDiag(elId); return; }
-    const aboveAvg = qData.filter(d => d.aboveAvg);
-    const top = qData[0];
-    const topRate = top.rate * 100;
-    const teamRate = teamAvgRate * 100;
-    const totalFna = qData.reduce((s,d)=>s+(d.fna||0),0);
-    const totalFpa = qData.reduce((s,d)=>s+(d.fpa||0),0);
-    const fnaHeavy = totalFna > totalFpa * 1.5;
-    const fpaHeavy = totalFpa > totalFna * 1.5;
-
-    if(aboveAvg.length >= Math.ceil(qData.length * 0.40)) {
-        diagBox(elId,'coral',
-            `${aboveAvg.length} of ${qData.length} reviewers are above the team defect rate of ${teamRate.toFixed(1)}%.`,
-            'More than 40% of the team is above average — this is a broad quality problem, not isolated to outliers.',
-            'Run a team calibration before individual coaching. Broad spread suggests a systemic policy gap.');
-    } else if(topRate > teamRate * 2) {
-        diagBox(elId,'coral',
-            `${top.name} has a defect rate of ${topRate.toFixed(1)}% — ${(topRate/teamRate).toFixed(1)}× the team average.`,
-            'Top outlier is significantly above the team — disproportionate quality impact.',
-            `Open Deep-Dive for ${top.name}. Check which policies are driving errors and schedule a focused calibration.`);
-    } else if(fnaHeavy) {
-        diagBox(elId,'amber',
-            `FNA (missed violations) dominates team errors — reviewers are under-enforcing.`,
-            'Team-wide under-enforcement pattern.',
-            'Run violation-recognition calibration using positive examples of violations currently being missed.');
-    } else if(fpaHeavy) {
-        diagBox(elId,'amber',
-            `FPA (false positives) dominates — reviewers are over-flagging.`,
-            'Team-wide over-enforcement pattern.',
-            'Review borderline non-violating examples in calibration. Check if policy language is creating ambiguity.');
-    } else if(aboveAvg.length <= 2) {
-        diagBox(elId,'teal',
-            `Only ${aboveAvg.length} reviewer${aboveAvg.length!==1?'s':''} above the ${teamRate.toFixed(1)}% team defect rate — strong quality distribution.`,
-            'Team quality is well-distributed. Outliers are minimal.',
-            `Coach ${aboveAvg.map(d=>d.name).join(' and ')||'the outlier'} individually. Click their bar to open in Deep-Dive.`);
-    } else {
-        diagBox(elId,'blue',
-            `${aboveAvg.length} reviewers above the ${teamRate.toFixed(1)}% team defect rate.`,
-            'Moderate spread — some outliers present but not a systemic issue.',
-            'Prioritize coaching for coral bars. Click any reviewer to open in Deep-Dive for full diagnosis.');
-    }
-}
-
-// Outlier Radar — AHT vs Target
-function diagOrAht(elId, ahtData) {
-    if(!ahtData || !ahtData.length) { clearDiag(elId); return; }
-    const overTarget = ahtData.filter(d => d.gap > 0);
-    const bigOver = ahtData.filter(d => d.gap > 60);
-    const top = overTarget[0];
-
-    if(bigOver.length >= 3) {
-        diagBox(elId,'coral',
-            `${bigOver.length} reviewers are more than 60s above their AHT target.`,
-            'Multiple reviewers with significant overruns — likely a systemic issue.',
-            'Investigate whether overruns concentrate in specific SWs. Run a team speed coaching session.');
-    } else if(bigOver.length === 1) {
-        diagBox(elId,'coral',
-            `${bigOver[0].name} is ${bigOver[0].gap}s above target — the largest individual AHT gap.`,
-            'Single significant outlier. May be a specific queue difficulty or decision confidence issue.',
-            `Open Deep-Dive for ${bigOver[0].name}. Check Policy AHT Impact to identify the driving queue.`);
-    } else if(overTarget.length >= Math.ceil(ahtData.length * 0.50)) {
-        diagBox(elId,'amber',
-            `${overTarget.length} of ${ahtData.length} reviewers are above their AHT target.`,
-            'Majority of the team is running above target — moderate systemic speed gap.',
-            'Include AHT coaching in next team huddle. Check if targets reflect current queue complexity.');
-    } else if(overTarget.length === 0) {
-        diagBox(elId,'teal',
-            `All ${ahtData.length} reviewers are within their AHT targets.`,
-            'Strong speed performance across the board.',
-            'No AHT coaching needed. Surface as a positive in the WBR.');
-    } else {
-        diagBox(elId,'blue',
-            `${overTarget.length} reviewer${overTarget.length!==1?'s':''} above target. Largest gap: ${top?top.name+' (+'+top.gap+'s)':'—'}.`,
-            'Isolated AHT overruns — not systemic.',
-            'Coach overrunning reviewers individually. Click their bar to jump to Deep-Dive.');
     }
 }
 
@@ -13388,156 +12989,6 @@ function renderPolicyPareto(rows) {
     diagPolAht('diag-dr-pol-aht', ahtSorted, rvAvgAht);
 }
 
-function buildQualPareto(canvasId, dataList, teamAvg) {
-  if(charts[canvasId]) charts[canvasId].destroy();
-  if(!dataList.length) return;
-  const ctx = document.getElementById(canvasId);
-  if(!ctx) return;
-
-  const barColors  = dataList.map(d => d.aboveAvg ? '#B91C1C' : '#0F766E');
-  const barBorders = dataList.map(d => d.aboveAvg ? '#7F1D1D' : '#064E3B');
-  const avgLine    = dataList.map(() => teamAvg * 100);
-  const yMax       = Math.max(...dataList.map(d=>d.rate*100), (teamAvg||0)*100) * 1.25;
-
-  charts[canvasId] = new Chart(ctx.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: dataList.map(d=>d.name),
-      datasets: [
-        {
-          label: 'Defect Rate',
-          data: dataList.map(d=>+(d.rate*100).toFixed(2)),
-          backgroundColor: barColors,
-          borderColor: barBorders,
-          borderWidth: 1,
-          borderRadius: 3,
-          yAxisID: 'y'
-        },
-        {
-          label: 'Team Average',
-          data: avgLine,
-          type: 'line',
-          borderColor: '#6B7280',
-          borderWidth: 2,
-          borderDash: [6,4],
-          pointRadius: 0,
-          fill: false,
-          yAxisID: 'y'
-        }
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      onClick: function(e, els) {
-        if(!els.length || els[0].datasetIndex !== 0) return;
-        const rv = dataList[els[0].index];
-        if(rv && rv.fullName) jumpToDrill(rv.fullName);
-      },
-      onHover: function(e, els) {
-        e.native.target.style.cursor = els.length && els[0].datasetIndex===0 ? 'pointer' : 'default';
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) {
-              if(ctx.datasetIndex === 1) return `Team avg: ${(teamAvg*100).toFixed(2)}%`;
-              const d = dataList[ctx.dataIndex];
-              const diff = ((d.rate - teamAvg)*100).toFixed(2);
-              const sign = diff > 0 ? '+' : '';
-              return [
-                `Defect rate: ${(d.rate*100).toFixed(2)}%`,
-                `vs team avg: ${sign}${diff}pp`,
-                `FPA: ${d.fpa}  ·  FNA: ${d.fna}  ·  Audits: ${d.audits}`,
-                `Click to open in Deep-Dive`
-              ];
-            }
-          }
-        }
-      },
-      scales: {
-        x: { ticks:{font:{size:9}, maxRotation:45, minRotation:45}, grid:{display:false} },
-        y: {
-          beginAtZero: true,
-          max: yMax,
-          title:{display:true, text:'Defect rate (%)', font:{size:10}, color:'#6B7280'},
-          ticks:{font:{size:9}, color:'#6B7280', callback:v=>v.toFixed(1)+'%'},
-          grid:{color:'rgba(0,0,0,.04)'}
-        }
-      }
-    }
-  });
-}
-
-// AHT vs Target — grouped bar sorted by gap above target
-function buildAHTvsTarget(canvasId, dataList) {
-  if(charts[canvasId]) charts[canvasId].destroy();
-  if(!dataList.length) return;
-  const ctx = document.getElementById(canvasId);
-  if(!ctx) return;
-
-  // Colour agent bars: red if above target, teal if at/below
-  const barColors = dataList.map(d => d.gap > 0 ? '#B91C1C' : '#0F766E');
-
-  charts[canvasId] = new Chart(ctx.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: dataList.map(d => d.name),
-      datasets: [
-        {
-          label: 'Agent AHT',
-          data: dataList.map(d => d.aht),
-          backgroundColor: barColors,
-          borderRadius: 3,
-          order: 1
-        },
-        {
-          label: 'Target AHT',
-          data: dataList.map(d => d.target),
-          type: 'line',
-          borderColor: '#B91C1C',
-          borderWidth: 2,
-          borderDash: [5, 4],
-          pointRadius: 0,
-          fill: false,
-          order: 0
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      onClick: function(evt, elements) {
-        if(!elements.length) return;
-        const d = dataList[elements[0].index];
-        if(!d || !d.fullName) return;
-        const sel = document.getElementById('g-reviewer');
-        if(sel) { sel.value = d.fullName; }
-        showTab('drill', document.querySelector('.tab.t-dr'));
-      },
-      plugins: {
-        legend: { display: true, position:'top', labels:{boxWidth:12, font:{size:11}} },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) {
-              const d = dataList[ctx.dataIndex];
-              if(ctx.datasetIndex === 1) return `Target: ${d.target}s`;
-              const gapStr = d.gap > 0 ? `+${d.gap}s above target` : `${d.gap}s below target`;
-              const wtdStr = d.gap > 0
-                ? `Weighted impact: ${Math.round(d.wtdGap).toLocaleString()} gap-secs (${d.dec} decisions)`
-                : `Within target (${d.dec} decisions)`;
-              return [`Agent AHT: ${d.aht}s`, gapStr, wtdStr, d.gap > 0 ? '→ Click to open in Deep-Dive' : ''];
-            }
-          }
-        }
-      },
-      scales: {
-        x: { ticks:{font:{size:9}, maxRotation:45, minRotation:45}, grid:{display:false} },
-        y: { beginAtZero:false, title:{display:true, text:'AHT (seconds)', font:{size:10}}, ticks:{font:{size:9}, callback:v=>v+'s'} }
-      }
-    }
-  });
-}
-
 function buildComparisonChart(canvasId, labels, data1, data2, label1, label2) {
   if(charts[canvasId]) charts[canvasId].destroy();
   const ctx=document.getElementById(canvasId).getContext('2d');
@@ -13552,7 +13003,7 @@ function buildComparisonChart(canvasId, labels, data1, data2, label1, label2) {
 let DE_DIMS = ['reviewer'];
 let DE_SORT = { col: 'adj_acc', dir: 'asc' };
 let DE_COLS = { adj:true, meta:true, raw:true, eff:true, act:true, wfm:true, aligngrp:false, vsf:false, timestamps:false,
-                comp_raw:false, comp_adj:false, comp_meta:false, comp_eff:false, comp_wfm:false, comp_aligngrp:false };
+                comp_raw:false, comp_adj:false, comp_meta:false, comp_eff:false, comp_wfm:false, comp_aligngrp:false, comp_act:false };
 
 // Queue Type filter for adj/meta/raw columns only ('all' | 'quality' | 'labelling')
 let DE_QT_FILTER = 'all';
@@ -13756,7 +13207,8 @@ function deAggEff(rows) {
         nht_pct: (dht+nht)>0 ? nht/(dht+nht) : null,
         ar:      safe(tpa+fpa, tpa+fpa+fna+tna),
         par:     safe(viol, enf),
-        dec, aud, viol, enf, dht
+        dec, aud, viol, enf, dht,
+        tpaFpa: tpa+fpa, tpaFpaFnaTna: tpa+fpa+fna+tna
     };
 }
 
@@ -13995,7 +13447,8 @@ function deCells(s, includeWfm, ahtTgt, includeTs) {
     const arCell  = v => v===null||v===undefined ? '<td class="de-n de-muted" data-t="pct">—</td>'
                        : v>=0.10 ? `<td class="de-n de-good" data-t="pct">${deFmt(v,'pct')}</td>`
                        :           `<td class="de-n" data-t="pct">${deFmt(v,'pct')}</td>`;
-    const act  = DE_COLS.act  ? arCell(s.ar)+arCell(s.par)+n(s.enf,'int',null) : '';
+    const act  = DE_COLS.act  ? arCell(s.ar)+arCell(s.par)+n(s.enf,'int',null)
+                              + (DE_COLS.comp_act  ? n(s.viol,'int',null)+n(s.tpaFpa,'int',null)+n(s.tpaFpaFnaTna,'int',null) : '') : '';
     let wfm = '';
     if(DE_COLS.wfm) {
         const base = includeWfm && s.util!==undefined
@@ -14184,6 +13637,7 @@ function renderDataExplorer() {
     const metaX   = [['mtpa','MTPA'],['mfpa','MFPA'],['mfna','MFNA'],['mtna','MTNA']];
     const rawX    = [['tp','TP'],['fp','FP'],['fn','FN'],['tn','TN']];
     const effX    = [['dht','Dec HT']];
+    const actX    = [['viol','Viol'],['tpaFpa','TPA+FPA'],['tpaFpaFnaTna','Total']];
     const wfmX    = [['actual','Actual hrs'],['sched','Sched hrs'],['slaN','SLA Events'],['slaD','Total Events']];
     const alignX  = [['aoan','AOA N'],['aoad','AOA D'],['msvN','MSV N'],['msvD','MSV D'],['quickN','QUICK N'],['quickD','QUICK D']];
 
@@ -14198,7 +13652,7 @@ function renderDataExplorer() {
     const meta  = deGroupCols('meta', metaC, metaX);
     const raw   = deGroupCols('raw',  rawC,  rawX);
     const eff   = deGroupCols('eff',  effC,  effX);
-    const act   = deGroupCols('act',  actC,  null);
+    const act   = deGroupCols('act',  actC,  actX);
     const wfm   = showWfm ? deGroupCols('wfm', wfmC, wfmX) : {head1:'',head2:'',count:0};
     const aligngrp = (DE_COLS.aligngrp && showWfm) ? deGroupCols('aligngrp', alignC, alignX) : {head1:'',head2:'',count:0};
     const tsGrp = showTs ? deGroupCols('timestamps', tsC, null) : {head1:'',head2:'',count:0};
