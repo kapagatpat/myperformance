@@ -545,7 +545,7 @@ tr:hover td{background:#F8F9FB}
         <div class="chart-card"><div class="chart-title">Avg AHT <span id="vsf-aht-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-aht',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-aht"></canvas></div></div>
         <div class="chart-card"><div class="chart-title">NHT% <span id="vsf-nht-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-nht',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-nht"></canvas></div></div>
         <div class="chart-card"><div class="chart-title">Total Decisions<button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-dec',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-dec"></canvas></div></div>
-        <div class="chart-card"><div class="chart-title">Throughput <span style="font-size:10px;color:var(--tm);font-weight:500">(dec / rv-wk)</span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-tput',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-tput"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Throughput <span style="font-size:10px;color:var(--tm);font-weight:500">(jobs / avail hr)</span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-tput',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-tput"></canvas></div></div>
       </div>
       <div class="charts-grid">
         <div class="chart-card"><div class="chart-title">Absenteeism<button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-abs',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-abs"></canvas></div></div>
@@ -2645,6 +2645,7 @@ let WFM_LOOKUP_DAILY = {};  // reviewer.trim()+'|'+date(YYYY-MM-DD) -> same shap
 function aggWfm(reviewerFilter, weekFilter, supervisorFilter) {
     let avail=0, bill=0, rev=0, sched=0, actual=0;
     let aoaN=0, aoaD=0, msvN=0, msvD=0, quickN=0, quickD=0;
+    let tputDec=0, transferOut=0;
     // Build reviewer->supervisor map from WFM_LOOKUP (covers quality AND WFM-only reviewers)
     let rvSupMap = null;
     if(supervisorFilter && supervisorFilter.size > 0) {
@@ -2667,12 +2668,14 @@ function aggWfm(reviewerFilter, weekFilter, supervisorFilter) {
         aoaN  += w.aoaN||0;   aoaD  += w.aoaD||0;
         msvN  += w.msvN||0;   msvD  += w.msvD||0;
         quickN+= w.quickN||0; quickD+= w.quickD||0;
+        tputDec+=w.dec||0;    transferOut+=w.transferOut||0;
     });
     const safe = (a,b) => b>0 ? a/b : null;
     return { avail, bill, rev, sched, actual, aoaN, aoaD, msvN, msvD, quickN, quickD,
              util: safe(avail,bill), occ: safe(rev,avail),
              abs: sched>0 ? Math.max(0,(sched-actual)/sched) : null,
-             aoa: safe(aoaN,aoaD), msv: safe(msvN,msvD), qaln: safe(quickN,quickD) };
+             aoa: safe(aoaN,aoaD), msv: safe(msvN,msvD), qaln: safe(quickN,quickD),
+             tputDec, transferOut, throughput: safe(tputDec+transferOut, avail) };
 }
 let INTERVENTIONS = [];
 let CHART_VIEW = 'weekly'; // 'weekly' | 'monthly' — persists across tabs
@@ -3281,7 +3284,7 @@ function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount, opts)
         </div>
         ${vsfHtml}
       </div>
-      <div class="kcard-val" style="font-size:24px; font-weight:800; color:var(--text); line-height:1.05">${val}</div>
+      <div class="kcard-val" style="font-size:24px; font-weight:600; font-family:var(--m); color:var(--text); line-height:1.05">${val}</div>
       ${subLineHtml}
     </div>`;
     }
@@ -3630,18 +3633,17 @@ function renderExec(){
   const msv = msvD>0 ? msvN/msvD : null;
   const qaln = quickD>0 ? quickN/quickD : null;
 
-  // Throughput = decisions / unique reviewer-weeks (decisions per reviewer per week on average)
-  const rvWeekSet = new Set();
-  qualRowsLM.forEach(r => { if(r.reviewer && r.week) rvWeekSet.add(r.reviewer+'|'+r.week); });
-  const reviewerWeeks = rvWeekSet.size;
-  const throughput = reviewerWeeks > 0 ? dec / reviewerWeeks : null;
+  // Throughput = (Total Jobs [Decisions] + Total Transferred Jobs) / Time in Available status (hrs)
+  // Same numerator components used to build Occupancy — this is Occupancy's numerator, not
+  // a repackaged version of "decisions per reviewer-week."
+  const throughput = _wfmAgg.throughput;
 
   // Row 1: AHT · NHT% · Total Decisions · Throughput
   document.getElementById('e-efficiency-row1').innerHTML =
     kcard('Avg AHT ↓', aht!==null?aht.toFixed(2)+'s':'—', 'aht', passStr(ahtPass,wn), passPct(ahtPass,wn), vsfAHT, wn, {compact:true, onClick:deLink('aht')}) +
     kcard('NHT% ↓', nhtPct!==null?p(nhtPct):'—', 'aht', sws.length===1?'':'Multi-SW avg', null, null, null, {compact:true, onClick:deLink('nht_pct')}) +
     kcard('Total Decisions', dec>0?dec.toLocaleString():'—', 'na', rvNames.length+' reviewer'+(rvNames.length!==1?'s':''), null, null, null, {compact:true, onClick:deLink('dec')}) +
-    kcard('Throughput ↑', throughput!==null?throughput.toFixed(1)+' dec/rv-wk':'—', 'na', reviewerWeeks+' reviewer-week'+(reviewerWeeks!==1?'s':''), null, null, null, {compact:true, onClick:deLink('dec')});
+    kcard('Throughput ↑', throughput!==null?throughput.toFixed(2)+' jobs/avail hr':'—', 'na', '(Dec + Transfer Out) ÷ Avail hrs', null, null, null, {compact:true, onClick:deLink('throughput')});
 
   // Row 2: Absenteeism · Utilization · Occupancy · Workforce SLA
   document.getElementById('e-efficiency-row2').innerHTML =
@@ -11462,14 +11464,14 @@ function renderExecCharts(qRows, wfmRows, targetsObj, qualType, vsfs, passRates)
 
     const decData  = qPeriods.map(d=> d.dec > 0 ? d.dec : null);
 
-    // Throughput: decisions per unique reviewer-week — compute per period separately
+    // Throughput = (Decisions + Transfer Out) / Time in Available status (hrs) — compute per period
     const tputPeriods = groupByPeriod(trendQRows, CHART_VIEW, rows => {
-        const rvWeeks = new Set();
-        rows.forEach(r => { if(r.reviewer && r.week) rvWeeks.add(r.reviewer+'|'+r.week); });
-        let dec = 0; rows.forEach(r => { dec += r.decisions; });
-        return { dec, rvWeekCount: rvWeeks.size };
+        const rvSet = new Set(rows.map(r=>r.reviewer).filter(Boolean));
+        const wkSet = new Set(rows.map(r=>r.week).filter(Boolean));
+        const w = aggWfm(rvSet, wkSet, null);
+        return { throughput: w.throughput };
     });
-    const tputData = tputPeriods.map(d => d.rvWeekCount > 0 ? d.dec / d.rvWeekCount : null);
+    const tputData = tputPeriods.map(d => d.throughput);
 
     // Point-click navigation: quality/AHT charts → Reviewer Scorecard, WFM charts → Supervisor Scorecard.
     // Period label isn't currently consumable as a filter elsewhere in the app, so this jumps to the
@@ -13239,6 +13241,7 @@ function deAggWfm(rows) {
     const seen = new Set();
     let avail=0,bill=0,rev=0,sched=0,actual=0,aoaN=0,aoaD=0,msvN=0,msvD=0,quickN=0,quickD=0,slaN=0,slaD=0;
     let tsAvail=0,tsFbLearn=0,tsNonFbLearn=0,tsCoaching=0,tsMeeting=0,tsWellness=0,tsLunch=0,tsBreak=0,tsOnboarding=0;
+    let nht=0,nhCount=0,dec=0,transferOut=0;
     rows.forEach(r => {
         const key = keyOf(r);
         if(seen.has(key)) return;
@@ -13251,6 +13254,8 @@ function deAggWfm(rows) {
         msvN+=w.msvN||0; msvD+=w.msvD||0;
         quickN+=w.quickN||0; quickD+=w.quickD||0;
         slaN+=w.slaN||0; slaD+=w.slaD||0;
+        nht+=w.nht||0; nhCount+=w.nhCount||0;
+        dec+=w.dec||0; transferOut+=w.transferOut||0;
         tsAvail      +=w.tsAvail||0;
         tsFbLearn    +=w.tsFbLearn||0;
         tsNonFbLearn +=w.tsNonFbLearn||0;
@@ -13273,6 +13278,11 @@ function deAggWfm(rows) {
         msv:       safe(msvN,msvD),
         qaln:      safe(quickN,quickD),
         quick:     safe(quickN,quickD),
+        // No Handle Time: hours (nht is stored in seconds like dht elsewhere — converted at render)
+        wfmNht: nht, nhCount,
+        // Throughput = (Decisions + Transfer Out) / Time in Available status (hrs) — numerator of Occupancy
+        tputDec: dec, transferOut,
+        throughput: safe(dec+transferOut, avail),
         // Timestamp fields — stored in minutes, returned in minutes (converted to hrs in deFmt)
         tsAvail, tsFbLearn, tsNonFbLearn, tsCoaching, tsMeeting, tsWellness, tsLunch, tsBreak, tsOnboarding,
     };
@@ -13350,6 +13360,7 @@ function deFmt(v, type) {
     if(type==='int')  return Math.round(v).toLocaleString();
     if(type==='hrs')  return (v/60).toFixed(2);
     if(type==='nht'||type==='sla') return (v*100).toFixed(2)+'%';
+    if(type==='tput') return v.toFixed(2);
     return String(v);
 }
 
@@ -13441,13 +13452,14 @@ function deCells(s, includeWfm, ahtTgt, includeTs) {
                               + (DE_COLS.comp_meta ? n(s.mtpa,'int',null)+n(s.mfpa,'int',null)+n(s.mfna,'int',null)+n(s.mtna,'int',null) : '') : '';
     const raw  = DE_COLS.raw  ? n(s.raw_acc,'pct',accTgt)+n(s.raw_prec,'pct',prrecTgt)+n(s.raw_rec,'pct',prrecTgt)
                               + (DE_COLS.comp_raw  ? n(s.tp,'int',null)+n(s.fp,'int',null)+n(s.fn,'int',null)+n(s.tn,'int',null) : '') : '';
-    const eff  = DE_COLS.eff  ? n(s.aht,'sec',ahtTgt!==undefined?ahtTgt:null)+n(s.nht_pct,'nht',null)+n(s.dec,'int',null)+n(s.aud,'int',null)
-                              + (DE_COLS.comp_eff  ? n(s.dht,'int',null) : '') : '';
+    const eff  = DE_COLS.eff  ? n(s.aht,'sec',ahtTgt!==undefined?ahtTgt:null)+n(s.nht_pct,'nht',null)+n(s.dec,'int',null)
+                              + (includeWfm && s.throughput!==undefined ? n(s.throughput,'tput',null) : '<td class="de-n de-muted">—</td>')
+                              + (DE_COLS.comp_eff  ? n(s.dht,'int',null)+(includeWfm?n(s.wfmNht,'int',null)+n(s.nhCount,'int',null):'<td class="de-n de-muted">—</td>'.repeat(2)) : '') : '';
     // AR%/Prod AR%: green cell+text if >=10%, muted otherwise (no red)
     const arCell  = v => v===null||v===undefined ? '<td class="de-n de-muted" data-t="pct">—</td>'
                        : v>=0.10 ? `<td class="de-n de-good" data-t="pct">${deFmt(v,'pct')}</td>`
                        :           `<td class="de-n" data-t="pct">${deFmt(v,'pct')}</td>`;
-    const act  = DE_COLS.act  ? arCell(s.ar)+arCell(s.par)+n(s.enf,'int',null)
+    const act  = DE_COLS.act  ? arCell(s.ar)+arCell(s.par)+n(s.enf,'int',null)+n(s.aud,'int',null)
                               + (DE_COLS.comp_act  ? n(s.viol,'int',null)+n(s.tpaFpa,'int',null)+n(s.tpaFpaFnaTna,'int',null) : '') : '';
     let wfm = '';
     if(DE_COLS.wfm) {
@@ -13455,7 +13467,9 @@ function deCells(s, includeWfm, ahtTgt, includeTs) {
             ? n(s.util,'util',null)+n(s.occ,'occ',null)+n(s.abs,'abs',null)+n(s.wfSla,'sla',null)
             : '<td class="de-n de-muted">—</td>'.repeat(4);
         const comp = DE_COLS.comp_wfm
-            ? (includeWfm && s.actual!==undefined ? n(s.actual,'int',null)+n(s.sched,'int',null)+n(s.slaN,'int',null)+n(s.slaD,'int',null) : '<td class="de-n de-muted">—</td>'.repeat(4))
+            ? (includeWfm && s.actual!==undefined
+                ? n(s.avail,'int',null)+n(s.bill,'int',null)+n(s.rev,'int',null)+n(s.actual,'int',null)+n(s.sched,'int',null)+n(s.slaN,'int',null)+n(s.slaD,'int',null)
+                : '<td class="de-n de-muted">—</td>'.repeat(7))
             : '';
         wfm = base + comp;
     }
@@ -13622,8 +13636,8 @@ function renderDataExplorer() {
     const adjC  = [['adj_acc','Acc%'],['adj_prec','Prec%'],['adj_rec','Rec%']];
     const metaC = [['meta_acc','Acc%'],['meta_prec','Prec%'],['meta_rec','Rec%']];
     const rawC  = [['raw_acc','Acc%'],['raw_prec','Prec%'],['raw_rec','Rec%']];
-    const effC  = [['aht','AHT'],['nht_pct','NHT%'],['dec','Dec'],['aud','Aud']];
-    const actC  = [['ar','AR%'],['par','Prod AR%'],['enf','Enf']];
+    const effC  = [['aht','AHT'],['nht_pct','NHT%'],['dec','Dec'],['throughput','Tput']];
+    const actC  = [['ar','AR%'],['par','Prod AR%'],['enf','Enf'],['aud','Aud']];
     const wfmC  = [['util','Util%'],['occ','Occ%'],['abs','Abs%'],['wfSla','SLA%']];
     const alignC = [['alignment','AOA%'],['msv','MSV%'],['qaln','QAln%']];  // alignment=aoa alias, qaln=quick alias
     const tsC   = [
@@ -13636,9 +13650,9 @@ function renderDataExplorer() {
     const adjX    = [['tpa','TPA'],['fpa','FPA'],['fna','FNA'],['tna','TNA']];
     const metaX   = [['mtpa','MTPA'],['mfpa','MFPA'],['mfna','MFNA'],['mtna','MTNA']];
     const rawX    = [['tp','TP'],['fp','FP'],['fn','FN'],['tn','TN']];
-    const effX    = [['dht','Dec HT']];
+    const effX    = [['dht','Dec HT'],['wfmNht','No Handle HT'],['nhCount','No Handle Count']];
     const actX    = [['viol','Viol'],['tpaFpa','TPA+FPA'],['tpaFpaFnaTna','Total']];
-    const wfmX    = [['actual','Actual hrs'],['sched','Sched hrs'],['slaN','SLA Events'],['slaD','Total Events']];
+    const wfmX    = [['avail','Avail hrs'],['bill','Billable hrs'],['rev','Reviewing hrs'],['actual','Actual (count)'],['sched','Scheduled (count)'],['slaN','SLA Events'],['slaD','Total Events']];
     const alignX  = [['aoan','AOA N'],['aoad','AOA D'],['msvN','MSV N'],['msvD','MSV D'],['quickN','QUICK N'],['quickD','QUICK D']];
 
     const vsfC  = [
@@ -16710,6 +16724,7 @@ function processCSVData(csvString) {
             mtpa:n(r['MTPA']),mfpa:n(r['MFPA']),mfna:n(r['MFNA']),mtna:n(r['MTNA']),
             dht, nht, nhtOwn:nht,
             nhCount:_nhCount,
+            skip:n(r['Skip']), skipHt:n(r['Skip HT']), transferOut:n(r['Transfer Out']), transferHt:n(r['Transfer HT']),
             enf:n(r['Enforcement Jobs']),viol:n(r['Violating Jobs']),
             slaHr:n(r['24 Hr SLA']),totalEvents:n(r['Total Events']),
             avail, bill, rev,
@@ -16737,14 +16752,14 @@ function processCSVData(csvString) {
     const wfmLookupNew = {};
     RAW_ROWS.filter(r => !r.sw).forEach(r => {
         const key = r.reviewer.trim()+'|'+r.week;
-        if(!wfmLookupNew[key]) wfmLookupNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month,tsAvail:0,tsFbLearn:0,tsNonFbLearn:0,tsCoaching:0,tsMeeting:0,tsWellness:0,tsLunch:0,tsBreak:0,tsOnboarding:0};
+        if(!wfmLookupNew[key]) wfmLookupNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,nht:0,dec:0,transferOut:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month,tsAvail:0,tsFbLearn:0,tsNonFbLearn:0,tsCoaching:0,tsMeeting:0,tsWellness:0,tsLunch:0,tsBreak:0,tsOnboarding:0};
         const e=wfmLookupNew[key];
         e.avail  +=r.avail;   e.bill  +=r.bill;   e.rev   +=r.rev;
         e.sched  +=r.sched;   e.actual+=r.actual;
         e.aoaN   +=r.aoaN;    e.aoaD  +=r.aoaD;
         e.msvN   +=r.msvN;    e.msvD  +=r.msvD;
         e.quickN +=r.quickN;  e.quickD+=r.quickD;
-        e.nhCount+=r.nhCount;
+        e.nhCount+=r.nhCount; e.nht   +=r.nht||0;
         e.tsAvail      +=r.tsAvail||0;
         e.tsFbLearn    +=r.tsFbLearn||0;
         e.tsNonFbLearn +=r.tsNonFbLearn||0;
@@ -16758,9 +16773,16 @@ function processCSVData(csvString) {
     // SLA lives on SW rows — scan all rows separately and merge into lookup
     RAW_ROWS.filter(r => r.sw && (r.slaHr||r.totalEvents)).forEach(r => {
         const key = r.reviewer.trim()+'|'+r.week;
-        if(!wfmLookupNew[key]) wfmLookupNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month};
+        if(!wfmLookupNew[key]) wfmLookupNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,nht:0,dec:0,transferOut:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month};
         wfmLookupNew[key].slaN += r.slaHr||0;
         wfmLookupNew[key].slaD += r.totalEvents||0;
+    });
+    // Throughput numerator (Decisions + Transfer Out) lives on SW rows — merge into lookup
+    RAW_ROWS.filter(r => r.sw).forEach(r => {
+        const key = r.reviewer.trim()+'|'+r.week;
+        if(!wfmLookupNew[key]) wfmLookupNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,nht:0,dec:0,transferOut:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month};
+        wfmLookupNew[key].dec += r.decisions||0;
+        wfmLookupNew[key].transferOut += r.transferOut||0;
     });
     WFM_LOOKUP = wfmLookupNew;
 
@@ -16773,14 +16795,14 @@ function processCSVData(csvString) {
     const wfmLookupDailyNew = {};
     RAW_ROWS.filter(r => !r.sw && r.date).forEach(r => {
         const key = r.reviewer.trim()+'|'+r.date;
-        if(!wfmLookupDailyNew[key]) wfmLookupDailyNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month,week:r.week,tsAvail:0,tsFbLearn:0,tsNonFbLearn:0,tsCoaching:0,tsMeeting:0,tsWellness:0,tsLunch:0,tsBreak:0,tsOnboarding:0};
+        if(!wfmLookupDailyNew[key]) wfmLookupDailyNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,nht:0,dec:0,transferOut:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month,week:r.week,tsAvail:0,tsFbLearn:0,tsNonFbLearn:0,tsCoaching:0,tsMeeting:0,tsWellness:0,tsLunch:0,tsBreak:0,tsOnboarding:0};
         const e=wfmLookupDailyNew[key];
         e.avail  +=r.avail;   e.bill  +=r.bill;   e.rev   +=r.rev;
         e.sched  +=r.sched;   e.actual+=r.actual;
         e.aoaN   +=r.aoaN;    e.aoaD  +=r.aoaD;
         e.msvN   +=r.msvN;    e.msvD  +=r.msvD;
         e.quickN +=r.quickN;  e.quickD+=r.quickD;
-        e.nhCount+=r.nhCount;
+        e.nhCount+=r.nhCount; e.nht   +=r.nht||0;
         e.tsAvail      +=r.tsAvail||0;
         e.tsFbLearn    +=r.tsFbLearn||0;
         e.tsNonFbLearn +=r.tsNonFbLearn||0;
@@ -16793,9 +16815,16 @@ function processCSVData(csvString) {
     });
     RAW_ROWS.filter(r => r.sw && r.date && (r.slaHr||r.totalEvents)).forEach(r => {
         const key = r.reviewer.trim()+'|'+r.date;
-        if(!wfmLookupDailyNew[key]) wfmLookupDailyNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month,week:r.week};
+        if(!wfmLookupDailyNew[key]) wfmLookupDailyNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,nht:0,dec:0,transferOut:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month,week:r.week};
         wfmLookupDailyNew[key].slaN += r.slaHr||0;
         wfmLookupDailyNew[key].slaD += r.totalEvents||0;
+    });
+    // Throughput numerator lives on SW rows — merge into daily lookup
+    RAW_ROWS.filter(r => r.sw && r.date).forEach(r => {
+        const key = r.reviewer.trim()+'|'+r.date;
+        if(!wfmLookupDailyNew[key]) wfmLookupDailyNew[key]={avail:0,bill:0,rev:0,sched:0,actual:0,aoaN:0,aoaD:0,msvN:0,msvD:0,quickN:0,quickD:0,slaN:0,slaD:0,nhCount:0,nht:0,dec:0,transferOut:0,supervisor:r.supervisor,language:r.language,tenure:r.tenure,role:r.role,month:r.month,week:r.week};
+        wfmLookupDailyNew[key].dec += r.decisions||0;
+        wfmLookupDailyNew[key].transferOut += r.transferOut||0;
     });
     WFM_LOOKUP_DAILY = wfmLookupDailyNew;
 
