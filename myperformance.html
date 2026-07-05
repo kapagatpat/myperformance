@@ -1193,11 +1193,19 @@ tr:hover td{background:#F8F9FB}
               <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">AHT</th>
               <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Target</th>
               <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Δ vs target</th>
-              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Band</th>
+              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Achievement</th>
+              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Cohort mix</th>
             </tr></thead>
             <tbody id="jd-sw-tbody"></tbody>
           </table>
           <div id="jd-sw-empty" style="padding:20px;text-align:center;font-size:12px;color:var(--tm);font-style:italic;display:none">No sub-workflow data for the current filters.</div>
+          <div style="padding:6px 10px;font-size:10px;color:var(--tm);border-top:1px solid var(--divider);display:flex;align-items:center;gap:10px">
+            <span>Cohort mix = share of decisions from reviewers landing in each achievement band within that SW:</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#A4CAFE;display:inline-block"></span>Exceeding</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#86EFAC;display:inline-block"></span>Achieving</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#FCD34D;display:inline-block"></span>Approaching</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#FCA5A5;display:inline-block"></span>Needs improvement</span>
+          </div>
         </div>
 
         <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:20px;align-items:start">
@@ -1207,7 +1215,7 @@ tr:hover td{background:#F8F9FB}
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:9px;font-weight:800;background:var(--bbg);color:var(--blue);padding:2px 8px;border-radius:var(--pill)">Main CSV</span>
               <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Whom to target</span>
-              <span style="font-size:10px;color:var(--tm);margin-left:auto">min. 5 decisions · sorted by AHT</span>
+              <span style="font-size:10px;color:var(--tm);margin-left:auto">min. 5 decisions · SW or team Approaching/NI only</span>
             </div>
             <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
               <div id="jd-reviewer-list"></div>
@@ -18174,14 +18182,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── SW bands (from RAW_ROWS / main CSV) ──────────────────────────────────
+    // Also computes a per-reviewer breakdown within each SW: for every reviewer
+    // who worked that SW, band THEIR OWN aht against the SW's target, then roll
+    // up what share of decisions in that SW came from reviewers landing in each
+    // band. This is the "per cohort" bar — it shows whether an SW's overall
+    // number is one bad reviewer dragging the average, or broadly distributed.
     function jdBuildSWBands(rows) {
         const groups = {};
         rows.forEach(r => {
             if (!r.sw || !r.dht) return;
             const key = r.sw;
-            if (!groups[key]) groups[key] = { sw: r.sw, workflow: r.workflow, decisions: 0, ahtSum: 0 };
-            groups[key].decisions += r.decisions || 0;
-            groups[key].ahtSum += (r.dht || 0) * (r.decisions || 0);
+            if (!groups[key]) groups[key] = { sw: r.sw, workflow: r.workflow, decisions: 0, ahtSum: 0, byReviewer: {} };
+            const g = groups[key];
+            g.decisions += r.decisions || 0;
+            g.ahtSum += (r.dht || 0) * (r.decisions || 0);
+            if (r.reviewer) {
+                if (!g.byReviewer[r.reviewer]) g.byReviewer[r.reviewer] = { decisions: 0, ahtSum: 0 };
+                g.byReviewer[r.reviewer].decisions += r.decisions || 0;
+                g.byReviewer[r.reviewer].ahtSum += (r.dht || 0) * (r.decisions || 0);
+            }
         });
         return Object.values(groups)
             .filter(g => g.decisions > 0)
@@ -18192,7 +18211,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const target = bandObj ? bandObj.ach : null;
                 const delta = target !== null ? aht - target : null;
                 const deltaPct = (target !== null && target > 0) ? (delta / target) * 100 : null;
-                return { sw: g.sw, workflow: g.workflow, decisions: g.decisions, aht, target, delta, deltaPct, band };
+
+                // Per-cohort breakdown: decision-weighted share of each band across
+                // reviewers who worked this SW, banded against this SW's own target.
+                const mix = { exc: 0, ach: 0, app: 0, ni: 0 };
+                let mixTotal = 0;
+                Object.values(g.byReviewer).forEach(rv => {
+                    if (!rv.decisions) return;
+                    const rvAht = rv.ahtSum / rv.decisions;
+                    const rvBand = assignBand(rvAht, bandObj, true);
+                    if (rvBand) { mix[rvBand] += rv.decisions; mixTotal += rv.decisions; }
+                });
+                const mixPct = mixTotal > 0
+                    ? { exc: mix.exc / mixTotal, ach: mix.ach / mixTotal, app: mix.app / mixTotal, ni: mix.ni / mixTotal }
+                    : null;
+
+                return { sw: g.sw, workflow: g.workflow, decisions: g.decisions, aht, target, delta, deltaPct, band, mixPct };
             })
             .sort((a, b) => b.aht - a.aht);
     }
@@ -18216,6 +18250,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const c = JD_BAND_COLOR[band] || JD_BAND_COLOR.app;
         const short = { exc: 'EXC', ach: 'ACH', app: 'APP', ni: 'NI' }[band] || band;
         return `<span style="background:${c.bg};color:${c.fg};font-weight:700;font-size:9px;padding:1px 6px;border-radius:var(--pill)">${short}</span>`;
+    }
+
+    // Solid-fill stacked bar showing the decision-weighted share of reviewers
+    // landing in each band within a cohort (SW). Uses the same 4 band colors
+    // as the band tags for visual consistency.
+    const JD_MIX_FILL = { exc: '#A4CAFE', ach: '#86EFAC', app: '#FCD34D', ni: '#FCA5A5' };
+    function jdMixBar(mixPct) {
+        if (!mixPct) return '<span style="color:var(--tm)">—</span>';
+        const segs = ['exc', 'ach', 'app', 'ni'].map(k => {
+            const pct = Math.round(mixPct[k] * 1000) / 10;
+            if (pct <= 0) return '';
+            return `<div style="width:${pct}%;background:${JD_MIX_FILL[k]}" title="${JD_BAND_LABEL[k]}: ${pct}%"></div>`;
+        }).join('');
+        return `<div style="display:flex;width:100px;height:8px;border-radius:4px;overflow:hidden">${segs}</div>`;
     }
 
     function fmtSec(v) {
@@ -18248,6 +18296,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="padding:7px 10px;text-align:right;font-family:var(--m);color:var(--tm)">${b.target !== null ? '≤' + fmtSec(b.target) : '—'}</td>
                 <td style="padding:7px 10px;text-align:right;font-family:var(--m);font-weight:700;color:${deltaColor}">${fmtDelta(b.delta, b.deltaPct)}</td>
                 <td style="padding:7px 10px">${jdBandTag(b.band)}</td>
+                <td style="padding:7px 10px">${jdMixBar(b.mixPct)}</td>
             </tr>`;
         }).join('');
     }
@@ -18259,12 +18308,38 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ── Whom to target (reviewer, from RAW_ROWS) ─────────────────────────────
+    // Gating rule: a reviewer's SW entry is only shown if EITHER
+    //   (1) that reviewer's own AHT for that SW bands as Approaching/NI, OR
+    //   (2) that reviewer's team (TL) is Approaching/NI for that SW overall.
+    // A reviewer who is individually meeting goal but whose team is struggling
+    // on that SW is still surfaced (rule 2); a reviewer who is meeting goal on
+    // a SW where their team is ALSO meeting goal is never shown (neither rule
+    // fires). Reviewers left with no qualifying SW entry are dropped entirely,
+    // not just filtered down to an empty SW list.
     function jdBuildReviewerPanel(rows) {
         const rosterMap = jdRosterMap();
+
+        // First pass: team (TL)-level AHT per SW, needed for the gate below.
+        const byTeamSW = {}; // key: tl|sw -> {workflow, decisions, ahtSum}
+        rows.forEach(r => {
+            if (!r.sw || !r.dht || !r.supervisor) return;
+            const key = r.supervisor + '|' + r.sw;
+            if (!byTeamSW[key]) byTeamSW[key] = { workflow: r.workflow, decisions: 0, ahtSum: 0 };
+            byTeamSW[key].decisions += r.decisions || 0;
+            byTeamSW[key].ahtSum += (r.dht || 0) * (r.decisions || 0);
+        });
+        function teamBandFor(tl, sw, workflow) {
+            const g = byTeamSW[tl + '|' + sw];
+            if (!g || !g.decisions) return null;
+            const bandObj = getBandTargets(workflow, sw, 'AHT');
+            return assignBand(g.ahtSum / g.decisions, bandObj, true);
+        }
+        const GATE_BANDS = new Set(['app', 'ni']);
+
         const byReviewer = {};
         rows.forEach(r => {
             if (!r.sw || !r.dht || !r.reviewer) return;
-            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviewer: r.reviewer, decisions: 0, ahtSum: 0, bySW: {} };
+            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviewer: r.reviewer, supervisor: r.supervisor, decisions: 0, ahtSum: 0, bySW: {} };
             const g = byReviewer[r.reviewer];
             g.decisions += r.decisions || 0;
             g.ahtSum += (r.dht || 0) * (r.decisions || 0);
@@ -18273,19 +18348,31 @@ document.addEventListener('DOMContentLoaded', () => {
             sg.decisions += r.decisions || 0;
             sg.ahtSum += (r.dht || 0) * (r.decisions || 0);
         });
+
         return Object.values(byReviewer)
             .filter(g => g.decisions >= JD_MIN_DECISIONS)
             .map(g => {
-                const aht = g.ahtSum / g.decisions;
                 const swList = Object.values(g.bySW).map(sg => {
                     const swAht = sg.ahtSum / sg.decisions;
                     const bandObj = getBandTargets(sg.workflow, sg.sw, 'AHT');
                     const band = assignBand(swAht, bandObj, true);
-                    return { sw: sg.sw, decisions: sg.decisions, aht: swAht, band };
-                }).sort((a, b) => b.aht - a.aht);
+                    const teamBand = teamBandFor(g.supervisor, sg.sw, sg.workflow);
+                    const qualifies = GATE_BANDS.has(band) || GATE_BANDS.has(teamBand);
+                    return { sw: sg.sw, decisions: sg.decisions, ahtSum: sg.ahtSum, aht: swAht, band, teamBand, qualifies };
+                })
+                    .filter(sg => sg.qualifies)
+                    .sort((a, b) => b.aht - a.aht);
+                // Summary N/avg reflect only the qualifying SW entries above —
+                // otherwise the header line wouldn't match the rows shown under it.
+                const qDecisions = swList.reduce((s, sg) => s + sg.decisions, 0);
+                const qAhtSum = swList.reduce((s, sg) => s + sg.ahtSum, 0);
+                const aht = qDecisions > 0 ? qAhtSum / qDecisions : 0;
                 const rosterHit = rosterMap[g.reviewer] || null;
-                return { reviewer: g.reviewer, name: rosterHit ? rosterHit.name : g.reviewer, decisions: g.decisions, aht, swList };
+                return { reviewer: g.reviewer, name: rosterHit ? rosterHit.name : g.reviewer, decisions: qDecisions, aht, swList };
             })
+            // Drop reviewers with no qualifying SW entry at all — meeting goal
+            // everywhere, on teams that are also meeting goal everywhere.
+            .filter(g => g.swList.length > 0)
             .sort((a, b) => b.aht - a.aht);
     }
 
@@ -18523,9 +18610,11 @@ document.addEventListener('DOMContentLoaded', () => {
         contentEl.style.display = 'block';
 
         if (hasMain) {
+            const selMonths = getSelMonths();
             const tls = getSel('g-tl'), tenures = getSel('g-tenure'), sws = getSel('g-sw'),
                   workflows = getSel('g-workflow'), roles = getSel('g-role'), reviewTypes = getSel('g-review-type');
-            const rows = filterRows(RAW_ROWS, tls, tenures, sws, workflows, roles, reviewTypes);
+            const monthRows = selMonths.length ? RAW_ROWS.filter(r => selMonths.includes(r.month)) : RAW_ROWS;
+            const rows = filterRows(monthRows, tls, tenures, sws, workflows, roles, reviewTypes);
             jdRenderSWTable(jdBuildSWBands(rows));
             jdRenderReviewerPanel(jdBuildReviewerPanel(rows));
             jdRenderTenurePanel(jdBuildTenurePanel(rows));
