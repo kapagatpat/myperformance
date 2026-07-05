@@ -83,6 +83,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--f);min-height:100v
 .tab.t-cp.active{background:var(--csec);color:var(--coral)}.tab.t-cp.active .tab-icon{background:var(--coral)}
 .tab.t-sr.active{background:var(--abg);color:var(--amber)}.tab.t-sr.active .tab-icon{background:var(--amber)}
 .tab.t-de.active{background:var(--psec);color:var(--purple)}.tab.t-de.active .tab-icon{background:var(--purple)}
+.tab.t-jd.active{background:var(--csec);color:var(--coral)}.tab.t-jd.active .tab-icon{background:var(--coral)}
 
 .section{display:none}.section.on{display:block}
 .ph{margin-bottom:1.5rem}
@@ -108,7 +109,8 @@ select,input{font-family:var(--f);font-size:11px;padding:4px 7px;border:1px soli
 .fbar.tab-supervisor .dyn-month,
 .fbar.tab-team .dyn-month,
 .fbar.tab-drill .dyn-month,
-.fbar.tab-cp .dyn-month { display: flex !important; }
+.fbar.tab-cp .dyn-month,
+.fbar.tab-jobdetail .dyn-month { display: flex !important; }
 
 /* Reviewer visible on all standard tabs except exec */
 .fbar.tab-scorecard .dyn-reviewer,
@@ -116,7 +118,8 @@ select,input{font-family:var(--f);font-size:11px;padding:4px 7px;border:1px soli
 .fbar.tab-psp .dyn-reviewer,
 .fbar.tab-team .dyn-reviewer,
 .fbar.tab-drill .dyn-reviewer,
-.fbar.tab-cp .dyn-reviewer { display: block !important; }
+.fbar.tab-cp .dyn-reviewer,
+.fbar.tab-jobdetail .dyn-reviewer { display: block !important; }
 
 /* Quality Type only on exec */
 .fbar.tab-exec .dyn-exec { display: block !important; }
@@ -407,6 +410,7 @@ tr:hover td{background:#F8F9FB}
     <button class="tab t-ti" onclick="showTab('team',this)"><div class="tab-icon">🔎</div>Team Insights</button>
     <button class="tab t-dr" onclick="showTab('drill',this)"><div class="tab-icon">🔬</div>Reviewer Deep-Dive</button>
     <button class="tab t-rca" onclick="showTab('rca-explorer',this)"><div class="tab-icon">🧩</div>RCA Explorer</button>
+    <button class="tab t-jd" onclick="showTab('jobdetail',this)"><div class="tab-icon">📋</div>Job Detail Explorer</button>
 
     <div class="sb-label" style="margin-top:1rem">Improve and Control</div>
     <button class="tab t-defint" onclick="showTab('defint',this)"><div class="tab-icon">🧠</div>Defect Intelligence</button>
@@ -1154,6 +1158,109 @@ tr:hover td{background:#F8F9FB}
       </div>
     </section>
 
+    <!-- ── JOB DETAIL EXPLORER ──────────────────────────────────────────────
+         SW bands / whom-to-target / tenure panel: computed from RAW_ROWS (main CSV).
+         Job detail table: computed from JOBDETAIL_ROWS (Job Extract CSV), with
+         reviewer name + TL joined from NRT_ROSTER for display only.
+    ─────────────────────────────────────────────────────────────────────── -->
+    <section id="tab-jobdetail" class="section">
+      <div class="ph">
+        <h1>Job Detail Explorer</h1>
+        <p>Job-level AHT investigation. Click any row below to filter the job table — filters stack.</p>
+      </div>
+
+      <!-- No-data state — shown when neither RAW_ROWS nor JOBDETAIL_ROWS available -->
+      <div id="jd-no-data" style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:2rem;text-align:center;color:var(--tm);font-size:13px">
+        Load the main CSV (for AHT bands) and the Job Extract CSV (for raw job detail) from <strong>Load Dataset</strong> to use this tab.
+        <div style="margin-top:12px">
+          <button onclick="showTab('upload', document.querySelector('.t-up'))" style="font-size:12px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);padding:6px 18px;cursor:pointer;font-family:var(--f)">Go to Load Dataset →</button>
+        </div>
+      </div>
+
+      <div id="jd-content" style="display:none">
+
+        <!-- SUB-WORKFLOW AHT BANDS -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <span style="font-size:9px;font-weight:800;background:var(--bbg);color:var(--blue);padding:2px 8px;border-radius:var(--pill)">Main CSV</span>
+          <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Sub-workflow AHT bands</span>
+          <span style="font-size:10px;color:var(--tm);margin-left:auto">Click a row to filter jobs below</span>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:20px;box-shadow:var(--shadow-card)">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:var(--sa)">
+              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Sub-workflow</th>
+              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Decisions</th>
+              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">AHT</th>
+              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Target</th>
+              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Δ vs target</th>
+              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Band</th>
+            </tr></thead>
+            <tbody id="jd-sw-tbody"></tbody>
+          </table>
+          <div id="jd-sw-empty" style="padding:20px;text-align:center;font-size:12px;color:var(--tm);font-style:italic;display:none">No sub-workflow data for the current filters.</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:20px;align-items:start">
+
+          <!-- WHOM TO TARGET -->
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              <span style="font-size:9px;font-weight:800;background:var(--bbg);color:var(--blue);padding:2px 8px;border-radius:var(--pill)">Main CSV</span>
+              <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Whom to target</span>
+              <span style="font-size:10px;color:var(--tm);margin-left:auto">min. 5 decisions · sorted by AHT</span>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
+              <div id="jd-reviewer-list"></div>
+              <div id="jd-reviewer-empty" style="padding:20px;text-align:center;font-size:12px;color:var(--tm);font-style:italic;display:none">No reviewers meet the minimum decision threshold for the current filters.</div>
+            </div>
+          </div>
+
+          <!-- TENURE STAT PANEL -->
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              <span style="font-size:9px;font-weight:800;background:var(--bbg);color:var(--blue);padding:2px 8px;border-radius:var(--pill)">Main CSV</span>
+              <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Is tenure driving this?</span>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:12px;font-size:12px;line-height:1.6;box-shadow:var(--shadow-card)">
+              <div id="jd-tenure-rows"></div>
+              <div id="jd-tenure-empty" style="text-align:center;font-size:12px;color:var(--tm);font-style:italic;display:none">No tenure data available.</div>
+              <div id="jd-tenure-summary" style="margin-top:6px;padding-top:8px;border-top:1px solid var(--divider);font-size:11px;color:var(--ts)"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- JOB DETAIL TABLE -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <span style="font-size:9px;font-weight:800;background:var(--psec);color:var(--purple);padding:2px 8px;border-radius:var(--pill)">Job Extract CSV</span>
+          <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Job detail</span>
+        </div>
+        <div id="jd-chips" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:11px">
+              <thead>
+                <tr style="background:var(--sa)">
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('jid')">Job ID</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('date')">Date</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('reviewer')">Reviewer</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('tl')">TL</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('sw')">SW</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('decision')">Decision</th>
+                  <th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" id="jd-th-aht" onclick="jdSort('aht')">AHT (s)</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Notes</th>
+                </tr>
+              </thead>
+              <tbody id="jd-job-tbody"></tbody>
+            </table>
+          </div>
+          <div id="jd-job-empty" style="padding:20px;text-align:center;font-size:12px;color:var(--tm);font-style:italic;display:none">No jobs match the current filters.</div>
+          <div id="jd-job-pagination" style="display:flex;align-items:center;gap:8px;padding:10px;font-size:12px;color:var(--ts);border-top:1px solid var(--divider)"></div>
+        </div>
+
+      </div>
+    </section>
+
     <!-- ── DEFECT INTELLIGENCE ───────────────────────────────────────────── -->
     <section id="tab-defint" class="section">
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
@@ -1867,7 +1974,7 @@ tr:hover td{background:#F8F9FB}
 
 
       <!-- ONE-ROW UPLOAD STRIP -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:1.25rem;align-items:stretch">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:1.25rem;align-items:stretch">
 
         <!-- COMBINED INSTRUCTIONS -->
         <div style="background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:1.25rem">
@@ -1900,6 +2007,17 @@ tr:hover td{background:#F8F9FB}
           <input type="file" id="misc-file-input" accept=".csv" onchange="miscHandleUpload(this)" style="display:none">
           <div id="misc-up-ok"  style="margin-top:8px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
           <div id="misc-up-err" style="margin-top:8px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
+        </div>
+
+        <!-- JOB EXTRACT (job-level AHT detail) UPLOAD -->
+        <div class="up-panel" id="jobdetail-dropzone" onclick="document.getElementById('jobdetail-file-input').click()" style="margin-bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;border-color:var(--pbd)">
+          <div style="font-size:24px;margin-bottom:6px">&#128203;</div>
+          <div style="font-size:13px;font-weight:800;color:var(--text)">Drop Job Extract CSV here</div>
+          <div style="font-size:11px;color:var(--tm);margin-top:3px;text-align:center">Job-level detail &middot; job_id, sub_workflow, actor_id, decision_handle_time_sec</div>
+          <div id="jobdetail-load-status" style="margin-top:6px;font-size:11px;color:var(--tm)">No file loaded</div>
+          <input type="file" id="jobdetail-file-input" accept=".csv" onchange="jobDetailHandleUpload(this)" style="display:none">
+          <div id="jobdetail-up-ok"  style="margin-top:8px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
+          <div id="jobdetail-up-err" style="margin-top:8px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
         </div>
 
       </div>
@@ -3214,6 +3332,7 @@ function renderActiveTab() {
     if(activeId === 'tab-nrt') renderNRTQA();
     if(activeId === 'tab-nrt-aht') renderNRTAHT();
     if(activeId === 'tab-incentive') renderIncentive();
+    if(activeId === 'tab-jobdetail') renderJobDetail();
 }
 
 function filterRows(rows, tls, tenures, sws, workflows, roles, reviewTypes) {
@@ -17113,6 +17232,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Job Extract (job-level AHT detail) drop zone
+    const dzJobDetail = document.getElementById('jobdetail-dropzone');
+    if (dzJobDetail) {
+        dzJobDetail.addEventListener('dragover',  e => { e.preventDefault(); dzJobDetail.style.borderColor='var(--purple)'; });
+        dzJobDetail.addEventListener('dragleave', () => { dzJobDetail.style.borderColor=''; });
+        dzJobDetail.addEventListener('drop', e => {
+            e.preventDefault(); dzJobDetail.style.borderColor='';
+            const file = e.dataTransfer.files[0];
+            if (file) { const input = document.getElementById('jobdetail-file-input'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; window.jobDetailHandleUpload(input); }
+        });
+    }
+
     // NRT Precision drop zone
     const dzNrtPrec = document.getElementById('nrt-file-input')?.closest('.up-panel');
     if(dzNrtPrec) {
@@ -17896,6 +18027,520 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
 })();
+
+// ─── JOB DETAIL EXPLORER ──────────────────────────────────────────────────────
+// SW bands / whom-to-target / tenure panel: computed from RAW_ROWS (main CSV) —
+// reuses filterRows/getBandTargets/assignBand exactly as elsewhere in the app.
+// Job detail table: computed from JOBDETAIL_ROWS (Job Extract CSV). Reviewer/TL
+// name is joined from NRT_ROSTER (actor_id -> srtid) for DISPLAY ONLY — SW,
+// decision, AHT, and notes always come straight from the Job Extract row.
+(function() {
+
+    let JOBDETAIL_ROWS = [];   // {jid, date, actorId, sw, decision, aht, notes}
+    let JD_SORT = { col: 'aht', dir: 'desc' };
+    let JD_PAGE = 1;
+    const JD_PAGE_SIZE = 50;
+    const JD_MIN_DECISIONS = 5; // minimum decisions for a reviewer to appear in "Whom to target"
+
+    // Click-through filter state — stacks across panels (SW, reviewer, tenure).
+    // Each key maps to a Set of allowed values for that dimension in the job table.
+    let JD_FILTERS = { sw: null, reviewer: null, tenure: null };
+
+    // ── CSV parsing ──────────────────────────────────────────────────────────
+    // The shared parseCSVRow() elsewhere in this file toggles quote-state on
+    // every literal '"', which breaks on this file's review_notes column: it's
+    // a CSV-quoted field containing a JSON object, so it uses doubled quotes
+    // ("") to escape internal quotes per RFC4180. The shared parser strips all
+    // quote characters instead of un-escaping them, corrupting the JSON. This
+    // is a dedicated, correct quoted-field parser used only for this CSV.
+    function jdParseCSVRow(text) {
+        const ret = [];
+        let inQ = false, val = '', i = 0;
+        const len = text.length;
+        while (i < len) {
+            const c = text[i];
+            if (inQ) {
+                if (c === '"') {
+                    if (text[i + 1] === '"') { val += '"'; i += 2; continue; }
+                    inQ = false; i++; continue;
+                }
+                val += c; i++; continue;
+            } else {
+                if (c === '"') { inQ = true; i++; continue; }
+                if (c === ',') { ret.push(val); val = ''; i++; continue; }
+                val += c; i++; continue;
+            }
+        }
+        ret.push(val);
+        return ret;
+    }
+
+    // Extracts the human-written value(s) out of the Job Extract's JSON-ish
+    // review_notes blob, e.g. {"Notes (optional)...":"nv","Review_Assist Notes":"..."}
+    // Falls back to the raw string if it doesn't parse as JSON.
+    function jdCleanNotes(raw) {
+        if (!raw) return '';
+        raw = raw.trim();
+        if (!raw) return '';
+        try {
+            const obj = JSON.parse(raw);
+            const parts = [];
+            const walk = (v) => {
+                if (v == null) return;
+                if (Array.isArray(v)) { v.forEach(walk); return; }
+                if (typeof v === 'object') { Object.values(v).forEach(walk); return; }
+                const s = String(v).trim();
+                if (s) parts.push(s);
+            };
+            walk(obj);
+            // De-dupe consecutive identical fragments (common in this export)
+            const seen = new Set();
+            const uniq = parts.filter(p => { const k = p.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+            return uniq.join(' · ');
+        } catch (e) {
+            return raw;
+        }
+    }
+
+    function jdParseCSV(text) {
+        const lines = text.replace(/\r/g, '').trim().split('\n');
+        if (!lines.length) return [];
+        const hdrs = jdParseCSVRow(lines[0]);
+        const idx = {};
+        hdrs.forEach((h, i) => { idx[h.trim().toLowerCase()] = i; });
+        const need = ['job_id', 'report_date', 'sub_workflow', 'actor_id', 'highest_severity_decision', 'decision_handle_time_sec'];
+        const missing = need.filter(k => idx[k] === undefined);
+        if (missing.length) throw new Error('Missing columns: ' + missing.join(', '));
+
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+            const raw = lines[i];
+            if (!raw.trim()) continue;
+            const v = jdParseCSVRow(raw);
+            const jid = (v[idx['job_id']] || '').trim();
+            const actorId = (v[idx['actor_id']] || '').trim();
+            if (!jid || !actorId) continue;
+            const aht = parseFloat(v[idx['decision_handle_time_sec']]);
+            rows.push({
+                jid,
+                date: parseDateToYMD(v[idx['report_date']] || ''),
+                sw: (v[idx['sub_workflow']] || '').trim(),
+                workflow: (v[idx['workflow']] !== undefined ? v[idx['workflow']] : '').trim(),
+                actorId,
+                decision: (v[idx['highest_severity_decision']] || '').trim(),
+                aht: isNaN(aht) ? null : aht,
+                notes: jdCleanNotes(v[idx['review_notes']] || '')
+            });
+        }
+        return rows;
+    }
+
+    window.jobDetailHandleUpload = function(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const okEl = document.getElementById('jobdetail-up-ok');
+        const errEl = document.getElementById('jobdetail-up-err');
+        okEl.style.display = errEl.style.display = 'none';
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const rows = jdParseCSV(e.target.result);
+                if (!rows.length) throw new Error('No rows found. Check that the file is the Job Extract CSV.');
+                JOBDETAIL_ROWS = rows;
+                JD_PAGE = 1;
+                JD_FILTERS = { sw: null, reviewer: null, tenure: null };
+                const statusEl = document.getElementById('jobdetail-load-status');
+                if (statusEl) statusEl.innerHTML = `<span style="color:var(--teal);font-weight:700">\u2713 ${rows.length.toLocaleString()} job${rows.length !== 1 ? 's' : ''} loaded</span>`;
+                okEl.textContent = `\u2713 Loaded ${rows.length.toLocaleString()} job${rows.length !== 1 ? 's' : ''}`;
+                okEl.style.display = 'block';
+                if (document.getElementById('tab-jobdetail').classList.contains('on')) renderJobDetail();
+            } catch (err) {
+                errEl.textContent = '\u2715 Parse error: ' + err.message;
+                errEl.style.display = 'block';
+            }
+        };
+        reader.readAsText(file, 'utf-8');
+    };
+
+    // ── Roster join (display only) ───────────────────────────────────────────
+    // NRT_ROSTER is a top-level `let` elsewhere in this script — not on window —
+    // so it's referenced directly here (same script scope), with a safe fallback
+    // in case the roster hasn't been declared yet at parse time in any edge case.
+    function jdRosterMap() {
+        const m = {};
+        const roster = (typeof NRT_ROSTER !== 'undefined') ? NRT_ROSTER : [];
+        roster.forEach(r => { if (r.srtid) m[r.srtid] = r; });
+        return m;
+    }
+
+    // ── SW bands (from RAW_ROWS / main CSV) ──────────────────────────────────
+    function jdBuildSWBands(rows) {
+        const groups = {};
+        rows.forEach(r => {
+            if (!r.sw || !r.dht) return;
+            const key = r.sw;
+            if (!groups[key]) groups[key] = { sw: r.sw, workflow: r.workflow, decisions: 0, ahtSum: 0 };
+            groups[key].decisions += r.decisions || 0;
+            groups[key].ahtSum += (r.dht || 0) * (r.decisions || 0);
+        });
+        return Object.values(groups)
+            .filter(g => g.decisions > 0)
+            .map(g => {
+                const aht = g.ahtSum / g.decisions;
+                const bandObj = getBandTargets(g.workflow, g.sw, 'AHT');
+                const band = assignBand(aht, bandObj, true);
+                const target = bandObj ? bandObj.ach : null;
+                const delta = target !== null ? aht - target : null;
+                const deltaPct = (target !== null && target > 0) ? (delta / target) * 100 : null;
+                return { sw: g.sw, workflow: g.workflow, decisions: g.decisions, aht, target, delta, deltaPct, band };
+            })
+            .sort((a, b) => b.aht - a.aht);
+    }
+
+    const JD_BAND_LABEL = { exc: 'Exceeding', ach: 'Achieving', app: 'Approaching', ni: 'Needs improvement' };
+    const JD_BAND_COLOR = {
+        exc: { bg: 'var(--bsec)', fg: 'var(--blue)' },
+        ach: { bg: 'var(--gsec)', fg: 'var(--green)' },
+        app: { bg: 'var(--asec)', fg: 'var(--amber)' },
+        ni:  { bg: 'var(--csec)', fg: 'var(--coral)' }
+    };
+
+    function jdBandTag(band) {
+        if (!band) return '<span style="color:var(--tm)">—</span>';
+        const c = JD_BAND_COLOR[band] || JD_BAND_COLOR.app;
+        return `<span style="background:${c.bg};color:${c.fg};font-weight:700;font-size:10px;padding:2px 8px;border-radius:var(--pill)">${JD_BAND_LABEL[band] || band}</span>`;
+    }
+
+    function jdBandTagSmall(band) {
+        if (!band) return '<span style="color:var(--tm)">—</span>';
+        const c = JD_BAND_COLOR[band] || JD_BAND_COLOR.app;
+        const short = { exc: 'EXC', ach: 'ACH', app: 'APP', ni: 'NI' }[band] || band;
+        return `<span style="background:${c.bg};color:${c.fg};font-weight:700;font-size:9px;padding:1px 6px;border-radius:var(--pill)">${short}</span>`;
+    }
+
+    function fmtSec(v) {
+        if (v === null || v === undefined || isNaN(v)) return '—';
+        return Math.round(v) + 's';
+    }
+    function fmtDelta(delta, pct) {
+        if (delta === null || delta === undefined || isNaN(delta)) return '—';
+        const sign = delta >= 0 ? '+' : '';
+        const pctStr = (pct !== null && !isNaN(pct)) ? ` (${sign}${Math.round(pct)}%)` : '';
+        return `${sign}${Math.round(delta)}s${pctStr}`;
+    }
+
+    function jdRenderSWTable(bands) {
+        const tbody = document.getElementById('jd-sw-tbody');
+        const emptyEl = document.getElementById('jd-sw-empty');
+        if (!bands.length) {
+            tbody.innerHTML = '';
+            emptyEl.style.display = 'block';
+            return;
+        }
+        emptyEl.style.display = 'none';
+        tbody.innerHTML = bands.map(b => {
+            const deltaColor = b.delta === null ? 'var(--ts)' : (b.delta > 0 ? 'var(--coral)' : 'var(--green)');
+            const active = JD_FILTERS.sw === b.sw;
+            return `<tr style="border-top:1px solid var(--divider);cursor:pointer;${active ? 'background:var(--sa)' : ''}" onclick="jdToggleSWFilter('${b.sw.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--sa)'" onmouseout="this.style.background='${active ? 'var(--sa)' : ''}'">
+                <td style="padding:7px 10px;font-weight:600;color:var(--blue);text-decoration:underline">${b.sw}</td>
+                <td style="padding:7px 10px;text-align:right;font-family:var(--m)">${b.decisions.toLocaleString()}</td>
+                <td style="padding:7px 10px;text-align:right;font-family:var(--m);font-weight:700">${fmtSec(b.aht)}</td>
+                <td style="padding:7px 10px;text-align:right;font-family:var(--m);color:var(--tm)">${b.target !== null ? '≤' + fmtSec(b.target) : '—'}</td>
+                <td style="padding:7px 10px;text-align:right;font-family:var(--m);font-weight:700;color:${deltaColor}">${fmtDelta(b.delta, b.deltaPct)}</td>
+                <td style="padding:7px 10px">${jdBandTag(b.band)}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    window.jdToggleSWFilter = function(sw) {
+        JD_FILTERS.sw = (JD_FILTERS.sw === sw) ? null : sw;
+        JD_PAGE = 1;
+        renderJobDetail();
+    };
+
+    // ── Whom to target (reviewer, from RAW_ROWS) ─────────────────────────────
+    function jdBuildReviewerPanel(rows) {
+        const rosterMap = jdRosterMap();
+        const byReviewer = {};
+        rows.forEach(r => {
+            if (!r.sw || !r.dht || !r.reviewer) return;
+            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviewer: r.reviewer, decisions: 0, ahtSum: 0, bySW: {} };
+            const g = byReviewer[r.reviewer];
+            g.decisions += r.decisions || 0;
+            g.ahtSum += (r.dht || 0) * (r.decisions || 0);
+            if (!g.bySW[r.sw]) g.bySW[r.sw] = { sw: r.sw, workflow: r.workflow, decisions: 0, ahtSum: 0 };
+            const sg = g.bySW[r.sw];
+            sg.decisions += r.decisions || 0;
+            sg.ahtSum += (r.dht || 0) * (r.decisions || 0);
+        });
+        return Object.values(byReviewer)
+            .filter(g => g.decisions >= JD_MIN_DECISIONS)
+            .map(g => {
+                const aht = g.ahtSum / g.decisions;
+                const swList = Object.values(g.bySW).map(sg => {
+                    const swAht = sg.ahtSum / sg.decisions;
+                    const bandObj = getBandTargets(sg.workflow, sg.sw, 'AHT');
+                    const band = assignBand(swAht, bandObj, true);
+                    return { sw: sg.sw, decisions: sg.decisions, aht: swAht, band };
+                }).sort((a, b) => b.aht - a.aht);
+                const rosterHit = rosterMap[g.reviewer] || null;
+                return { reviewer: g.reviewer, name: rosterHit ? rosterHit.name : g.reviewer, decisions: g.decisions, aht, swList };
+            })
+            .sort((a, b) => b.aht - a.aht);
+    }
+
+    function jdRenderReviewerPanel(reviewers) {
+        const wrap = document.getElementById('jd-reviewer-list');
+        const emptyEl = document.getElementById('jd-reviewer-empty');
+        if (!reviewers.length) {
+            wrap.innerHTML = '';
+            emptyEl.style.display = 'block';
+            return;
+        }
+        emptyEl.style.display = 'none';
+        wrap.innerHTML = reviewers.map((rv, i) => {
+            const active = JD_FILTERS.reviewer === rv.reviewer;
+            const multiSW = rv.swList.length > 1;
+            const swRows = rv.swList.map(sg => {
+                const swActive = active && JD_FILTERS.sw === sg.sw;
+                return `<div style="padding:5px 10px 5px 22px;border-top:1px solid var(--divider);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:11px;${swActive ? 'background:var(--sa)' : ''}" onclick="event.stopPropagation();jdSelectReviewerSW('${rv.reviewer.replace(/'/g, "\\'")}','${sg.sw.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--sa)'" onmouseout="this.style.background='${swActive ? 'var(--sa)' : ''}'">
+                    <span style="color:var(--blue);text-decoration:underline">${sg.sw}</span>
+                    <span style="font-family:var(--m);color:var(--ts)">N=${sg.decisions.toLocaleString()} &middot; <span style="font-weight:700;color:var(--text)">${fmtSec(sg.aht)}</span> ${jdBandTagSmall(sg.band)}</span>
+                </div>`;
+            }).join('');
+            return `<div>
+                <div style="padding:8px 10px;cursor:pointer;background:var(--sa);${active && !JD_FILTERS.sw ? 'box-shadow:inset 2px 0 0 var(--blue)' : ''}${i > 0 ? 'border-top:1px solid var(--divider)' : ''}" onclick="jdSelectReviewer('${rv.reviewer.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--divider)'" onmouseout="this.style.background='var(--sa)'">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <span style="font-weight:700;color:var(--blue);text-decoration:underline">${rv.name}</span>
+                        <span style="font-family:var(--m);font-size:11px;color:var(--ts)">N=${rv.decisions.toLocaleString()} &middot; <span style="font-weight:700;color:var(--text)">${fmtSec(rv.aht)} avg</span>${multiSW ? ` <span style="background:var(--sa);border:1px solid var(--border);color:var(--tm);font-size:9px;font-weight:700;padding:1px 6px;border-radius:var(--pill);margin-left:4px">${rv.swList.length} SWs</span>` : ''}</span>
+                    </div>
+                </div>
+                ${swRows}
+            </div>`;
+        }).join('');
+    }
+
+    window.jdSelectReviewer = function(reviewer) {
+        const already = JD_FILTERS.reviewer === reviewer && !JD_FILTERS.sw;
+        JD_FILTERS.reviewer = already ? null : reviewer;
+        JD_FILTERS.sw = null;
+        JD_PAGE = 1;
+        renderJobDetail();
+    };
+    window.jdSelectReviewerSW = function(reviewer, sw) {
+        const already = JD_FILTERS.reviewer === reviewer && JD_FILTERS.sw === sw;
+        if (already) { JD_FILTERS.reviewer = null; JD_FILTERS.sw = null; }
+        else { JD_FILTERS.reviewer = reviewer; JD_FILTERS.sw = sw; }
+        JD_PAGE = 1;
+        renderJobDetail();
+    };
+
+    // ── Tenure stat panel (from RAW_ROWS) ────────────────────────────────────
+    function jdBuildTenurePanel(rows) {
+        const byTenure = {};
+        rows.forEach(r => {
+            if (!r.sw || !r.dht || !r.tenure) return;
+            if (!byTenure[r.tenure]) byTenure[r.tenure] = { tenure: r.tenure, decisions: 0, ahtSum: 0 };
+            byTenure[r.tenure].decisions += r.decisions || 0;
+            byTenure[r.tenure].ahtSum += (r.dht || 0) * (r.decisions || 0);
+        });
+        return Object.values(byTenure)
+            .filter(g => g.decisions > 0)
+            .map(g => ({ tenure: g.tenure, decisions: g.decisions, aht: g.ahtSum / g.decisions }))
+            .sort((a, b) => b.aht - a.aht);
+    }
+
+    function jdRenderTenurePanel(buckets) {
+        const wrap = document.getElementById('jd-tenure-rows');
+        const emptyEl = document.getElementById('jd-tenure-empty');
+        const summaryEl = document.getElementById('jd-tenure-summary');
+        if (!buckets.length) {
+            wrap.innerHTML = '';
+            summaryEl.innerHTML = '';
+            emptyEl.style.display = 'block';
+            return;
+        }
+        emptyEl.style.display = 'none';
+        const maxAht = Math.max(...buckets.map(b => b.aht));
+        wrap.innerHTML = buckets.map(b => {
+            const active = JD_FILTERS.tenure === b.tenure;
+            const pct = maxAht > 0 ? Math.max(6, (b.aht / maxAht) * 100) : 0;
+            const color = b.aht === maxAht ? 'var(--cbd,#FCA5A5)' : (b.aht === Math.min(...buckets.map(x=>x.aht)) ? 'var(--gbd,#86EFAC)' : 'var(--abd,#FCD34D)');
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;${active ? 'background:var(--sa)' : ''}" onclick="jdToggleTenureFilter('${b.tenure.replace(/'/g, "\\'")}')" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                <span style="width:70px;flex-shrink:0;color:var(--blue);text-decoration:underline;font-weight:600">${b.tenure}</span>
+                <div style="flex:1;background:var(--sa);border-radius:4px;height:14px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${color};border-radius:4px"></div></div>
+                <span style="font-family:var(--m);font-weight:700;min-width:70px;text-align:right">${fmtSec(b.aht)} <span style="color:var(--tm);font-weight:400">(N=${b.decisions.toLocaleString()})</span></span>
+            </div>`;
+        }).join('');
+        if (buckets.length > 1) {
+            const worst = buckets[0], best = buckets[buckets.length - 1];
+            const ratio = best.aht > 0 ? (worst.aht / best.aht) : null;
+            summaryEl.textContent = ratio ? `${worst.tenure} reviewers run ${ratio.toFixed(1)}x the ${best.tenure} cohort.` : '';
+        } else {
+            summaryEl.textContent = '';
+        }
+    }
+
+    window.jdToggleTenureFilter = function(tenure) {
+        JD_FILTERS.tenure = (JD_FILTERS.tenure === tenure) ? null : tenure;
+        JD_PAGE = 1;
+        renderJobDetail();
+    };
+
+    // ── Job detail table (from JOBDETAIL_ROWS / Job Extract CSV) ─────────────
+    // Reviewer/tenure filters (set from the main-CSV panels above) are matched
+    // against the Job Extract via the roster join on actor_id, since the Job
+    // Extract itself has no reviewer-name or tenure column of its own.
+    function jdFilteredJobs() {
+        const rosterMap = jdRosterMap();
+        let rows = JOBDETAIL_ROWS;
+        if (JD_FILTERS.sw) rows = rows.filter(r => r.sw === JD_FILTERS.sw);
+        if (JD_FILTERS.reviewer) rows = rows.filter(r => r.actorId === JD_FILTERS.reviewer);
+        if (JD_FILTERS.tenure) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && hit.tenure === JD_FILTERS.tenure; });
+        return rows;
+    }
+
+    window.jdSort = function(col) {
+        if (JD_SORT.col === col) JD_SORT.dir = (JD_SORT.dir === 'asc') ? 'desc' : 'asc';
+        else { JD_SORT.col = col; JD_SORT.dir = (col === 'aht') ? 'desc' : 'asc'; }
+        JD_PAGE = 1;
+        renderJobDetail();
+    };
+
+    function jdSortRows(rows) {
+        const { col, dir } = JD_SORT;
+        const mul = dir === 'asc' ? 1 : -1;
+        const rosterMap = jdRosterMap();
+        return rows.slice().sort((a, b) => {
+            let av, bv;
+            if (col === 'reviewer' || col === 'tl') {
+                const ra = rosterMap[a.actorId], rb = rosterMap[b.actorId];
+                av = col === 'reviewer' ? (ra ? ra.name : a.actorId) : (ra ? ra.tl : '');
+                bv = col === 'reviewer' ? (rb ? rb.name : b.actorId) : (rb ? rb.tl : '');
+            } else if (col === 'aht') {
+                av = a.aht === null ? -Infinity : a.aht;
+                bv = b.aht === null ? -Infinity : b.aht;
+                return (av - bv) * mul;
+            } else {
+                av = a[col] || '';
+                bv = b[col] || '';
+            }
+            if (av < bv) return -1 * mul;
+            if (av > bv) return 1 * mul;
+            return 0;
+        });
+    }
+
+    function jdRenderChips() {
+        const wrap = document.getElementById('jd-chips');
+        const chips = [];
+        if (JD_FILTERS.sw) chips.push(['SW', JD_FILTERS.sw, () => { JD_FILTERS.sw = null; JD_PAGE = 1; renderJobDetail(); }]);
+        if (JD_FILTERS.reviewer) {
+            const rosterMap = jdRosterMap();
+            const hit = rosterMap[JD_FILTERS.reviewer];
+            chips.push(['Reviewer', hit ? hit.name : JD_FILTERS.reviewer, () => { JD_FILTERS.reviewer = null; JD_FILTERS.sw = null; JD_PAGE = 1; renderJobDetail(); }]);
+        }
+        if (JD_FILTERS.tenure) chips.push(['Tenure', JD_FILTERS.tenure, () => { JD_FILTERS.tenure = null; JD_PAGE = 1; renderJobDetail(); }]);
+
+        if (!chips.length) { wrap.innerHTML = '<span style="font-size:11px;color:var(--tm)">No filters applied — showing all jobs.</span>'; return; }
+
+        wrap.innerHTML = chips.map((c, i) =>
+            `<span style="font-size:11px;font-weight:700;background:var(--bsec);color:var(--blue);padding:3px 10px;border-radius:var(--pill);display:inline-flex;align-items:center;gap:6px">${c[0]}: ${c[1]} <span style="cursor:pointer;font-weight:800" onclick="jdClearChip(${i})">✕</span></span>`
+        ).join('') + `<span style="font-size:10px;color:var(--blue);font-weight:700;cursor:pointer;margin-left:4px" onclick="jdClearAllChips()">Clear all</span>`;
+
+        wrap.dataset.chipActions = '1';
+        window._jdChipActions = chips.map(c => c[2]);
+    }
+    window.jdClearChip = function(i) { if (window._jdChipActions && window._jdChipActions[i]) window._jdChipActions[i](); };
+    window.jdClearAllChips = function() {
+        JD_FILTERS = { sw: null, reviewer: null, tenure: null };
+        JD_PAGE = 1;
+        renderJobDetail();
+    };
+
+    function jdRenderJobTable() {
+        const rosterMap = jdRosterMap();
+        const filtered = jdSortRows(jdFilteredJobs());
+        const tbody = document.getElementById('jd-job-tbody');
+        const emptyEl = document.getElementById('jd-job-empty');
+        const pgEl = document.getElementById('jd-job-pagination');
+        const thAht = document.getElementById('jd-th-aht');
+        if (thAht) thAht.textContent = 'AHT (s) ' + (JD_SORT.col === 'aht' ? (JD_SORT.dir === 'asc' ? '▲' : '▼') : '');
+
+        if (!filtered.length) {
+            tbody.innerHTML = '';
+            emptyEl.style.display = 'block';
+            pgEl.innerHTML = '';
+            return;
+        }
+        emptyEl.style.display = 'none';
+
+        const totalPages = Math.max(1, Math.ceil(filtered.length / JD_PAGE_SIZE));
+        if (JD_PAGE > totalPages) JD_PAGE = totalPages;
+        const start = (JD_PAGE - 1) * JD_PAGE_SIZE;
+        const pageRows = filtered.slice(start, start + JD_PAGE_SIZE);
+
+        tbody.innerHTML = pageRows.map(r => {
+            const hit = rosterMap[r.actorId];
+            const name = hit ? hit.name : r.actorId;
+            const tl = hit ? (hit.tl || '—') : '—';
+            const bandObj = getBandTargets(r.workflow, r.sw, 'AHT');
+            const band = assignBand(r.aht, bandObj, true);
+            return `<tr style="border-top:1px solid var(--divider)">
+                <td style="padding:6px 8px;font-family:var(--m);user-select:all;cursor:text">${r.jid}</td>
+                <td style="padding:6px 8px;font-family:var(--m)">${r.date || '—'}</td>
+                <td style="padding:6px 8px;user-select:all;cursor:text">${name}</td>
+                <td style="padding:6px 8px;color:var(--ts)">${tl}</td>
+                <td style="padding:6px 8px;color:var(--ts)">${r.sw || '—'}</td>
+                <td style="padding:6px 8px">${r.decision || '—'}</td>
+                <td style="padding:6px 8px;text-align:right;font-family:var(--m);font-weight:700${band ? `;color:${(JD_BAND_COLOR[band]||{}).fg||'var(--text)'}` : ''}">${r.aht === null ? '—' : Math.round(r.aht)}</td>
+                <td style="padding:6px 8px;color:var(--ts);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;cursor:text" title="${(r.notes||'').replace(/"/g,'&quot;')}">${r.notes || '—'}</td>
+            </tr>`;
+        }).join('');
+
+        pgEl.innerHTML = filtered.length <= JD_PAGE_SIZE ? '' :
+            `<span style="color:var(--tm)">Page ${JD_PAGE} of ${totalPages} · ${filtered.length.toLocaleString()} jobs</span>
+             <button onclick="jdChangePage(-1)" style="padding:3px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--sa);cursor:pointer;font-family:var(--f);font-size:11px" ${JD_PAGE===1?'disabled':''}>‹ Prev</button>
+             <button onclick="jdChangePage(1)"  style="padding:3px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--sa);cursor:pointer;font-family:var(--f);font-size:11px" ${JD_PAGE===totalPages?'disabled':''}>Next ›</button>`;
+    }
+    window.jdChangePage = function(delta) {
+        JD_PAGE += delta;
+        jdRenderJobTable();
+    };
+
+    // ── Main render entry point ──────────────────────────────────────────────
+    window.renderJobDetail = function() {
+        const hasMain = (typeof RAW_ROWS !== 'undefined' && RAW_ROWS.length > 0);
+        const hasJobs = JOBDETAIL_ROWS.length > 0;
+        const noDataEl = document.getElementById('jd-no-data');
+        const contentEl = document.getElementById('jd-content');
+        if (!hasMain && !hasJobs) {
+            noDataEl.style.display = 'block';
+            contentEl.style.display = 'none';
+            return;
+        }
+        noDataEl.style.display = 'none';
+        contentEl.style.display = 'block';
+
+        if (hasMain) {
+            const tls = getSel('g-tl'), tenures = getSel('g-tenure'), sws = getSel('g-sw'),
+                  workflows = getSel('g-workflow'), roles = getSel('g-role'), reviewTypes = getSel('g-review-type');
+            const rows = filterRows(RAW_ROWS, tls, tenures, sws, workflows, roles, reviewTypes);
+            jdRenderSWTable(jdBuildSWBands(rows));
+            jdRenderReviewerPanel(jdBuildReviewerPanel(rows));
+            jdRenderTenurePanel(jdBuildTenurePanel(rows));
+        } else {
+            jdRenderSWTable([]);
+            jdRenderReviewerPanel([]);
+            jdRenderTenurePanel([]);
+        }
+
+        jdRenderChips();
+        jdRenderJobTable();
+    };
+
+})();
+
 // ─── DEFECT INTELLIGENCE ──────────────────────────────────────────────────────
 
 let _diAllRows         = [];
