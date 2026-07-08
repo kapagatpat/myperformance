@@ -122,6 +122,7 @@ select,input{font-family:var(--f);font-size:11px;padding:4px 7px;border:1px soli
 .fbar.tab-team .dyn-reviewer,
 .fbar.tab-drill .dyn-reviewer,
 .fbar.tab-cp .dyn-reviewer,
+.fbar.tab-rca-explorer .dyn-reviewer,
 .fbar.tab-jobdetail .dyn-reviewer { display: block !important; }
 
 /* Quality Type only on exec */
@@ -460,8 +461,8 @@ tr:hover td{background:#F8F9FB}
         <span class="flbl">TL</span>
         <select id="g-tl" multiple data-label="TLs" onchange="handleSWChange()"></select>
 
-        <div class="fdiv dyn-item dyn-reviewer" style="display:none!important"></div>
-        <span class="flbl dyn-item dyn-reviewer" style="display:none!important">Reviewer</span>
+        <div class="fdiv dyn-item dyn-reviewer"></div>
+        <span class="flbl dyn-item dyn-reviewer">Reviewer</span>
         <select id="g-reviewer" class="ms-hidden" onchange="renderActiveTab()"></select>
 
         <div class="fdiv"></div>
@@ -1081,25 +1082,12 @@ tr:hover td{background:#F8F9FB}
       <!-- Main content — hidden until data loaded -->
       <div id="rca-content" style="display:none">
 
-        <!-- Filter strip -->
+        <!-- Filter strip — Scope toggle only. Supervisor/Reviewer/SW/Month
+             filtering now comes from the universal filter bar above (which
+             applies across the whole app) plus Job Log's own filter strip
+             below — having a third, RCA-only set of the same filters was
+             redundant and confusing. -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:12px 16px;margin-bottom:1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Supervisor</label>
-            <select id="rca-f-sup" onchange="renderRCAExplorer()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:160px"><option value="">All Supervisors</option></select>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Reviewer</label>
-            <select id="rca-f-rv" onchange="renderRCAExplorer()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:160px"><option value="">All Reviewers</option></select>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Sub-workflow</label>
-            <select id="rca-f-sw" onchange="renderRCAExplorer()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All SWs</option></select>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Month</label>
-            <select id="rca-f-month" onchange="renderRCAExplorer()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:120px"><option value="">All Months</option></select>
-          </div>
-          <!-- Controllability toggle -->
           <div style="display:flex;flex-direction:column;gap:4px">
             <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Scope</label>
             <div style="display:flex;gap:4px">
@@ -1284,7 +1272,12 @@ tr:hover td{background:#F8F9FB}
               <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#FCA5A5;display:inline-block"></span>Needs improvement</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <span><strong>Team mix</strong> = one segment per TL, sized by their agent count on this SW. Each TL has a unique, consistent color; a diagonal hatch overlay marks the share of that TL's agents not meeting goal (denser hatch = higher share). Hover a segment for the TL's name and exact count.</span>
+              <span><strong>Team mix</strong> = one segment per TL, sized by their agent count on this SW. A diagonal hatch overlay marks the share of that TL's agents not meeting goal (denser hatch = higher share). Hover a segment for the TL's name and exact count.</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#1E3A8A;display:inline-block"></span>Kwon</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#7F1D1D;display:inline-block"></span>Wen Jie</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#EA580C;display:inline-block"></span>Apple</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#6D28D9;display:inline-block"></span>Karl</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#9CA3AF;display:inline-block"></span>Others</span>
             </div>
           </div>
         </div>
@@ -17427,6 +17420,48 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (key === 'rca3') miscMSCascadeRCA(4);
         miscRender();
     };
+    // Select exactly one value for a dimension (clearing any other selection)
+    // — used when the Pareto chart's bar click drives Job Log's filter, since
+    // clicking a bar should show only that category, not add to whatever was
+    // already selected.
+    window.miscMSSelectOnly = function(key, val) {
+        const cfg = MISC_MS[key];
+        if (!cfg) return false;
+        if (!cfg.values.includes(val)) return false;
+        cfg.selected = new Set([val]);
+        miscMSRebuildList(key);
+        miscMSUpdateLabel(key);
+        if (key === 'rca1') miscMSCascadeRCA(2);
+        else if (key === 'rca2') miscMSCascadeRCA(3);
+        else if (key === 'rca3') miscMSCascadeRCA(4);
+        miscRender();
+        return true;
+    };
+    // Local copy of RCA Explorer's normSW — that one is scoped to a different
+    // IIFE and isn't reachable from here. Kept in sync manually; if the SW
+    // aliasing rules change, update both copies.
+    function normSW(sw) {
+        if(!sw) return sw;
+        if(sw === 'World Review Reactive') return 'World Review';
+        if(sw === 'Underage Profile Review') return 'Underage';
+        return sw;
+    }
+
+    // The Pareto chart's SW bars are labeled with normSW()'d names, but Job
+    // Log's own sw filter holds raw (non-normalized) values — this resolves
+    // a normalized label back to whichever raw value(s) map to it, so
+    // rcaFilterJobLogByParetoBar can select the right thing. Returns the raw
+    // value if exactly one raw value maps to it, or the normalized label
+    // itself as a fallback (in case they happen to already match), or null
+    // if nothing in the current data maps to it at all.
+    window.miscMSResolveRawSW = function(normalizedLabel) {
+        const cfg = MISC_MS.sw;
+        if (!cfg) return null;
+        const matches = cfg.values.filter(v => normSW(v) === normalizedLabel);
+        if (matches.length === 1) return matches[0];
+        if (cfg.values.includes(normalizedLabel)) return normalizedLabel;
+        return matches.length ? matches[0] : null;
+    };
     function miscMSRebuildList(key) {
         const cfg = MISC_MS[key];
         const list = document.getElementById('misc-ms-list-' + key);
@@ -17513,6 +17548,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const d = parseDate(s);
         if (!d) return '';
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    }
+    // Snap a M/D/YYYY date forward to its week-ending Friday, formatted back
+    // as M/D/YYYY. Week-endings in this operation are always Friday — rather
+    // than trust whatever the source CSV's own week-ending column says (which
+    // can be wrong or inconsistent across exports), this derives it directly
+    // from the job's actual date every time.
+    function toWeekEndFriday(s) {
+        const d = parseDate(s);
+        if (!d) return '';
+        const dow = d.getDay(); // 0=Sun..6=Sat
+        const daysToFri = (5 - dow + 7) % 7;
+        const snapped = new Date(d.getFullYear(), d.getMonth(), d.getDate() + daysToFri);
+        return (snapped.getMonth()+1) + '/' + snapped.getDate() + '/' + snapped.getFullYear();
     }
     // For sorting dates stored as M/D/YYYY
     function dateSort(a, b) {
@@ -17645,7 +17693,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // recovered since the original byte is already gone by the time
             // this code runs, but is still normalised to — so at least the
             // surrounding text reads correctly even if the exact dash is lost.
-            return v.trim()
+            //
+            // Also collapses ALL whitespace variants to single ordinary
+            // spaces (non-breaking space \u00A0, tabs, double/triple internal
+            // spaces) before trimming — two values that look identical but
+            // differ only in whitespace (e.g. "Reviewer — Missed Violation"
+            // vs "Reviewer —  Missed Violation" with a double space) were
+            // bucketing as separate Pareto categories even though a person
+            // reading them sees the same label.
+            return v
+                .replace(/\u00A0/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
                 .replace(/›/g, '—')
                 .replace(/\x97/g, '—')
                 .replace(/–/g, '—')
@@ -17662,7 +17721,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!line.trim()) continue;
             const v = parseLine(line);
 
-            const rv = v[iRV] || lastRV;
+            const rv = clean(v[iRV]) || lastRV;
             const wk = (iWk >= 0 ? v[iWk] : '') || lastWk;
             if (v[iRV]) lastRV = rv;
             if (iWk >= 0 && v[iWk]) lastWk = wk;
@@ -17722,16 +17781,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const monthSrc = (iMonth >= 0 ? v[iMonth] : '') || '';
             rows.push({
                 rv:     rv,
-                sw:     v[iSW]  || '',
+                sw:     clean(v[iSW]),
                 jid:    (v[iJID] || '').replace(/^#/, '').trim(),
                 ajid:   (iAJID >= 0 ? v[iAJID] : '').replace(/^#/, '').trim(),
-                sup:    v[iSup]  || '',
+                sup:    clean(v[iSup]),
                 rvDec:  v[iRDec] || '',
                 auDec:  v[iADec] || '',
                 rvNote: extractNote(v[iRNot]),
                 auNote: extractNote(v[iANot]),
                 date:   date,
-                week:   wk,
+                week:   toWeekEndFriday(date) || wk,
                 month:  toMonthLabel(monthSrc),
                 monthKey: toMonthKey(monthSrc),
                 rca1:   clean(v[iRCA1]),
@@ -18237,8 +18296,7 @@ document.addEventListener('DOMContentLoaded', () => {
         JOBDETAIL_ROWS.forEach(job => {
             const rosterHit = rosterMap[job.actorId];
             const name = rosterHit ? rosterHit.name : null;
-            const wk = jdToWeekEndFriday(job.date);
-            const key = name ? (name + '||' + wk) : null;
+            const key = name ? (name + '||' + job.week) : null;
             const acc = key ? rvWeekAht[key] : null;
             job.aht = (acc && acc.dec > 0) ? (acc.dht + acc.nht) / acc.dec : null;
         });
@@ -18263,9 +18321,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const actorId = (v[idx['actor_id']] || '').trim();
             if (!jid || !actorId) continue;
             const dht = parseFloat(v[idx['decision_handle_time_sec']]);
+            const date = parseDateToYMD(v[idx['report_date']] || '');
             rows.push({
                 jid,
-                date: parseDateToYMD(v[idx['report_date']] || ''),
+                date,
+                // The Job Extract CSV has no dedicated month or week column —
+                // both are derived from the job's own report date. month is
+                // YYYY-MM (matching RAW_ROWS.month's format, so the universal
+                // month filter can apply here too); week snaps to the
+                // week-ending Friday (matching the convention used
+                // everywhere else — Job Log, jdBackfillRealAHT's join, etc.)
+                month: date ? date.slice(0, 7) : '',
+                week: jdToWeekEndFriday(date),
                 sw: (v[idx['sub_workflow']] || '').trim(),
                 workflow: (v[idx['workflow']] !== undefined ? v[idx['workflow']] : '').trim(),
                 actorId,
@@ -18401,7 +18468,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return total > 0 ? { exc: mix.exc/total, ach: mix.ach/total, app: mix.app/total, ni: mix.ni/total } : null;
         }
 
-        return Object.values(groups)
+        const result = Object.values(groups)
             .filter(g => g.decisions > 0)
             .map(g => {
                 const aht = g.timeSum / g.decisions;
@@ -18423,11 +18490,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).filter(v => v !== null);
 
                 return { sw: g.sw, workflow: g.workflow, decisions: g.decisions, aht, target, delta, deltaPct, band, reviewerMixPct, teamMixPct, teamAgents: g.byTeamAgents, spark };
-            })
-            .sort((a, b) => {
-                if (a.workflow !== b.workflow) return (a.workflow || '').localeCompare(b.workflow || '');
-                return b.aht - a.aht;
             });
+
+        // Default read order: workflows by total decision volume (highest
+        // first), sub-workflows within each workflow also by decisions
+        // (highest first) — this used to be alphabetical-by-workflow then
+        // AHT-descending, which buried the highest-volume work wherever it
+        // happened to fall alphabetically. Clicking a column header (jdSortSW)
+        // still re-sorts on top of this.
+        const workflowTotals = {};
+        result.forEach(r => { workflowTotals[r.workflow] = (workflowTotals[r.workflow] || 0) + r.decisions; });
+        result.sort((a, b) => {
+            const wfDiff = (workflowTotals[b.workflow] || 0) - (workflowTotals[a.workflow] || 0);
+            if (wfDiff !== 0) return wfDiff;
+            if (a.workflow !== b.workflow) return (a.workflow || '').localeCompare(b.workflow || '');
+            return b.decisions - a.decisions;
+        });
+        return result;
     }
 
     const JD_BAND_LABEL = { exc: 'Exceeding', ach: 'Achieving', app: 'Approaching', ni: 'Needs improvement' };
@@ -18498,16 +18577,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return perTL.length ? perTL : null;
     }
 
-    // Stable color per TL name — a simple string hash picked from a fixed
-    // palette, so the same TL name always maps to the same color across every
-    // row/SW in this table (not randomized per render).
-    const JD_TL_COLOR_PALETTE = ['#60A5FA','#34D399','#FBBF24','#F87171','#A78BFA','#F472B6','#38BDF8','#FB923C','#4ADE80','#818CF8','#FDE047','#FB7185'];
+    // Named color assignments per TL, per Karl. Matched case-insensitively
+    // against a substring of the TL's name (so "Kwon Lee" or "Kwon" both
+    // match the "kwon" rule) rather than requiring an exact full-name match,
+    // since the TL name as it appears in the data may include a surname or
+    // vary slightly from how Karl refers to them. Anyone not on this list
+    // gets a neutral grey — no hash-based palette anymore.
+    const JD_TL_NAMED_COLORS = [
+        { match: 'kwon',    color: '#1E3A8A' }, // dark blue
+        { match: 'wen jie', color: '#7F1D1D' }, // dark red
+        { match: 'apple',   color: '#EA580C' }, // orange
+        { match: 'karl',    color: '#6D28D9' }, // purple
+    ];
+    const JD_TL_DEFAULT_COLOR = '#9CA3AF'; // grey
     const _jdTLColorCache = {};
     function jdTLColor(tl) {
         if (_jdTLColorCache[tl]) return _jdTLColorCache[tl];
-        let hash = 0;
-        for (let i = 0; i < tl.length; i++) { hash = (hash * 31 + tl.charCodeAt(i)) >>> 0; }
-        const color = JD_TL_COLOR_PALETTE[hash % JD_TL_COLOR_PALETTE.length];
+        const lower = (tl || '').toLowerCase();
+        const hit = JD_TL_NAMED_COLORS.find(rule => lower.includes(rule.match));
+        const color = hit ? hit.color : JD_TL_DEFAULT_COLOR;
         _jdTLColorCache[tl] = color;
         return color;
     }
@@ -18808,13 +18896,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Universal filter bar
         const uSws = getSel('g-sw'), uWorkflows = getSel('g-workflow'),
-              uTls = getSel('g-tl'), uTenures = getSel('g-tenure');
+              uTls = getSel('g-tl'), uTenures = getSel('g-tenure'),
+              uMonths = getSelMonths();
 
         let rows = JOBDETAIL_ROWS;
         if (uSws.length) rows = rows.filter(r => uSws.includes(r.sw));
         if (uWorkflows.length) rows = rows.filter(r => uWorkflows.includes(r.workflow));
         if (uTls.length) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && uTls.includes(hit.tl); });
         if (uTenures.length) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && uTenures.includes(hit.tenure); });
+        if (uMonths.length) rows = rows.filter(r => uMonths.includes(r.month));
 
         // Click-through filters (stack on top)
         if (JD_FILTERS.sw) rows = rows.filter(r => r.sw === JD_FILTERS.sw);
@@ -22894,36 +22984,24 @@ function gpDecReqExpand(open) {
         return true;
     }
 
+    // Reads the universal filter bar instead of RCA Explorer's own filter
+    // strip (removed — it duplicated the universal bar and Job Log's own
+    // filters). TL and SW are multi-select up there; Reviewer is a single
+    // select; Month uses the shared month-pill state.
     function getFiltered() {
         const rows = window.RCA_ROWS || [];
-        const sup   = (document.getElementById('rca-f-sup')   ||{}).value   || '';
-        const rv    = (document.getElementById('rca-f-rv')    ||{}).value   || '';
-        const sw    = (document.getElementById('rca-f-sw')    ||{}).value   || '';
-        const month = (document.getElementById('rca-f-month') ||{}).value   || '';
+        const tls    = getSel('g-tl');
+        const rv     = (document.getElementById('g-reviewer') || {}).value || '';
+        const sws    = getSel('g-sw');
+        const months = getSelMonths();
         return rows.filter(r =>
-            (!sup   || r.sup === sup) &&
-            (!rv    || r.rv  === rv) &&
-            (!sw    || normSW(r.sw) === sw || r.sw === sw) &&
-            (!month || r.month === month || r.monthKey === month) &&
+            (!tls.length    || tls.includes(r.sup)) &&
+            (!rv            || r.rv === rv) &&
+            (!sws.length    || sws.includes(normSW(r.sw)) || sws.includes(r.sw)) &&
+            (!months.length || months.includes(r.month) || months.includes(r.monthKey)) &&
             scopeFilter(r) &&
             r.rca1 // must have at least L1
         );
-    }
-
-    function populateFilters(rows) {
-        const fill = (id, vals, allLabel) => {
-            const el = document.getElementById(id);
-            if(!el) return;
-            const cur = el.value;
-            const sorted = [...new Set(vals.filter(Boolean))].sort();
-            el.innerHTML = `<option value="">${allLabel}</option>` +
-                sorted.map(v => `<option value="${v}" ${v===cur?'selected':''}>${v}</option>`).join('');
-        };
-        const all = window.RCA_ROWS || [];
-        fill('rca-f-sup',   all.map(r=>r.sup),               'All Supervisors');
-        fill('rca-f-rv',    all.map(r=>r.rv),                'All Reviewers');
-        fill('rca-f-sw',    all.map(r=>normSW(r.sw)),        'All SWs');
-        fill('rca-f-month', all.map(r=>r.month||r.monthKey), 'All Months');
     }
 
     function rcaSummaryCard(label, value, sub, color) {
@@ -22954,6 +23032,31 @@ function gpDecReqExpand(open) {
     // ── Configurable Pareto Chart ─────────────────────────────────────────────
     let _rcaParetoDim = 'rca1';
     let _rcaParetoChartInst = null;
+
+    // Bridges a Pareto chart bar click to Job Log's own filter widgets (Job
+    // Log lives in a separate IIFE, so this goes through the window-exposed
+    // miscMSSelectOnly bridge rather than touching MISC_MS directly).
+    // _rcaParetoDim values (rca1-4, sw, pol, rv, sup) map to Job Log's own
+    // dimension keys, which mostly match 1:1 except sup -> tl. The sw
+    // dimension needs special handling: Pareto bar labels are normSW()'d,
+    // but Job Log's own sw filter holds raw (non-normalized) SW names, so a
+    // direct value match can miss — this resolves the raw value that
+    // actually maps to the clicked normalized label.
+    function rcaFilterJobLogByParetoBar(dim, clickedLabel) {
+        const dimToMiscKey = { rca1:'rca1', rca2:'rca2', rca3:'rca3', rca4:'rca4', pol:'pol', rv:'rv', sup:'tl', sw:'sw' };
+        const miscKey = dimToMiscKey[dim];
+        if (!miscKey || typeof window.miscMSSelectOnly !== 'function') return;
+        let applied = false;
+        if (dim === 'sw' && typeof window.miscMSResolveRawSW === 'function') {
+            const raw = window.miscMSResolveRawSW(clickedLabel);
+            if (raw !== null) applied = window.miscMSSelectOnly('sw', raw);
+        }
+        if (!applied) applied = window.miscMSSelectOnly(miscKey, clickedLabel);
+        if (applied) {
+            const jobLogEl = document.getElementById('misc-table-wrap');
+            if (jobLogEl) jobLogEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
 
     window.rcaSetParetoDim = function(dim) {
         _rcaParetoDim = dim;
@@ -23130,6 +23233,16 @@ function gpDecReqExpand(open) {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
+                onClick: (evt, elements) => {
+                    if (!elements || !elements.length) return;
+                    const idx = elements[0].index;
+                    const clickedLabel = labels[idx];
+                    if (clickedLabel === undefined) return;
+                    rcaFilterJobLogByParetoBar(_rcaParetoDim, clickedLabel);
+                },
+                onHover: (evt, elements) => {
+                    evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -23257,7 +23370,6 @@ function gpDecReqExpand(open) {
         noData.style.display = 'none';
         content.style.display = 'block';
 
-        populateFilters(rows);
         const filtered = getFiltered();
 
         // Meta label
