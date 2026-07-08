@@ -1333,6 +1333,14 @@ tr:hover td{background:#F8F9FB}
             <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Sub-workflow</label>
             <select id="jd-f-sw" data-all-label="All SWs" onchange="jdOnLocalFilterChange()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All SWs</option></select>
           </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Week</label>
+            <select id="jd-f-week" data-all-label="All Weeks" onchange="jdOnLocalFilterChange()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All Weeks</option></select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Day</label>
+            <select id="jd-f-day" data-all-label="All Days" onchange="jdOnLocalFilterChange()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All Days</option></select>
+          </div>
           <button onclick="jdClearLocalFilters()" style="font-size:11px;font-weight:700;color:var(--ts);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f)">✕ Clear</button>
         </div>
         <div id="jd-col-toggles" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
@@ -18116,6 +18124,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mSel) mSel.value = '';
         if (wSel) wSel.value = '';
         document.getElementById('misc-f-search').value = '';
+
+        // Clear used to only touch Job Log's own strip, leaving the tab's
+        // other visible filter controls (Scope, and the Pareto chart's own
+        // dimension/Top N/adjustment buttons) untouched even though they
+        // gate what's shown on the same tab — "Clear" should reset the
+        // whole RCA Explorer view, not just the table below it.
+        if (typeof window.rcaSetScope === 'function') window.rcaSetScope('all');
+        if (typeof window.rcaSetParetoDim === 'function') window.rcaSetParetoDim('rca1');
+        if (typeof window.rcaSetParetoAdjust === 'function') window.rcaSetParetoAdjust('raw');
+        const topnEl = document.getElementById('rca-pareto-topn');
+        if (topnEl) topnEl.value = '10';
+
         miscRender();
     };
 
@@ -18172,21 +18192,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Local filters on the job table itself — separate from the universal
     // filter bar and from JD_FILTERS (which is set by clicking rows in the
     // panels above). These only affect the job table.
-    let JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '' };
+    let JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '', week: '', day: '' };
     window.jdOnLocalFilterChange = function() {
         JD_LOCAL_FILTERS.jid = (document.getElementById('jd-f-jid') || {}).value || '';
         JD_LOCAL_FILTERS.tl = (document.getElementById('jd-f-tl') || {}).value || '';
         JD_LOCAL_FILTERS.reviewer = (document.getElementById('jd-f-reviewer') || {}).value || '';
         JD_LOCAL_FILTERS.sw = (document.getElementById('jd-f-sw') || {}).value || '';
+        JD_LOCAL_FILTERS.week = (document.getElementById('jd-f-week') || {}).value || '';
+        JD_LOCAL_FILTERS.day = (document.getElementById('jd-f-day') || {}).value || '';
         JD_PAGE = 1;
         jdRenderJobTable();
     };
     window.jdClearLocalFilters = function() {
-        JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '' };
+        JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '', week: '', day: '' };
         const jidEl = document.getElementById('jd-f-jid'); if (jidEl) jidEl.value = '';
         const tlEl = document.getElementById('jd-f-tl'); if (tlEl) tlEl.value = '';
         const rvEl = document.getElementById('jd-f-reviewer'); if (rvEl) rvEl.value = '';
         const swEl = document.getElementById('jd-f-sw'); if (swEl) swEl.value = '';
+        const weekEl = document.getElementById('jd-f-week'); if (weekEl) weekEl.value = '';
+        const dayEl = document.getElementById('jd-f-day'); if (dayEl) dayEl.value = '';
         JD_PAGE = 1;
         jdRenderJobTable();
     };
@@ -18202,6 +18226,24 @@ document.addEventListener('DOMContentLoaded', () => {
         fill('jd-f-tl', rows.map(r => { const hit = rosterMap[r.actorId]; return hit ? hit.tl : null; }));
         fill('jd-f-reviewer', rows.map(r => { const hit = rosterMap[r.actorId]; return hit ? hit.name : null; }));
         fill('jd-f-sw', rows.map(r => r.sw));
+
+        // Week — sorted chronologically (week is already the week-ending
+        // Friday YMD string), displayed as "WE dd Mon yyyy" like elsewhere.
+        const weekEl = document.getElementById('jd-f-week');
+        if (weekEl) {
+            const cur = weekEl.value;
+            const weeks = [...new Set(rows.map(r => r.week).filter(Boolean))].sort();
+            weekEl.innerHTML = `<option value="">${weekEl.dataset.allLabel || 'All Weeks'}</option>` +
+                weeks.map(w => `<option value="${w}" ${w===cur?'selected':''}>WE ${fmtW(w)}</option>`).join('');
+        }
+        // Day — sorted chronologically, displayed as "dd Mon yyyy".
+        const dayEl = document.getElementById('jd-f-day');
+        if (dayEl) {
+            const cur = dayEl.value;
+            const days = [...new Set(rows.map(r => r.date).filter(Boolean))].sort();
+            dayEl.innerHTML = `<option value="">${dayEl.dataset.allLabel || 'All Days'}</option>` +
+                days.map(d => `<option value="${d}" ${d===cur?'selected':''}>${fmtW(d)}</option>`).join('');
+        }
     }
 
     // ── CSV parsing ──────────────────────────────────────────────────────────
@@ -18668,18 +18710,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${sign}${delta.toFixed(2)}${pctStr}`;
     }
 
-    let JD_SW_SORT = { col: 'workflow', dir: 'asc' };
+    // Default: group by workflow, highest total decision volume first, then
+    // by decisions within each workflow, highest first — busiest work
+    // surfaces at the top. Clicking a column header still re-sorts normally.
+    let JD_SW_SORT = { col: 'workflow', dir: 'desc' };
     window.jdSortSW = function(col) {
         if (JD_SW_SORT.col === col) JD_SW_SORT.dir = (JD_SW_SORT.dir === 'asc') ? 'desc' : 'asc';
-        else { JD_SW_SORT.col = col; JD_SW_SORT.dir = (col === 'workflow' || col === 'sw') ? 'asc' : 'desc'; }
+        else { JD_SW_SORT.col = col; JD_SW_SORT.dir = (col === 'sw') ? 'asc' : 'desc'; }
         renderJobDetail();
     };
     function jdSortSWRows(bands) {
         const { col, dir } = JD_SW_SORT;
         const mul = dir === 'asc' ? 1 : -1;
+        // Workflow totals, used only for the default "workflow" column sort —
+        // groups workflows by total decision volume (highest first) rather
+        // than alphabetically, matching jdBuildSWBands' own pre-sort intent
+        // (which this function otherwise overrides on every render).
+        const workflowTotals = {};
+        bands.forEach(b => { workflowTotals[b.workflow] = (workflowTotals[b.workflow] || 0) + b.decisions; });
         return bands.slice().sort((a, b) => {
             let av, bv;
-            if (col === 'workflow') { av = a.workflow || ''; bv = b.workflow || ''; if (av !== bv) return av < bv ? -1*mul : 1*mul; av = a.sw; bv = b.sw; }
+            if (col === 'workflow') {
+                // Group by workflow volume using the current sort direction,
+                // but within a workflow always break ties by decisions
+                // descending (highest-volume SW first) — a fixed secondary
+                // sort, not affected by asc/desc toggling on this column.
+                av = workflowTotals[a.workflow] || 0; bv = workflowTotals[b.workflow] || 0;
+                if (av !== bv) return (av - bv) * mul;
+                if (a.workflow !== b.workflow) return (a.workflow || '').localeCompare(b.workflow || '');
+                return b.decisions - a.decisions;
+            }
             else if (col === 'sw') { av = a.sw || ''; bv = b.sw || ''; }
             else if (col === 'decisions') { av = a.decisions; bv = b.decisions; return (av - bv) * mul; }
             else if (col === 'aht') { av = a.aht; bv = b.aht; return (av - bv) * mul; }
@@ -18942,6 +19002,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (JD_LOCAL_FILTERS.tl) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && hit.tl === JD_LOCAL_FILTERS.tl; });
         if (JD_LOCAL_FILTERS.reviewer) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && hit.name === JD_LOCAL_FILTERS.reviewer; });
         if (JD_LOCAL_FILTERS.sw) rows = rows.filter(r => r.sw === JD_LOCAL_FILTERS.sw);
+        if (JD_LOCAL_FILTERS.week) rows = rows.filter(r => r.week === JD_LOCAL_FILTERS.week);
+        if (JD_LOCAL_FILTERS.day) rows = rows.filter(r => r.date === JD_LOCAL_FILTERS.day);
 
         return rows;
     }
@@ -23153,6 +23215,14 @@ function gpDecReqExpand(open) {
             return [str.slice(0, mid), str.slice(mid+1)];
         }
         const labels = sorted.map(([k]) => wrapLabel(k.length > 40 ? k.slice(0,38)+'…' : k));
+        // Chart.js needs `labels` wrapped into [line1, line2] arrays to render
+        // 2-line ticks — but that means labels[idx] is an array, not a
+        // string, so passing it straight into miscMSSelectOnly's value match
+        // (which compares against plain strings in cfg.values) always fails
+        // silently. rawKeys keeps the unwrapped, un-truncated key per bar so
+        // bar clicks can filter Job Log correctly regardless of how the tick
+        // label had to be wrapped/truncated for display.
+        const rawKeys = sorted.map(([k]) => k); // full, untruncated — for filter matching only
         const counts  = sorted.map(([,v]) => v);
 
         // Color map — People Reviewer / People Auditor / Tooling / Policy / Protocol
@@ -23258,7 +23328,7 @@ function gpDecReqExpand(open) {
                         return;
                     }
                     const idx = elements[0].index;
-                    const clickedLabel = labels[idx];
+                    const clickedLabel = rawKeys[idx];
                     console.log('[Pareto onClick] idx:', idx, 'clickedLabel:', clickedLabel, 'dim:', _rcaParetoDim);
                     if (clickedLabel === undefined) return;
                     rcaFilterJobLogByParetoBar(_rcaParetoDim, clickedLabel);
@@ -23392,6 +23462,19 @@ function gpDecReqExpand(open) {
 
         noData.style.display = 'none';
         content.style.display = 'block';
+
+        // Job Log's own no-data / filters visibility used to be set only
+        // inside miscHandleUpload — correct for the normal "upload while
+        // sitting on Load Dataset" flow, but it meant misc-no-data could be
+        // left showing (masking an already-populated Job Log table
+        // underneath) any time this tab renders without that exact upload
+        // click having just fired in this session. Syncing it here, every
+        // render, off the actual row count — same pattern renderJobDetail()
+        // already uses for its own no-data toggle — makes it authoritative.
+        const miscNoDataEl = document.getElementById('misc-no-data');
+        const miscFiltersEl = document.getElementById('misc-filters');
+        if (miscNoDataEl) miscNoDataEl.style.display = rows.length ? 'none' : 'block';
+        if (miscFiltersEl) miscFiltersEl.style.display = rows.length ? 'block' : 'none';
 
         const filtered = getFiltered();
 
