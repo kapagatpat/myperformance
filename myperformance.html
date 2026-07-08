@@ -72,6 +72,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--f);min-height:100v
 .rca-pdim-btn{font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f);transition:all .12s}
 .rca-pdim-btn:hover{background:var(--psec);color:var(--purple);border-color:var(--pbd)}
 .rca-pdim-btn.rca-pdim-active{background:var(--purple);color:#fff;border-color:var(--purple)}
+.rca-padjust-btn{font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f);transition:all .12s}
+.rca-padjust-btn:hover{background:var(--tbg);color:var(--teal);border-color:var(--tbd)}
+.rca-padjust-btn.rca-padjust-active{background:var(--teal);color:#fff;border-color:var(--teal)}
 .tab.t-ctrl.active{background:var(--gbg);color:var(--green)}.tab.t-ctrl.active .tab-icon{background:var(--green)}
 .tab.t-sv.active{background:var(--pksec);color:var(--pink)}.tab.t-sv.active .tab-icon{background:var(--pink)}
 .tab.t-psp.active{background:var(--asec);color:var(--amber)}.tab.t-psp.active .tab-icon{background:var(--amber)}
@@ -420,7 +423,6 @@ tr:hover td{background:#F8F9FB}
 
     <div class="sb-label" style="margin-top:1rem">Resources</div>
     <button class="tab t-guide" onclick="showTab('guide',this)"><div class="tab-icon">📖</div>TL Guide</button>
-    <button class="tab t-misc" onclick="showTab('misc',this)"><div class="tab-icon">🔍</div>Job Log</button>
     <button class="tab t-nrt" onclick="showTab('nrt',this)"><div class="tab-icon">🎯</div>NRT QA</button>
     <button class="tab t-nrt-aht" onclick="showTab('nrt-aht',this)"><div class="tab-icon">⏱️</div>NRT AHT</button>
 
@@ -1110,6 +1112,7 @@ tr:hover td{background:#F8F9FB}
         </div>
 
         <!-- Row 1: Summary cards -->
+        <div id="rca-taxonomy-warning"></div>
         <div id="rca-summary-cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.25rem"></div>
 
         <!-- Row 2: Configurable Pareto chart (full width) -->
@@ -1135,6 +1138,12 @@ tr:hover td{background:#F8F9FB}
                 <option value="15">Top 15</option>
                 <option value="999">All</option>
               </select>
+              <span style="font-size:11px;color:var(--tm);font-weight:600;margin-left:8px">Adjust:</span>
+              <div style="display:flex;gap:4px;flex-wrap:wrap" id="rca-pareto-adjust-btns">
+                <button onclick="rcaSetParetoAdjust('raw')" class="rca-padjust-btn rca-padjust-active" data-adjust="raw" title="No exclusions — every row currently in scope.">Raw</button>
+                <button onclick="rcaSetParetoAdjust('metaAdjusted')" class="rca-padjust-btn" data-adjust="metaAdjusted" title="Excludes Policy and Tooling L1 rows.">Meta Adjusted</button>
+                <button onclick="rcaSetParetoAdjust('adjusted')" class="rca-padjust-btn" data-adjust="adjusted" title="Excludes Policy, Tooling, Protocol L1 rows, and Auditor L2 rows.">Adjusted</button>
+              </div>
             </div>
           </div>
           <div style="position:relative;height:380px">
@@ -1144,16 +1153,79 @@ tr:hover td{background:#F8F9FB}
         </div>
 
         <!-- Row 3: Reviewer table (full width) -->
+        <!-- Row 3: Job Log — moved here from the standalone Job Log tab. Same
+             RCA Masterfile data as the rest of this page (window.RCA_ROWS),
+             with its own richer filter set (TL/Reviewer/SW/Policy/Type/NC/
+             RCA L1-4/Month/Week/Search) kept exactly as designed. -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;box-shadow:var(--shadow-card);margin-bottom:1.25rem">
-          <div style="font-size:11px;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Reviewer Error Breakdown</div>
-          <div id="rca-reviewer-table"></div>
-        </div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
+            <div style="font-size:11px;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.07em">Job Log</div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <button onclick="miscExportCSV()" style="font-size:11px;font-weight:700;color:var(--teal);background:var(--tbg);border:1px solid var(--tbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">⬇ Export filtered</button>
+              <button onclick="miscReset()" style="font-size:11px;font-weight:700;color:var(--coral);background:var(--csec);border:1px solid var(--cbd,#FECACA);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">↺ Reset &amp; Re-upload</button>
+            </div>
+          </div>
 
-        <!-- Row 4: Non-controllable log (collapsed) -->
-        <details style="background:var(--sa);border:1px solid var(--border);border-radius:var(--rl);padding:12px 16px">
-          <summary style="font-size:11px;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.07em;cursor:pointer">Meta-owned errors — Tooling / Policy / Protocol <span id="rca-nc-count" style="font-weight:600;color:var(--tm);text-transform:none;margin-left:6px"></span></summary>
-          <div id="rca-nc-table" style="margin-top:12px"></div>
-        </details>
+          <!-- No-data state — shown when MISC_ROWS is empty -->
+          <div id="misc-no-data" style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:2rem;text-align:center;color:var(--tm);font-size:13px">
+            No Job Log data loaded. Go to <strong>Load Dataset</strong> and upload the RCA Masterfile CSV.
+            <div style="margin-top:12px">
+              <button onclick="showTab('upload', document.querySelector('.t-up'))" style="font-size:12px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);padding:6px 18px;cursor:pointer;font-family:var(--f)">Go to Load Dataset →</button>
+            </div>
+          </div>
+
+          <!-- Filter bar — hidden until data loaded -->
+          <div id="misc-filters" style="display:none;margin-bottom:1rem">
+            <!-- Row 1: main filters -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Month</label>
+                <select id="misc-f-month" onchange="miscRender()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:130px">
+                  <option value="">All Months</option>
+                </select>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Week Ending</label>
+                <select id="misc-f-week" onchange="miscRender()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:130px">
+                  <option value="">All Weeks</option>
+                </select>
+              </div>
+              <div id="misc-ms-tl"     class="misc-ms-wrap"></div>
+              <div id="misc-ms-rv"     class="misc-ms-wrap"></div>
+              <div id="misc-ms-sw"     class="misc-ms-wrap"></div>
+              <div id="misc-ms-pol"    class="misc-ms-wrap"></div>
+              <div id="misc-ms-type"   class="misc-ms-wrap"></div>
+              <div id="misc-ms-nc"     class="misc-ms-wrap"></div>
+            </div>
+            <!-- Row 2: RCA cascade + search -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+              <div id="misc-ms-rca1"   class="misc-ms-wrap"></div>
+              <div id="misc-ms-rca2"   class="misc-ms-wrap"></div>
+              <div id="misc-ms-rca3"   class="misc-ms-wrap"></div>
+              <div id="misc-ms-rca4"   class="misc-ms-wrap"></div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Search</label>
+                <input id="misc-f-search" oninput="miscRender()" placeholder="Job ID, policy, notes…" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:200px">
+              </div>
+              <button onclick="miscClearFilters()" style="align-self:flex-end;font-size:11px;font-weight:700;color:var(--ts);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f)">✕ Clear</button>
+            </div>
+            <!-- Summary pills -->
+            <div id="misc-summary" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11px"></div>
+          </div>
+
+          <!-- Table -->
+          <div id="misc-table-wrap" style="display:none">
+            <div style="overflow-x:auto;border-radius:var(--r);border:1px solid var(--border)">
+              <table id="misc-table" style="width:100%;border-collapse:collapse;font-size:12px">
+                <thead id="misc-thead"></thead>
+                <tbody id="misc-tbody"></tbody>
+              </table>
+            </div>
+            <div id="misc-pagination" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--ts)"></div>
+          </div>
+
+          <div id="misc-empty" style="display:none;padding:20px;text-align:center;font-size:13px;color:var(--tm);font-style:italic">No matching jobs found.</div>
+        </div>
 
       </div>
     </section>
@@ -1183,58 +1255,66 @@ tr:hover td{background:#F8F9FB}
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
           <span style="font-size:9px;font-weight:800;background:var(--bbg);color:var(--blue);padding:2px 8px;border-radius:var(--pill)">Main CSV</span>
           <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Sub-workflow AHT bands</span>
-          <span style="font-size:10px;color:var(--tm);margin-left:auto">Click a row to filter jobs below</span>
+          <span style="font-size:10px;color:var(--tm);margin-left:auto">Click a row to filter jobs below · click a header to sort</span>
         </div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:20px;box-shadow:var(--shadow-card)">
+          <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead><tr style="background:var(--sa)">
-              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Sub-workflow</th>
-              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Decisions</th>
-              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">AHT</th>
-              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Target</th>
-              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Δ vs target</th>
-              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Achievement</th>
-              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Cohort mix</th>
+              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortSW('workflow')">Workflow › SW<span id="jd-sw-sort-workflow"></span><span id="jd-sw-sort-sw"></span></th>
+              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortSW('decisions')">Decisions<span id="jd-sw-sort-decisions"></span></th>
+              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortSW('aht')">AHT<span id="jd-sw-sort-aht"></span></th>
+              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortSW('target')">Target<span id="jd-sw-sort-target"></span></th>
+              <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortSW('delta')">Δ vs target<span id="jd-sw-sort-delta"></span></th>
+              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortSW('band')">Achievement<span id="jd-sw-sort-band"></span></th>
+              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;white-space:nowrap">Reviewer mix</th>
+              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;white-space:nowrap">Team mix</th>
+              <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;white-space:nowrap">Trend</th>
             </tr></thead>
             <tbody id="jd-sw-tbody"></tbody>
           </table>
+          </div>
           <div id="jd-sw-empty" style="padding:20px;text-align:center;font-size:12px;color:var(--tm);font-style:italic;display:none">No sub-workflow data for the current filters.</div>
-          <div style="padding:6px 10px;font-size:10px;color:var(--tm);border-top:1px solid var(--divider);display:flex;align-items:center;gap:10px">
-            <span>Cohort mix = share of decisions from reviewers landing in each achievement band within that SW:</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#A4CAFE;display:inline-block"></span>Exceeding</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#86EFAC;display:inline-block"></span>Achieving</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#FCD34D;display:inline-block"></span>Approaching</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#FCA5A5;display:inline-block"></span>Needs improvement</span>
+          <div style="padding:6px 10px;font-size:10px;color:var(--tm);border-top:1px solid var(--divider);display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span><strong>Reviewer mix</strong> = share of decisions from reviewers landing in each achievement band for that SW (hover for breakdown):</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#A4CAFE;display:inline-block"></span>Exceeding</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#86EFAC;display:inline-block"></span>Achieving</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#FCD34D;display:inline-block"></span>Approaching</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#FCA5A5;display:inline-block"></span>Needs improvement</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span><strong>Team mix</strong> = one segment per TL, sized by their agent count on this SW. Each TL has a unique, consistent color; a diagonal hatch overlay marks the share of that TL's agents not meeting goal (denser hatch = higher share). Hover a segment for the TL's name and exact count.</span>
+            </div>
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:20px;align-items:start">
+        <div style="display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:20px;align-items:start">
 
           <!-- WHOM TO TARGET -->
-          <div>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <details open>
+            <summary style="display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;list-style:none">
               <span style="font-size:9px;font-weight:800;background:var(--bbg);color:var(--blue);padding:2px 8px;border-radius:var(--pill)">Main CSV</span>
               <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Whom to target</span>
-              <span style="font-size:10px;color:var(--tm);margin-left:auto">min. 5 decisions · SW or team Approaching/NI only</span>
-            </div>
+              <span style="font-size:10px;color:var(--tm);margin-left:auto">min. 5 decisions · Approaching/NI only · click a header to sort</span>
+            </summary>
             <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
-              <div id="jd-reviewer-list"></div>
+              <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:12px">
+                <thead><tr style="background:var(--sa)">
+                  <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortWTT('reviewer')">Reviewer<span id="jd-wtt-sort-reviewer"></span></th>
+                  <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortWTT('sw')">Sub-workflow<span id="jd-wtt-sort-sw"></span></th>
+                  <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortWTT('decisions')">Decisions<span id="jd-wtt-sort-decisions"></span></th>
+                  <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortWTT('aht')">AHT<span id="jd-wtt-sort-aht"></span></th>
+                  <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSortWTT('status')">Cohort status<span id="jd-wtt-sort-status"></span></th>
+                  <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;white-space:nowrap">Trend (6wk)</th>
+                </tr></thead>
+                <tbody id="jd-reviewer-tbody"></tbody>
+              </table>
+              </div>
               <div id="jd-reviewer-empty" style="padding:20px;text-align:center;font-size:12px;color:var(--tm);font-style:italic;display:none">No reviewers meet the minimum decision threshold for the current filters.</div>
             </div>
-          </div>
-
-          <!-- TENURE STAT PANEL -->
-          <div>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-              <span style="font-size:9px;font-weight:800;background:var(--bbg);color:var(--blue);padding:2px 8px;border-radius:var(--pill)">Main CSV</span>
-              <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Is tenure driving this?</span>
-            </div>
-            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:12px;font-size:12px;line-height:1.6;box-shadow:var(--shadow-card)">
-              <div id="jd-tenure-rows"></div>
-              <div id="jd-tenure-empty" style="text-align:center;font-size:12px;color:var(--tm);font-style:italic;display:none">No tenure data available.</div>
-              <div id="jd-tenure-summary" style="margin-top:6px;padding-top:8px;border-top:1px solid var(--divider);font-size:11px;color:var(--ts)"></div>
-            </div>
-          </div>
+          </details>
 
         </div>
 
@@ -1243,20 +1323,41 @@ tr:hover td{background:#F8F9FB}
           <span style="font-size:9px;font-weight:800;background:var(--psec);color:var(--purple);padding:2px 8px;border-radius:var(--pill)">Job Extract CSV</span>
           <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Job detail</span>
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Job ID search</label>
+            <input id="jd-f-jid" oninput="jdOnLocalFilterChange()" placeholder="Search Job ID…" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:160px">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">TL</label>
+            <select id="jd-f-tl" data-all-label="All TLs" onchange="jdOnLocalFilterChange()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All TLs</option></select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Reviewer</label>
+            <select id="jd-f-reviewer" data-all-label="All Reviewers" onchange="jdOnLocalFilterChange()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All Reviewers</option></select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Sub-workflow</label>
+            <select id="jd-f-sw" data-all-label="All SWs" onchange="jdOnLocalFilterChange()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All SWs</option></select>
+          </div>
+          <button onclick="jdClearLocalFilters()" style="font-size:11px;font-weight:700;color:var(--ts);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f)">✕ Clear</button>
+        </div>
+        <div id="jd-col-toggles" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
         <div id="jd-chips" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
           <div style="overflow-x:auto">
             <table style="width:100%;border-collapse:collapse;font-size:11px">
               <thead>
                 <tr style="background:var(--sa)">
-                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('jid')">Job ID</th>
-                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('date')">Date</th>
-                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('reviewer')">Reviewer</th>
-                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('tl')">TL</th>
-                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('sw')">SW</th>
-                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" onclick="jdSort('decision')">Decision</th>
-                  <th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer" id="jd-th-aht" onclick="jdSort('aht')">AHT (s)</th>
-                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Notes</th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSort('jid')">Job ID<span id="jd-job-sort-jid"></span></th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSort('date')">Date<span id="jd-job-sort-date"></span></th>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSort('reviewer')">Reviewer<span id="jd-job-sort-reviewer"></span></th>
+                  <th data-col="tl" style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSort('tl')">TL<span id="jd-job-sort-tl"></span></th>
+                  <th data-col="sw" style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSort('sw')">SW<span id="jd-job-sort-sw"></span></th>
+                  <th data-col="decision" style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSort('decision')">Decision<span id="jd-job-sort-decision"></span></th>
+                  <th data-col="dht" style="text-align:right;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;cursor:pointer;white-space:nowrap" onclick="jdSort('dht')" title="This job's decision handle time, color-coded against this SW's AHT target.">Decision HT (s)<span id="jd-job-sort-dht"></span></th>
+                  <th data-col="swtarget" style="text-align:right;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;white-space:nowrap" title="This SW's AHT target (Achieving threshold), for reference alongside Decision HT.">SW AHT Target</th>
+                  <th data-col="notes" style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Notes</th>
                 </tr>
               </thead>
               <tbody id="jd-job-tbody"></tbody>
@@ -2124,81 +2225,6 @@ tr:hover td{background:#F8F9FB}
       <div id="sr-content"></div>
     </section>
 
-    <!-- ── JOB LOG (MISCELLANEOUS) ──────────────────────────────────────── -->
-    <section id="tab-misc" class="section">
-      <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-        <div>
-          <h1>Job Log</h1>
-          <p>Audited job decisions + RCA. Exported from RCA Masterfile</p>
-        </div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button onclick="miscExportCSV()" style="font-size:11px;font-weight:700;color:var(--teal);background:var(--tbg);border:1px solid var(--tbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">⬇ Export filtered</button>
-          <button onclick="miscReset()" style="font-size:11px;font-weight:700;color:var(--coral);background:var(--csec);border:1px solid var(--cbd,#FECACA);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">↺ Reset &amp; Re-upload</button>
-        </div>
-      </div>
-
-      <!-- No-data state — shown when MISC_ROWS is empty -->
-      <div id="misc-no-data" style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:2rem;text-align:center;color:var(--tm);font-size:13px">
-        No Job Log data loaded. Go to <strong>Load Dataset</strong> and upload the RCA Masterfile CSV.
-        <div style="margin-top:12px">
-          <button onclick="showTab('upload', document.querySelector('.t-up'))" style="font-size:12px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);padding:6px 18px;cursor:pointer;font-family:var(--f)">Go to Load Dataset →</button>
-        </div>
-      </div>
-
-      <!-- Filter bar — hidden until data loaded -->
-      <div id="misc-filters" style="display:none;margin-bottom:1rem">
-        <!-- Row 1: main filters -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Month</label>
-            <select id="misc-f-month" onchange="miscRender()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:130px">
-              <option value="">All Months</option>
-            </select>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Week Ending</label>
-            <select id="misc-f-week" onchange="miscRender()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:130px">
-              <option value="">All Weeks</option>
-            </select>
-          </div>
-          <div id="misc-ms-tl"     class="misc-ms-wrap"></div>
-          <div id="misc-ms-rv"     class="misc-ms-wrap"></div>
-          <div id="misc-ms-sw"     class="misc-ms-wrap"></div>
-          <div id="misc-ms-pol"    class="misc-ms-wrap"></div>
-          <div id="misc-ms-type"   class="misc-ms-wrap"></div>
-          <div id="misc-ms-nc"     class="misc-ms-wrap"></div>
-        </div>
-        <!-- Row 2: RCA cascade + search -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-          <div id="misc-ms-rca1"   class="misc-ms-wrap"></div>
-          <div id="misc-ms-rca2"   class="misc-ms-wrap"></div>
-          <div id="misc-ms-rca3"   class="misc-ms-wrap"></div>
-          <div id="misc-ms-rca4"   class="misc-ms-wrap"></div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Search</label>
-            <input id="misc-f-search" oninput="miscRender()" placeholder="Job ID, policy, notes…" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:200px">
-          </div>
-          <button onclick="miscClearFilters()" style="align-self:flex-end;font-size:11px;font-weight:700;color:var(--ts);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f)">✕ Clear</button>
-        </div>
-        <!-- Summary pills -->
-        <div id="misc-summary" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11px"></div>
-      </div>
-
-      <!-- Table -->
-      <div id="misc-table-wrap" style="display:none">
-        <div style="overflow-x:auto;border-radius:var(--r);border:1px solid var(--border)">
-          <table id="misc-table" style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead id="misc-thead"></thead>
-            <tbody id="misc-tbody"></tbody>
-          </table>
-        </div>
-        <div id="misc-pagination" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--ts)"></div>
-      </div>
-
-      <div id="misc-empty" style="display:none;padding:20px;text-align:center;font-size:13px;color:var(--tm);font-style:italic">No matching jobs found.</div>
-
-    </section>
-    <!-- ── END JOB LOG ──────────────────────────────────────────────────── -->
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -17198,6 +17224,7 @@ function handleUpload(input){
         try {
             processCSVData(e.target.result);
             runDataHealthChecks(_lastAllRows);
+            if (typeof JOBDETAIL_ROWS !== 'undefined' && JOBDETAIL_ROWS.length && typeof jdBackfillRealAHT === 'function') jdBackfillRealAHT();
             document.getElementById('up-ok').textContent = '✓ Loaded '+RAW_ROWS.length.toLocaleString()+' rows across '+WEEKS.length+' weeks from '+file.name;
             document.getElementById('up-err').style.display = 'none';
             setTimeout(() => showTab('exec', document.querySelector('.tab.t-ex')), 600);
@@ -17566,7 +17593,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const col = name => headers.indexOf(name);
 
         const iRV    = col('Name') >= 0 ? col('Name') : col('Reviewer name') >= 0 ? col('Reviewer name') : col('Review Actor ID');
-        const iSW    = col('sub_workflow') >= 0 ? col('sub_workflow') : col('Sub-workflow');
+        // Support 'sub_workflow' (old), 'Sub-workflow' (old), and 'Sub Workflow' (new, space-separated) header names
+        const iSW    = col('sub_workflow') >= 0 ? col('sub_workflow') : col('Sub-workflow') >= 0 ? col('Sub-workflow') : col('Sub Workflow');
         // Support both old ('Review Job ID') and new ('Job ID', 'BMS ID') header names
         const iJID   = col('Job ID') >= 0 ? col('Job ID') : col('Review Job ID') >= 0 ? col('Review Job ID') : col('BMS ID');
         const iAJID  = col('Audit Job ID') >= 0 ? col('Audit Job ID') : -1;
@@ -17585,7 +17613,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const iRCA3  = col('Dispute.1.RCA_Level_3');
         const iRCA4  = col('Dispute.1.RCA_Level_4');
         const iCmt   = col('Dispute.1.Comment');
-        const iPol   = col('Overall Problem Area') >= 0 ? col('Overall Problem Area') : col('Policy');
+        // Support 'Overall Problem Area' (old), 'Policy' (old), and 'New Problem Area' (new) header names
+        const iPol   = col('Overall Problem Area') >= 0 ? col('Overall Problem Area') : col('Policy') >= 0 ? col('Policy') : col('New Problem Area');
         const iFP    = col('Sum of Adjusted FP') >= 0 ? col('Sum of Adjusted FP') : col('FPA') >= 0 ? col('FPA') : col('False Positive Jobs (Adjusted)');
         const iFN    = col('Sum of Adjusted FN') >= 0 ? col('Sum of Adjusted FN') : col('FNA') >= 0 ? col('FNA') : col('False Negative Jobs (Adjusted)');
 
@@ -17603,8 +17632,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         function clean(v) {
             if (!v || v === '(blank)' || v === 'ACCURATE') return '';
-            // Normalise stray › (U+203A) → — (U+2014) from inconsistent data entry
-            return v.trim().replace(/›/g, '—');
+            // Normalise stray dash variants to canonical — (U+2014):
+            // › (U+203A) from inconsistent data entry; \x97 (Windows-1252 em-dash
+            // byte, appears when CSV is exported/read as Latin-1 instead of UTF-8);
+            // – (en-dash, U+2013); bare " - " hyphen-as-separator patterns;
+            // "â€”" (the literal 3-character mojibake sequence produced when a
+            // correct UTF-8 em-dash gets round-tripped through a Latin-1/
+            // CP1252 misinterpretation, e.g. by Excel or an intermediate tool);
+            // U+FFFD (the replacement character a lenient UTF-8 decoder
+            // substitutes when it hits an invalid byte, such as a raw \x97
+            // that was never valid UTF-8 to begin with — this case can't be
+            // recovered since the original byte is already gone by the time
+            // this code runs, but is still normalised to — so at least the
+            // surrounding text reads correctly even if the exact dash is lost.
+            return v.trim()
+                .replace(/›/g, '—')
+                .replace(/\x97/g, '—')
+                .replace(/–/g, '—')
+                .replace(/â€”/g, '—')
+                .replace(/\uFFFD/g, '—')
+                .replace(/\s-\s/g, ' — ');
         }
 
         const rows = [];
@@ -18045,7 +18092,7 @@ document.addEventListener('DOMContentLoaded', () => {
 (function() {
 
     let JOBDETAIL_ROWS = [];   // {jid, date, actorId, sw, decision, aht, notes}
-    let JD_SORT = { col: 'aht', dir: 'desc' };
+    let JD_SORT = { col: 'dht', dir: 'desc' };
     let JD_PAGE = 1;
     const JD_PAGE_SIZE = 50;
     const JD_MIN_DECISIONS = 5; // minimum decisions for a reviewer to appear in "Whom to target"
@@ -18053,6 +18100,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // Click-through filter state — stacks across panels (SW, reviewer, tenure).
     // Each key maps to a Set of allowed values for that dimension in the job table.
     let JD_FILTERS = { sw: null, reviewer: null, tenure: null };
+
+    // Local filters on the job table itself — separate from the universal
+    // filter bar and from JD_FILTERS (which is set by clicking rows in the
+    // panels above). These only affect the job table.
+    let JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '' };
+    window.jdOnLocalFilterChange = function() {
+        JD_LOCAL_FILTERS.jid = (document.getElementById('jd-f-jid') || {}).value || '';
+        JD_LOCAL_FILTERS.tl = (document.getElementById('jd-f-tl') || {}).value || '';
+        JD_LOCAL_FILTERS.reviewer = (document.getElementById('jd-f-reviewer') || {}).value || '';
+        JD_LOCAL_FILTERS.sw = (document.getElementById('jd-f-sw') || {}).value || '';
+        JD_PAGE = 1;
+        jdRenderJobTable();
+    };
+    window.jdClearLocalFilters = function() {
+        JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '' };
+        const jidEl = document.getElementById('jd-f-jid'); if (jidEl) jidEl.value = '';
+        const tlEl = document.getElementById('jd-f-tl'); if (tlEl) tlEl.value = '';
+        const rvEl = document.getElementById('jd-f-reviewer'); if (rvEl) rvEl.value = '';
+        const swEl = document.getElementById('jd-f-sw'); if (swEl) swEl.value = '';
+        JD_PAGE = 1;
+        jdRenderJobTable();
+    };
+    function jdPopulateLocalFilterOptions(rows, rosterMap) {
+        const fill = (id, vals) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const cur = el.value;
+            const sorted = [...new Set(vals.filter(Boolean))].sort();
+            el.innerHTML = `<option value="">${el.dataset.allLabel || 'All'}</option>` +
+                sorted.map(v => `<option value="${v.replace(/"/g,'&quot;')}" ${v===cur?'selected':''}>${v}</option>`).join('');
+        };
+        fill('jd-f-tl', rows.map(r => { const hit = rosterMap[r.actorId]; return hit ? hit.tl : null; }));
+        fill('jd-f-reviewer', rows.map(r => { const hit = rosterMap[r.actorId]; return hit ? hit.name : null; }));
+        fill('jd-f-sw', rows.map(r => r.sw));
+    }
 
     // ── CSV parsing ──────────────────────────────────────────────────────────
     // The shared parseCSVRow() elsewhere in this file toggles quote-state on
@@ -18110,6 +18192,58 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Snap any date to its week-ending Friday (YYYY-MM-DD), matching the
+    // convention used by RAW_ROWS.week (main CSV "Week End" column). Used to
+    // join a job's report_date to the correct reviewer-week for a real AHT.
+    function jdToWeekEndFriday(ymd) {
+        if (!ymd) return '';
+        const parsed = new Date(ymd + 'T00:00:00');
+        if (isNaN(parsed)) return '';
+        const dow = parsed.getDay();
+        const daysToFri = (5 - dow + 7) % 7;
+        parsed.setDate(parsed.getDate() + daysToFri);
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const d = String(parsed.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    // The Job Extract CSV only has decision_handle_time_sec per job — it has
+    // no no-handle-time field (that only exists at day/week grain in other
+    // CSVs). The real AHT KPI everywhere else in this app is
+    // (Decision Handle Time + No Handle Time) / Decisions, so a single job
+    // row cannot have a true "AHT" of its own. Instead, each job is joined to
+    // its reviewer's actual week (via roster actorId -> name, and the job's
+    // date snapped to its week-ending Friday) in RAW_ROWS (the main CSV,
+    // which does have both dht and nht), and backfilled with that reviewer's
+    // real blended AHT for that week. This is deliberately a per-reviewer-week
+    // value, not a per-job value — that's the most accurate thing the
+    // available data supports.
+    function jdBackfillRealAHT() {
+        if (!JOBDETAIL_ROWS.length) return;
+        const rosterMap = jdRosterMap();
+        const rvWeekAht = {};
+        (typeof RAW_ROWS !== 'undefined' ? RAW_ROWS : []).forEach(r => {
+            if (!r.reviewer || !r.week) return;
+            const dec = r.decisions || 0;
+            if (!dec) return;
+            const key = r.reviewer + '||' + r.week;
+            if (!rvWeekAht[key]) rvWeekAht[key] = { dht: 0, nht: 0, dec: 0 };
+            const acc = rvWeekAht[key];
+            acc.dht += (r.dht || 0);
+            acc.nht += (r.nht || 0);
+            acc.dec += dec;
+        });
+        JOBDETAIL_ROWS.forEach(job => {
+            const rosterHit = rosterMap[job.actorId];
+            const name = rosterHit ? rosterHit.name : null;
+            const wk = jdToWeekEndFriday(job.date);
+            const key = name ? (name + '||' + wk) : null;
+            const acc = key ? rvWeekAht[key] : null;
+            job.aht = (acc && acc.dec > 0) ? (acc.dht + acc.nht) / acc.dec : null;
+        });
+    }
+
     function jdParseCSV(text) {
         const lines = text.replace(/\r/g, '').trim().split('\n');
         if (!lines.length) return [];
@@ -18128,7 +18262,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const jid = (v[idx['job_id']] || '').trim();
             const actorId = (v[idx['actor_id']] || '').trim();
             if (!jid || !actorId) continue;
-            const aht = parseFloat(v[idx['decision_handle_time_sec']]);
+            const dht = parseFloat(v[idx['decision_handle_time_sec']]);
             rows.push({
                 jid,
                 date: parseDateToYMD(v[idx['report_date']] || ''),
@@ -18136,7 +18270,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 workflow: (v[idx['workflow']] !== undefined ? v[idx['workflow']] : '').trim(),
                 actorId,
                 decision: (v[idx['highest_severity_decision']] || '').trim(),
-                aht: isNaN(aht) ? null : aht,
+                dht: isNaN(dht) ? null : dht,
+                aht: null,
                 notes: jdCleanNotes(v[idx['review_notes']] || '')
             });
         }
@@ -18155,6 +18290,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const rows = jdParseCSV(e.target.result);
                 if (!rows.length) throw new Error('No rows found. Check that the file is the Job Extract CSV.');
                 JOBDETAIL_ROWS = rows;
+                jdBackfillRealAHT();
                 JD_PAGE = 1;
                 JD_FILTERS = { sw: null, reviewer: null, tenure: null };
                 const statusEl = document.getElementById('jobdetail-load-status');
@@ -18182,53 +18318,116 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── SW bands (from RAW_ROWS / main CSV) ──────────────────────────────────
-    // Also computes a per-reviewer breakdown within each SW: for every reviewer
-    // who worked that SW, band THEIR OWN aht against the SW's target, then roll
-    // up what share of decisions in that SW came from reviewers landing in each
-    // band. This is the "per cohort" bar — it shows whether an SW's overall
-    // number is one bad reviewer dragging the average, or broadly distributed.
-    function jdBuildSWBands(rows) {
+    // AHT here is the real AHT KPI used everywhere else in the app:
+    // (Decision Handle Time + No Handle Time) / Decisions — NOT dht alone,
+    // which is only the decision-handling component.
+    //
+    // Also computes:
+    //  - a per-REVIEWER cohort mix: for every reviewer who worked this SW,
+    //    band their own AHT against the SW's target, roll up what share of
+    //    decisions came from reviewers in each band.
+    //  - a per-TEAM (TL) mix: same idea, one level up — what share of
+    //    decisions in this SW came from teams landing in each band.
+    //  - a weekly AHT sparkline series for the SW, using whatever weeks are
+    //    present in the currently-filtered rows.
+    function jdBuildSWBands(rows, sparkRows) {
         const groups = {};
         rows.forEach(r => {
-            if (!r.sw || !r.dht) return;
-            const key = r.sw;
-            if (!groups[key]) groups[key] = { sw: r.sw, workflow: r.workflow, decisions: 0, ahtSum: 0, byReviewer: {} };
+            // r.dht and r.nht are ALREADY totals (seconds) for this row's
+            // decisions — not per-decision rates — so they're summed directly,
+            // matching the pattern used everywhere else in this app (e.g.
+            // teamAhtMap.dht += (r.dht + r.nht)). Multiplying by decisions again
+            // here was the bug: it inflated AHT by roughly a factor of decisions.
+            //
+            // Some rows are WFM-only (decisions=0 but dht/nht present from
+            // scheduling/utilization fields) — these must be excluded, or a
+            // group whose only contributor is such a row divides by zero and
+            // produces Infinity/NaN downstream.
+            const rowTime = (r.dht || 0) + (r.nht || 0);
+            if (!r.sw || !rowTime || !r.decisions) return;
+            const key = r.workflow + '||' + r.sw;
+            if (!groups[key]) groups[key] = { sw: r.sw, workflow: r.workflow, decisions: 0, timeSum: 0, byReviewer: {}, byTeam: {}, byTeamAgents: {} };
             const g = groups[key];
-            g.decisions += r.decisions || 0;
-            g.ahtSum += (r.dht || 0) * (r.decisions || 0);
+            const dec = r.decisions || 0;
+            g.decisions += dec;
+            g.timeSum += rowTime;
             if (r.reviewer) {
-                if (!g.byReviewer[r.reviewer]) g.byReviewer[r.reviewer] = { decisions: 0, ahtSum: 0 };
-                g.byReviewer[r.reviewer].decisions += r.decisions || 0;
-                g.byReviewer[r.reviewer].ahtSum += (r.dht || 0) * (r.decisions || 0);
+                if (!g.byReviewer[r.reviewer]) g.byReviewer[r.reviewer] = { decisions: 0, timeSum: 0 };
+                g.byReviewer[r.reviewer].decisions += dec;
+                g.byReviewer[r.reviewer].timeSum += rowTime;
+            }
+            if (r.supervisor) {
+                if (!g.byTeam[r.supervisor]) g.byTeam[r.supervisor] = { decisions: 0, timeSum: 0 };
+                g.byTeam[r.supervisor].decisions += dec;
+                g.byTeam[r.supervisor].timeSum += rowTime;
+                // Per-TL agent breakdown (for hover detail on the team-mix bar):
+                // which reviewers under this TL land in which band for this SW.
+                if (!g.byTeamAgents[r.supervisor]) g.byTeamAgents[r.supervisor] = {};
+                if (r.reviewer) {
+                    if (!g.byTeamAgents[r.supervisor][r.reviewer]) g.byTeamAgents[r.supervisor][r.reviewer] = { decisions: 0, timeSum: 0 };
+                    g.byTeamAgents[r.supervisor][r.reviewer].decisions += dec;
+                    g.byTeamAgents[r.supervisor][r.reviewer].timeSum += rowTime;
+                }
             }
         });
+
+        // Separate, unfiltered-by-month/week pass to build a sparkline series
+        // that is ALWAYS the last 6 weeks, independent of whatever month/week
+        // the person currently has selected in the universal filter bar. Other
+        // dimensions (TL, tenure, SW, workflow, role, review type) still apply
+        // so the spark reflects the same cohort being viewed, just not gated
+        // to the currently-selected time window.
+        const sparkByKey = {};
+        (sparkRows || rows).forEach(r => {
+            const rowTime = (r.dht || 0) + (r.nht || 0);
+            if (!r.sw || !rowTime || !r.week || !r.decisions) return;
+            const key = r.workflow + '||' + r.sw;
+            if (!sparkByKey[key]) sparkByKey[key] = {};
+            if (!sparkByKey[key][r.week]) sparkByKey[key][r.week] = { decisions: 0, timeSum: 0 };
+            const dec = r.decisions || 0;
+            sparkByKey[key][r.week].decisions += dec;
+            sparkByKey[key][r.week].timeSum += rowTime;
+        });
+
+        function mixFor(byEntity, bandObj) {
+            const mix = { exc: 0, ach: 0, app: 0, ni: 0 };
+            let total = 0;
+            Object.values(byEntity).forEach(e => {
+                if (!e.decisions) return;
+                const eAht = e.timeSum / e.decisions;
+                const eBand = assignBand(eAht, bandObj, true);
+                if (eBand) { mix[eBand] += e.decisions; total += e.decisions; }
+            });
+            return total > 0 ? { exc: mix.exc/total, ach: mix.ach/total, app: mix.app/total, ni: mix.ni/total } : null;
+        }
+
         return Object.values(groups)
             .filter(g => g.decisions > 0)
             .map(g => {
-                const aht = g.ahtSum / g.decisions;
+                const aht = g.timeSum / g.decisions;
                 const bandObj = getBandTargets(g.workflow, g.sw, 'AHT');
                 const band = assignBand(aht, bandObj, true);
                 const target = bandObj ? bandObj.ach : null;
                 const delta = target !== null ? aht - target : null;
                 const deltaPct = (target !== null && target > 0) ? (delta / target) * 100 : null;
 
-                // Per-cohort breakdown: decision-weighted share of each band across
-                // reviewers who worked this SW, banded against this SW's own target.
-                const mix = { exc: 0, ach: 0, app: 0, ni: 0 };
-                let mixTotal = 0;
-                Object.values(g.byReviewer).forEach(rv => {
-                    if (!rv.decisions) return;
-                    const rvAht = rv.ahtSum / rv.decisions;
-                    const rvBand = assignBand(rvAht, bandObj, true);
-                    if (rvBand) { mix[rvBand] += rv.decisions; mixTotal += rv.decisions; }
-                });
-                const mixPct = mixTotal > 0
-                    ? { exc: mix.exc / mixTotal, ach: mix.ach / mixTotal, app: mix.app / mixTotal, ni: mix.ni / mixTotal }
-                    : null;
+                const reviewerMixPct = mixFor(g.byReviewer, bandObj);
+                const teamMixPct = mixFor(g.byTeam, bandObj);
 
-                return { sw: g.sw, workflow: g.workflow, decisions: g.decisions, aht, target, delta, deltaPct, band, mixPct };
+                const key = g.workflow + '||' + g.sw;
+                const byWeek = sparkByKey[key] || {};
+                const last6Weeks = Object.keys(byWeek).sort().slice(-6);
+                const spark = last6Weeks.map(wk => {
+                    const w = byWeek[wk];
+                    return w.decisions > 0 ? w.timeSum / w.decisions : null;
+                }).filter(v => v !== null);
+
+                return { sw: g.sw, workflow: g.workflow, decisions: g.decisions, aht, target, delta, deltaPct, band, reviewerMixPct, teamMixPct, teamAgents: g.byTeamAgents, spark };
             })
-            .sort((a, b) => b.aht - a.aht);
+            .sort((a, b) => {
+                if (a.workflow !== b.workflow) return (a.workflow || '').localeCompare(b.workflow || '');
+                return b.aht - a.aht;
+            });
     }
 
     const JD_BAND_LABEL = { exc: 'Exceeding', ach: 'Achieving', app: 'Approaching', ni: 'Needs improvement' };
@@ -18252,53 +18451,193 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<span style="background:${c.bg};color:${c.fg};font-weight:700;font-size:9px;padding:1px 6px;border-radius:var(--pill)">${short}</span>`;
     }
 
-    // Solid-fill stacked bar showing the decision-weighted share of reviewers
-    // landing in each band within a cohort (SW). Uses the same 4 band colors
-    // as the band tags for visual consistency.
+    // Solid-fill stacked bar showing the decision-weighted share of entities
+    // (reviewers or teams) landing in each band within a cohort. Uses the same
+    // 4 band colors as the band tags for visual consistency. The whole bar
+    // carries one tooltip with the full breakdown (native title attribute —
+    // no extra markup/JS needed for hover).
     const JD_MIX_FILL = { exc: '#A4CAFE', ach: '#86EFAC', app: '#FCD34D', ni: '#FCA5A5' };
-    function jdMixBar(mixPct) {
+    function jdMixTooltip(mixPct) {
+        if (!mixPct) return '';
+        return ['exc', 'ach', 'app', 'ni']
+            .map(k => `${JD_BAND_LABEL[k]}: ${Math.round(mixPct[k] * 1000) / 10}%`)
+            .join('\n');
+    }
+    function jdMixBar(mixPct, extraTooltip) {
         if (!mixPct) return '<span style="color:var(--tm)">—</span>';
         const segs = ['exc', 'ach', 'app', 'ni'].map(k => {
             const pct = Math.round(mixPct[k] * 1000) / 10;
             if (pct <= 0) return '';
-            return `<div style="width:${pct}%;background:${JD_MIX_FILL[k]}" title="${JD_BAND_LABEL[k]}: ${pct}%"></div>`;
+            return `<div style="width:${pct}%;background:${JD_MIX_FILL[k]}"></div>`;
         }).join('');
-        return `<div style="display:flex;width:100px;height:8px;border-radius:4px;overflow:hidden">${segs}</div>`;
+        const title = extraTooltip ? (jdMixTooltip(mixPct) + '\n\n' + extraTooltip) : jdMixTooltip(mixPct);
+        return `<div style="display:flex;width:100px;height:8px;border-radius:4px;overflow:hidden;cursor:default" title="${title}">${segs}</div>`;
+    }
+
+    // Per-TL breakdown for the team-mix bar: one segment per TL who has
+    // reviewers on this SW, sized by how many of their agents are on this SW.
+    // Each TL gets a unique, stable color (same TL = same color everywhere in
+    // this table) so segments are attributable to a specific TL at a glance.
+    // The "not meeting goal" signal is shown via a hatch/dot overlay and the
+    // tooltip rather than color, since color is now spent on TL identity.
+    function jdTeamMixByTL(teamAgents, bandObj) {
+        if (!teamAgents) return null;
+        const tls = Object.keys(teamAgents).sort();
+        const perTL = tls.map(tl => {
+            const agents = teamAgents[tl];
+            let niApp = 0, total = 0;
+            Object.values(agents).forEach(a => {
+                if (!a.decisions) return;
+                total++;
+                const eAht = a.timeSum / a.decisions;
+                const band = assignBand(eAht, bandObj, true);
+                if (band === 'ni' || band === 'app') niApp++;
+            });
+            return { tl, niApp, total };
+        }).filter(t => t.total > 0);
+        return perTL.length ? perTL : null;
+    }
+
+    // Stable color per TL name — a simple string hash picked from a fixed
+    // palette, so the same TL name always maps to the same color across every
+    // row/SW in this table (not randomized per render).
+    const JD_TL_COLOR_PALETTE = ['#60A5FA','#34D399','#FBBF24','#F87171','#A78BFA','#F472B6','#38BDF8','#FB923C','#4ADE80','#818CF8','#FDE047','#FB7185'];
+    const _jdTLColorCache = {};
+    function jdTLColor(tl) {
+        if (_jdTLColorCache[tl]) return _jdTLColorCache[tl];
+        let hash = 0;
+        for (let i = 0; i < tl.length; i++) { hash = (hash * 31 + tl.charCodeAt(i)) >>> 0; }
+        const color = JD_TL_COLOR_PALETTE[hash % JD_TL_COLOR_PALETTE.length];
+        _jdTLColorCache[tl] = color;
+        return color;
+    }
+
+    function jdTeamMixByTLBar(perTL) {
+        if (!perTL || !perTL.length) return '<span style="color:var(--tm)">—</span>';
+        const grandTotal = perTL.reduce((s, t) => s + t.total, 0);
+        const segs = perTL.map(t => {
+            const widthPct = (t.total / grandTotal) * 100;
+            const color = jdTLColor(t.tl);
+            const share = t.niApp / t.total;
+            // Not-meeting-goal signal: a diagonal hatch overlay whose density
+            // reflects the share of this TL's agents below goal — color stays
+            // the TL's own identity color throughout.
+            const hatch = share > 0
+                ? `background-image:repeating-linear-gradient(45deg, rgba(0,0,0,${0.15 + share * 0.35}) 0, rgba(0,0,0,${0.15 + share * 0.35}) 2px, transparent 2px, transparent 5px);`
+                : '';
+            return `<div style="width:${widthPct}%;background:${color};${hatch}border-right:1px solid var(--surface)" title="${t.tl}: ${t.niApp}/${t.total} not meeting goal"></div>`;
+        }).join('');
+        const tooltip = perTL.map(t => `${t.tl}: ${t.niApp}/${t.total} not meeting goal`).join('\n');
+        return `<div style="display:flex;width:100px;height:8px;border-radius:4px;overflow:hidden;cursor:default" title="${tooltip}">${segs}</div>`;
+    }
+
+    // Minimal inline SVG sparkline for a weekly AHT trend. No axes/labels —
+    // just shape. Last point highlighted so the most recent week stands out.
+    // Optional target draws a dashed reference line at the SW's AHT target so
+    // the trend can be read against goal, not just its own min/max range.
+    function jdSparkline(series, target) {
+        if (!series || series.length < 2) return '<span style="color:var(--tm);font-size:10px">—</span>';
+        const w = 90, h = 24, pad = 3;
+        const hasTarget = target !== null && target !== undefined && !isNaN(target);
+        const allVals = hasTarget ? series.concat([target]) : series;
+        const min = Math.min(...allVals), max = Math.max(...allVals);
+        const range = (max - min) || 1;
+        const stepX = (w - pad * 2) / (series.length - 1);
+        const yFor = v => h - pad - ((v - min) / range) * (h - pad * 2);
+        const pts = series.map((v, i) => [pad + i * stepX, yFor(v)]);
+        const path = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+        const last = pts[pts.length - 1];
+        const targetLine = hasTarget
+            ? `<line x1="${pad}" y1="${yFor(target).toFixed(1)}" x2="${w - pad}" y2="${yFor(target).toFixed(1)}" stroke="var(--coral)" stroke-width="1" stroke-dasharray="2,2" opacity="0.6" />`
+            : '';
+        const titleParts = series.map(v => v.toFixed(2));
+        const titleStr = titleParts.join(' → ') + (hasTarget ? ` (target ${target.toFixed(2)})` : '');
+        return `<svg width="${w}" height="${h}" style="display:block" title="${titleStr}">
+            ${targetLine}
+            <path d="${path}" fill="none" stroke="var(--blue)" stroke-width="1.5" />
+            <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.2" fill="var(--blue)" />
+        </svg>`;
     }
 
     function fmtSec(v) {
         if (v === null || v === undefined || isNaN(v)) return '—';
-        return Math.round(v) + 's';
+        if (!isFinite(v)) return '—';
+        return v.toFixed(2);
     }
     function fmtDelta(delta, pct) {
-        if (delta === null || delta === undefined || isNaN(delta)) return '—';
+        if (delta === null || delta === undefined || isNaN(delta) || !isFinite(delta)) return '—';
         const sign = delta >= 0 ? '+' : '';
-        const pctStr = (pct !== null && !isNaN(pct)) ? ` (${sign}${Math.round(pct)}%)` : '';
-        return `${sign}${Math.round(delta)}s${pctStr}`;
+        const pctStr = (pct !== null && !isNaN(pct) && isFinite(pct)) ? ` (${sign}${Math.round(pct)}%)` : '';
+        return `${sign}${delta.toFixed(2)}${pctStr}`;
     }
 
-    function jdRenderSWTable(bands) {
+    let JD_SW_SORT = { col: 'workflow', dir: 'asc' };
+    window.jdSortSW = function(col) {
+        if (JD_SW_SORT.col === col) JD_SW_SORT.dir = (JD_SW_SORT.dir === 'asc') ? 'desc' : 'asc';
+        else { JD_SW_SORT.col = col; JD_SW_SORT.dir = (col === 'workflow' || col === 'sw') ? 'asc' : 'desc'; }
+        renderJobDetail();
+    };
+    function jdSortSWRows(bands) {
+        const { col, dir } = JD_SW_SORT;
+        const mul = dir === 'asc' ? 1 : -1;
+        return bands.slice().sort((a, b) => {
+            let av, bv;
+            if (col === 'workflow') { av = a.workflow || ''; bv = b.workflow || ''; if (av !== bv) return av < bv ? -1*mul : 1*mul; av = a.sw; bv = b.sw; }
+            else if (col === 'sw') { av = a.sw || ''; bv = b.sw || ''; }
+            else if (col === 'decisions') { av = a.decisions; bv = b.decisions; return (av - bv) * mul; }
+            else if (col === 'aht') { av = a.aht; bv = b.aht; return (av - bv) * mul; }
+            else if (col === 'target') { av = a.target === null ? -Infinity : a.target; bv = b.target === null ? -Infinity : b.target; return (av - bv) * mul; }
+            else if (col === 'delta') { av = a.delta === null ? -Infinity : a.delta; bv = b.delta === null ? -Infinity : b.delta; return (av - bv) * mul; }
+            else if (col === 'band') { const order = {exc:0,ach:1,app:2,ni:3}; av = order[a.band] ?? 4; bv = order[b.band] ?? 4; return (av - bv) * mul; }
+            else { av = ''; bv = ''; }
+            if (av < bv) return -1 * mul;
+            if (av > bv) return 1 * mul;
+            return 0;
+        });
+    }
+    function jdSWSortIndicator(col) {
+        return JD_SW_SORT.col === col ? (JD_SW_SORT.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    }
+
+    function jdRenderSWTable(bandsRaw) {
         const tbody = document.getElementById('jd-sw-tbody');
         const emptyEl = document.getElementById('jd-sw-empty');
-        if (!bands.length) {
+
+        ['workflow','sw','decisions','aht','target','delta','band'].forEach(col => {
+            const el = document.getElementById('jd-sw-sort-' + col);
+            if (el) el.textContent = jdSWSortIndicator(col);
+        });
+
+        if (!bandsRaw.length) {
             tbody.innerHTML = '';
             emptyEl.style.display = 'block';
             return;
         }
         emptyEl.style.display = 'none';
-        tbody.innerHTML = bands.map(b => {
+        const bands = jdSortSWRows(bandsRaw);
+
+        let lastWorkflow = null;
+        const rowsHtml = bands.map(b => {
             const deltaColor = b.delta === null ? 'var(--ts)' : (b.delta > 0 ? 'var(--coral)' : 'var(--green)');
             const active = JD_FILTERS.sw === b.sw;
-            return `<tr style="border-top:1px solid var(--divider);cursor:pointer;${active ? 'background:var(--sa)' : ''}" onclick="jdToggleSWFilter('${b.sw.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--sa)'" onmouseout="this.style.background='${active ? 'var(--sa)' : ''}'">
-                <td style="padding:7px 10px;font-weight:600;color:var(--blue);text-decoration:underline">${b.sw}</td>
+            let workflowRow = '';
+            if (b.workflow !== lastWorkflow) {
+                lastWorkflow = b.workflow;
+                workflowRow = `<tr><td colspan="9" style="padding:6px 10px;background:var(--sa);font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.05em;border-top:1px solid var(--divider)">${b.workflow || 'Unspecified workflow'}</td></tr>`;
+            }
+            return workflowRow + `<tr style="border-top:1px solid var(--divider);cursor:pointer;${active ? 'background:var(--sa)' : ''}" onclick="jdToggleSWFilter('${b.sw.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--sa)'" onmouseout="this.style.background='${active ? 'var(--sa)' : ''}'">
+                <td style="padding:7px 10px 7px 22px;font-weight:600;color:var(--blue);text-decoration:underline">${b.sw}</td>
                 <td style="padding:7px 10px;text-align:right;font-family:var(--m)">${b.decisions.toLocaleString()}</td>
-                <td style="padding:7px 10px;text-align:right;font-family:var(--m);font-weight:700">${fmtSec(b.aht)}</td>
+                <td style="padding:7px 10px;text-align:right;font-family:var(--m);font-weight:700;background:${b.band ? (JD_BAND_COLOR[b.band]||{}).bg||'transparent' : 'transparent'};color:${b.band ? (JD_BAND_COLOR[b.band]||{}).fg||'var(--text)' : 'var(--text)'}">${fmtSec(b.aht)}</td>
                 <td style="padding:7px 10px;text-align:right;font-family:var(--m);color:var(--tm)">${b.target !== null ? '≤' + fmtSec(b.target) : '—'}</td>
                 <td style="padding:7px 10px;text-align:right;font-family:var(--m);font-weight:700;color:${deltaColor}">${fmtDelta(b.delta, b.deltaPct)}</td>
                 <td style="padding:7px 10px">${jdBandTag(b.band)}</td>
-                <td style="padding:7px 10px">${jdMixBar(b.mixPct)}</td>
+                <td style="padding:7px 10px">${jdMixBar(b.reviewerMixPct)}</td>
+                <td style="padding:7px 10px">${jdTeamMixByTLBar(jdTeamMixByTL(b.teamAgents, getBandTargets(b.workflow, b.sw, 'AHT')))}</td>
+                <td style="padding:7px 10px">${jdSparkline(b.spark, b.target)}</td>
             </tr>`;
         }).join('');
+        tbody.innerHTML = rowsHtml;
     }
 
     window.jdToggleSWFilter = function(sw) {
@@ -18307,103 +18646,139 @@ document.addEventListener('DOMContentLoaded', () => {
         renderJobDetail();
     };
 
-    // ── Whom to target (reviewer, from RAW_ROWS) ─────────────────────────────
-    // Gating rule: a reviewer's SW entry is only shown if EITHER
+    // ── Whom to target (reviewer x SW rows, from RAW_ROWS) ──────────────────
+    // Gating rule: a reviewer x SW row is only included if EITHER
     //   (1) that reviewer's own AHT for that SW bands as Approaching/NI, OR
     //   (2) that reviewer's team (TL) is Approaching/NI for that SW overall.
     // A reviewer who is individually meeting goal but whose team is struggling
     // on that SW is still surfaced (rule 2); a reviewer who is meeting goal on
-    // a SW where their team is ALSO meeting goal is never shown (neither rule
-    // fires). Reviewers left with no qualifying SW entry are dropped entirely,
-    // not just filtered down to an empty SW list.
-    function jdBuildReviewerPanel(rows) {
-        const rosterMap = jdRosterMap();
-
-        // First pass: team (TL)-level AHT per SW, needed for the gate below.
-        const byTeamSW = {}; // key: tl|sw -> {workflow, decisions, ahtSum}
-        rows.forEach(r => {
-            if (!r.sw || !r.dht || !r.supervisor) return;
-            const key = r.supervisor + '|' + r.sw;
-            if (!byTeamSW[key]) byTeamSW[key] = { workflow: r.workflow, decisions: 0, ahtSum: 0 };
-            byTeamSW[key].decisions += r.decisions || 0;
-            byTeamSW[key].ahtSum += (r.dht || 0) * (r.decisions || 0);
-        });
-        function teamBandFor(tl, sw, workflow) {
-            const g = byTeamSW[tl + '|' + sw];
-            if (!g || !g.decisions) return null;
-            const bandObj = getBandTargets(workflow, sw, 'AHT');
-            return assignBand(g.ahtSum / g.decisions, bandObj, true);
-        }
+    // a SW where their team is ALSO meeting goal (Achieving/Exceeding both
+    // ways) is never shown — neither rule fires, so it's excluded outright.
+    // Flat rows (one per reviewer x SW), not nested, so this can be a real
+    // sortable table.
+    function jdBuildReviewerPanel(rows, sparkRows) {
         const GATE_BANDS = new Set(['app', 'ni']);
 
-        const byReviewer = {};
+        // Reviewer x SW aggregates.
+        const byRevSW = {}; // key: reviewer|sw
         rows.forEach(r => {
-            if (!r.sw || !r.dht || !r.reviewer) return;
-            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviewer: r.reviewer, supervisor: r.supervisor, decisions: 0, ahtSum: 0, bySW: {} };
-            const g = byReviewer[r.reviewer];
-            g.decisions += r.decisions || 0;
-            g.ahtSum += (r.dht || 0) * (r.decisions || 0);
-            if (!g.bySW[r.sw]) g.bySW[r.sw] = { sw: r.sw, workflow: r.workflow, decisions: 0, ahtSum: 0 };
-            const sg = g.bySW[r.sw];
-            sg.decisions += r.decisions || 0;
-            sg.ahtSum += (r.dht || 0) * (r.decisions || 0);
+            const rowTime = (r.dht || 0) + (r.nht || 0);
+            if (!r.sw || !rowTime || !r.reviewer || !r.decisions) return;
+            const key = r.reviewer + '|' + r.sw;
+            if (!byRevSW[key]) byRevSW[key] = { reviewer: r.reviewer, supervisor: r.supervisor, sw: r.sw, workflow: r.workflow, decisions: 0, timeSum: 0 };
+            byRevSW[key].decisions += r.decisions || 0;
+            byRevSW[key].timeSum += rowTime;
         });
 
-        return Object.values(byReviewer)
+        // Weekly series per reviewer|sw, always last 6 weeks regardless of the
+        // current month/week filter — same approach as the SW bands sparkline.
+        const sparkByRevSW = {};
+        (sparkRows || rows).forEach(r => {
+            const rowTime = (r.dht || 0) + (r.nht || 0);
+            if (!r.sw || !rowTime || !r.reviewer || !r.week || !r.decisions) return;
+            const key = r.reviewer + '|' + r.sw;
+            if (!sparkByRevSW[key]) sparkByRevSW[key] = {};
+            if (!sparkByRevSW[key][r.week]) sparkByRevSW[key][r.week] = { decisions: 0, timeSum: 0 };
+            sparkByRevSW[key][r.week].decisions += r.decisions || 0;
+            sparkByRevSW[key][r.week].timeSum += rowTime;
+        });
+
+        return Object.values(byRevSW)
             .filter(g => g.decisions >= JD_MIN_DECISIONS)
             .map(g => {
-                const swList = Object.values(g.bySW).map(sg => {
-                    const swAht = sg.ahtSum / sg.decisions;
-                    const bandObj = getBandTargets(sg.workflow, sg.sw, 'AHT');
-                    const band = assignBand(swAht, bandObj, true);
-                    const teamBand = teamBandFor(g.supervisor, sg.sw, sg.workflow);
-                    const qualifies = GATE_BANDS.has(band) || GATE_BANDS.has(teamBand);
-                    return { sw: sg.sw, decisions: sg.decisions, ahtSum: sg.ahtSum, aht: swAht, band, teamBand, qualifies };
-                })
-                    .filter(sg => sg.qualifies)
-                    .sort((a, b) => b.aht - a.aht);
-                // Summary N/avg reflect only the qualifying SW entries above —
-                // otherwise the header line wouldn't match the rows shown under it.
-                const qDecisions = swList.reduce((s, sg) => s + sg.decisions, 0);
-                const qAhtSum = swList.reduce((s, sg) => s + sg.ahtSum, 0);
-                const aht = qDecisions > 0 ? qAhtSum / qDecisions : 0;
-                const rosterHit = rosterMap[g.reviewer] || null;
-                return { reviewer: g.reviewer, name: rosterHit ? rosterHit.name : g.reviewer, decisions: qDecisions, aht, swList };
+                const aht = g.timeSum / g.decisions;
+                const bandObj = getBandTargets(g.workflow, g.sw, 'AHT');
+                const band = assignBand(aht, bandObj, true);
+                // Gate is purely on the reviewer's OWN AHT band — a reviewer
+                // who is Achieving/Exceeding target is always excluded here,
+                // regardless of how their team is doing on this SW. Cohort
+                // status is just the reviewer's own band (NI or Approaching).
+                const qualifies = GATE_BANDS.has(band);
+                const status = qualifies ? band : null;
+
+                const key = g.reviewer + '|' + g.sw;
+                const byWeek = sparkByRevSW[key] || {};
+                const last6Weeks = Object.keys(byWeek).sort().slice(-6);
+                const spark = last6Weeks.map(wk => {
+                    const w = byWeek[wk];
+                    return w.decisions > 0 ? w.timeSum / w.decisions : null;
+                }).filter(v => v !== null);
+
+                return {
+                    reviewer: g.reviewer, name: g.reviewer,
+                    sw: g.sw, decisions: g.decisions, aht, target: bandObj ? bandObj.ach : null, band, status, qualifies, spark
+                };
             })
-            // Drop reviewers with no qualifying SW entry at all — meeting goal
-            // everywhere, on teams that are also meeting goal everywhere.
-            .filter(g => g.swList.length > 0)
+            // Only NI/Approaching reviewers appear — anyone meeting or
+            // exceeding their AHT target for that workflow is excluded.
+            .filter(g => g.qualifies)
             .sort((a, b) => b.aht - a.aht);
     }
 
-    function jdRenderReviewerPanel(reviewers) {
-        const wrap = document.getElementById('jd-reviewer-list');
+    // Cohort status is simply the reviewer's own AHT band — since inclusion
+    // in this table is now gated purely on that band being NI or Approaching,
+    // this tag can never disagree with the AHT cell next to it.
+    function jdStatusTag(status, band) {
+        if (!status || !(band === 'ni' || band === 'app')) return '<span style="color:var(--tm)">—</span>';
+        const c = JD_BAND_COLOR[band];
+        return `<span style="background:${c.bg};color:${c.fg};font-weight:700;font-size:10px;padding:2px 8px;border-radius:var(--pill)">${JD_BAND_LABEL[band]}</span>`;
+    }
+
+    let JD_WTT_SORT = { col: 'aht', dir: 'desc' };
+    window.jdSortWTT = function(col) {
+        if (JD_WTT_SORT.col === col) JD_WTT_SORT.dir = (JD_WTT_SORT.dir === 'asc') ? 'desc' : 'asc';
+        else { JD_WTT_SORT.col = col; JD_WTT_SORT.dir = (col === 'reviewer' || col === 'sw' || col === 'status') ? 'asc' : 'desc'; }
+        renderJobDetail();
+    };
+    function jdWTTSortIndicator(col) {
+        return JD_WTT_SORT.col === col ? (JD_WTT_SORT.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    }
+    function jdSortWTTRows(list) {
+        const { col, dir } = JD_WTT_SORT;
+        const mul = dir === 'asc' ? 1 : -1;
+        const statusOrder = { both: 0, own: 1, team: 2 };
+        return list.slice().sort((a, b) => {
+            let av, bv;
+            if (col === 'reviewer') { av = a.name || ''; bv = b.name || ''; }
+            else if (col === 'sw') { av = a.sw || ''; bv = b.sw || ''; }
+            else if (col === 'decisions') { av = a.decisions; bv = b.decisions; return (av - bv) * mul; }
+            else if (col === 'aht') { av = a.aht; bv = b.aht; return (av - bv) * mul; }
+            else if (col === 'status') { av = statusOrder[a.status] ?? 3; bv = statusOrder[b.status] ?? 3; return (av - bv) * mul; }
+            else { av = ''; bv = ''; }
+            if (av < bv) return -1 * mul;
+            if (av > bv) return 1 * mul;
+            return 0;
+        });
+    }
+
+    function jdRenderReviewerPanel(reviewersRaw) {
+        const tbody = document.getElementById('jd-reviewer-tbody');
         const emptyEl = document.getElementById('jd-reviewer-empty');
-        if (!reviewers.length) {
-            wrap.innerHTML = '';
+
+        ['reviewer','sw','decisions','aht','status'].forEach(col => {
+            const el = document.getElementById('jd-wtt-sort-' + col);
+            if (el) el.textContent = jdWTTSortIndicator(col);
+        });
+
+        if (!reviewersRaw.length) {
+            tbody.innerHTML = '';
             emptyEl.style.display = 'block';
             return;
         }
         emptyEl.style.display = 'none';
-        wrap.innerHTML = reviewers.map((rv, i) => {
-            const active = JD_FILTERS.reviewer === rv.reviewer;
-            const multiSW = rv.swList.length > 1;
-            const swRows = rv.swList.map(sg => {
-                const swActive = active && JD_FILTERS.sw === sg.sw;
-                return `<div style="padding:5px 10px 5px 22px;border-top:1px solid var(--divider);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:11px;${swActive ? 'background:var(--sa)' : ''}" onclick="event.stopPropagation();jdSelectReviewerSW('${rv.reviewer.replace(/'/g, "\\'")}','${sg.sw.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--sa)'" onmouseout="this.style.background='${swActive ? 'var(--sa)' : ''}'">
-                    <span style="color:var(--blue);text-decoration:underline">${sg.sw}</span>
-                    <span style="font-family:var(--m);color:var(--ts)">N=${sg.decisions.toLocaleString()} &middot; <span style="font-weight:700;color:var(--text)">${fmtSec(sg.aht)}</span> ${jdBandTagSmall(sg.band)}</span>
-                </div>`;
-            }).join('');
-            return `<div>
-                <div style="padding:8px 10px;cursor:pointer;background:var(--sa);${active && !JD_FILTERS.sw ? 'box-shadow:inset 2px 0 0 var(--blue)' : ''}${i > 0 ? 'border-top:1px solid var(--divider)' : ''}" onclick="jdSelectReviewer('${rv.reviewer.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--divider)'" onmouseout="this.style.background='var(--sa)'">
-                    <div style="display:flex;justify-content:space-between;align-items:center">
-                        <span style="font-weight:700;color:var(--blue);text-decoration:underline">${rv.name}</span>
-                        <span style="font-family:var(--m);font-size:11px;color:var(--ts)">N=${rv.decisions.toLocaleString()} &middot; <span style="font-weight:700;color:var(--text)">${fmtSec(rv.aht)} avg</span>${multiSW ? ` <span style="background:var(--sa);border:1px solid var(--border);color:var(--tm);font-size:9px;font-weight:700;padding:1px 6px;border-radius:var(--pill);margin-left:4px">${rv.swList.length} SWs</span>` : ''}</span>
-                    </div>
-                </div>
-                ${swRows}
-            </div>`;
+        const reviewers = jdSortWTTRows(reviewersRaw);
+
+        tbody.innerHTML = reviewers.map(rv => {
+            const active = JD_FILTERS.reviewer === rv.reviewer && JD_FILTERS.sw === rv.sw;
+            const bandColor = rv.band ? (JD_BAND_COLOR[rv.band] || {}) : {};
+            return `<tr style="border-top:1px solid var(--divider);cursor:pointer;${active ? 'background:var(--sa)' : ''}" onclick="jdSelectReviewerSW('${rv.reviewer.replace(/'/g, "\\'")}','${rv.sw.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--sa)'" onmouseout="this.style.background='${active ? 'var(--sa)' : ''}'">
+                <td style="padding:7px 10px;font-weight:600;color:var(--blue);text-decoration:underline">${rv.name}</td>
+                <td style="padding:7px 10px;color:var(--ts)">${rv.sw}</td>
+                <td style="padding:7px 10px;text-align:right;font-family:var(--m)">${rv.decisions.toLocaleString()}</td>
+                <td style="padding:7px 10px;text-align:right;font-family:var(--m);font-weight:700;background:${bandColor.bg||'transparent'};color:${bandColor.fg||'var(--text)'}">${fmtSec(rv.aht)}</td>
+                <td style="padding:7px 10px">${jdStatusTag(rv.status, rv.band)}</td>
+                <td style="padding:7px 10px">${jdSparkline(rv.spark, rv.target)}</td>
+            </tr>`;
         }).join('');
     }
 
@@ -18422,74 +18797,59 @@ document.addEventListener('DOMContentLoaded', () => {
         renderJobDetail();
     };
 
-    // ── Tenure stat panel (from RAW_ROWS) ────────────────────────────────────
-    function jdBuildTenurePanel(rows) {
-        const byTenure = {};
-        rows.forEach(r => {
-            if (!r.sw || !r.dht || !r.tenure) return;
-            if (!byTenure[r.tenure]) byTenure[r.tenure] = { tenure: r.tenure, decisions: 0, ahtSum: 0 };
-            byTenure[r.tenure].decisions += r.decisions || 0;
-            byTenure[r.tenure].ahtSum += (r.dht || 0) * (r.decisions || 0);
-        });
-        return Object.values(byTenure)
-            .filter(g => g.decisions > 0)
-            .map(g => ({ tenure: g.tenure, decisions: g.decisions, aht: g.ahtSum / g.decisions }))
-            .sort((a, b) => b.aht - a.aht);
-    }
-
-    function jdRenderTenurePanel(buckets) {
-        const wrap = document.getElementById('jd-tenure-rows');
-        const emptyEl = document.getElementById('jd-tenure-empty');
-        const summaryEl = document.getElementById('jd-tenure-summary');
-        if (!buckets.length) {
-            wrap.innerHTML = '';
-            summaryEl.innerHTML = '';
-            emptyEl.style.display = 'block';
-            return;
-        }
-        emptyEl.style.display = 'none';
-        const maxAht = Math.max(...buckets.map(b => b.aht));
-        wrap.innerHTML = buckets.map(b => {
-            const active = JD_FILTERS.tenure === b.tenure;
-            const pct = maxAht > 0 ? Math.max(6, (b.aht / maxAht) * 100) : 0;
-            const color = b.aht === maxAht ? 'var(--cbd,#FCA5A5)' : (b.aht === Math.min(...buckets.map(x=>x.aht)) ? 'var(--gbd,#86EFAC)' : 'var(--abd,#FCD34D)');
-            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;${active ? 'background:var(--sa)' : ''}" onclick="jdToggleTenureFilter('${b.tenure.replace(/'/g, "\\'")}')" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-                <span style="width:70px;flex-shrink:0;color:var(--blue);text-decoration:underline;font-weight:600">${b.tenure}</span>
-                <div style="flex:1;background:var(--sa);border-radius:4px;height:14px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${color};border-radius:4px"></div></div>
-                <span style="font-family:var(--m);font-weight:700;min-width:70px;text-align:right">${fmtSec(b.aht)} <span style="color:var(--tm);font-weight:400">(N=${b.decisions.toLocaleString()})</span></span>
-            </div>`;
-        }).join('');
-        if (buckets.length > 1) {
-            const worst = buckets[0], best = buckets[buckets.length - 1];
-            const ratio = best.aht > 0 ? (worst.aht / best.aht) : null;
-            summaryEl.textContent = ratio ? `${worst.tenure} reviewers run ${ratio.toFixed(1)}x the ${best.tenure} cohort.` : '';
-        } else {
-            summaryEl.textContent = '';
-        }
-    }
-
-    window.jdToggleTenureFilter = function(tenure) {
-        JD_FILTERS.tenure = (JD_FILTERS.tenure === tenure) ? null : tenure;
-        JD_PAGE = 1;
-        renderJobDetail();
-    };
-
     // ── Job detail table (from JOBDETAIL_ROWS / Job Extract CSV) ─────────────
-    // Reviewer/tenure filters (set from the main-CSV panels above) are matched
-    // against the Job Extract via the roster join on actor_id, since the Job
-    // Extract itself has no reviewer-name or tenure column of its own.
+    // Two filter layers apply, both via the roster join on actor_id since the
+    // Job Extract itself has no reviewer-name/TL/tenure columns of its own:
+    //  1. The universal filter bar (SW, workflow, TL, tenure) — same filters
+    //     that gate every other tab in the app.
+    //  2. Click-through filters set from the panels above (JD_FILTERS).
     function jdFilteredJobs() {
         const rosterMap = jdRosterMap();
+
+        // Universal filter bar
+        const uSws = getSel('g-sw'), uWorkflows = getSel('g-workflow'),
+              uTls = getSel('g-tl'), uTenures = getSel('g-tenure');
+
         let rows = JOBDETAIL_ROWS;
+        if (uSws.length) rows = rows.filter(r => uSws.includes(r.sw));
+        if (uWorkflows.length) rows = rows.filter(r => uWorkflows.includes(r.workflow));
+        if (uTls.length) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && uTls.includes(hit.tl); });
+        if (uTenures.length) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && uTenures.includes(hit.tenure); });
+
+        // Click-through filters (stack on top)
         if (JD_FILTERS.sw) rows = rows.filter(r => r.sw === JD_FILTERS.sw);
-        if (JD_FILTERS.reviewer) rows = rows.filter(r => r.actorId === JD_FILTERS.reviewer);
+        if (JD_FILTERS.reviewer) {
+            // JD_FILTERS.reviewer holds a reviewer NAME (set from the Whom to
+            // Target panel, which is built from RAW_ROWS — the main CSV keys
+            // reviewers by name, not actorId). Job Extract rows only carry
+            // actorId, so the name has to be resolved through the roster
+            // (actorId -> srtid -> name) before comparing — comparing the name
+            // directly to actorId, as this used to do, can never match and
+            // silently filtered the job table down to nothing.
+            rows = rows.filter(r => {
+                const hit = rosterMap[r.actorId];
+                return hit && hit.name === JD_FILTERS.reviewer;
+            });
+        }
         if (JD_FILTERS.tenure) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && hit.tenure === JD_FILTERS.tenure; });
+
+        // Local filters (search box + TL/Reviewer/SW dropdowns above the
+        // job table itself) — independent of the universal bar and of the
+        // click-through JD_FILTERS.
+        if (JD_LOCAL_FILTERS.jid) {
+            const q = JD_LOCAL_FILTERS.jid.trim().toLowerCase();
+            if (q) rows = rows.filter(r => (r.jid || '').toLowerCase().includes(q));
+        }
+        if (JD_LOCAL_FILTERS.tl) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && hit.tl === JD_LOCAL_FILTERS.tl; });
+        if (JD_LOCAL_FILTERS.reviewer) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && hit.name === JD_LOCAL_FILTERS.reviewer; });
+        if (JD_LOCAL_FILTERS.sw) rows = rows.filter(r => r.sw === JD_LOCAL_FILTERS.sw);
+
         return rows;
     }
 
     window.jdSort = function(col) {
         if (JD_SORT.col === col) JD_SORT.dir = (JD_SORT.dir === 'asc') ? 'desc' : 'asc';
-        else { JD_SORT.col = col; JD_SORT.dir = (col === 'aht') ? 'desc' : 'asc'; }
+        else { JD_SORT.col = col; JD_SORT.dir = (col === 'dht') ? 'desc' : 'asc'; }
         JD_PAGE = 1;
         renderJobDetail();
     };
@@ -18504,10 +18864,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const ra = rosterMap[a.actorId], rb = rosterMap[b.actorId];
                 av = col === 'reviewer' ? (ra ? ra.name : a.actorId) : (ra ? ra.tl : '');
                 bv = col === 'reviewer' ? (rb ? rb.name : b.actorId) : (rb ? rb.tl : '');
-            } else if (col === 'aht') {
-                av = a.aht === null ? -Infinity : a.aht;
-                bv = b.aht === null ? -Infinity : b.aht;
-                return (av - bv) * mul;
+            } else if (col === 'aht' || col === 'dht') {
+                av = a[col] === null || a[col] === undefined ? -Infinity : a[col];
+                bv = b[col] === null || b[col] === undefined ? -Infinity : b[col];
+                if (av !== bv) return (av - bv) * mul;
+                // Tie-break: most recent date first, regardless of sort direction —
+                // per Karl's spec (1) highest AHT (2) most recent date at top.
+                const ad = a.date || '', bd = b.date || '';
+                if (ad !== bd) return ad < bd ? 1 : -1;
+                return 0;
             } else {
                 av = a[col] || '';
                 bv = b[col] || '';
@@ -18523,9 +18888,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const chips = [];
         if (JD_FILTERS.sw) chips.push(['SW', JD_FILTERS.sw, () => { JD_FILTERS.sw = null; JD_PAGE = 1; renderJobDetail(); }]);
         if (JD_FILTERS.reviewer) {
-            const rosterMap = jdRosterMap();
-            const hit = rosterMap[JD_FILTERS.reviewer];
-            chips.push(['Reviewer', hit ? hit.name : JD_FILTERS.reviewer, () => { JD_FILTERS.reviewer = null; JD_FILTERS.sw = null; JD_PAGE = 1; renderJobDetail(); }]);
+            // JD_FILTERS.reviewer is already the reviewer's display name (see
+            // jdFilteredJobs for why) — no roster lookup needed here.
+            chips.push(['Reviewer', JD_FILTERS.reviewer, () => { JD_FILTERS.reviewer = null; JD_FILTERS.sw = null; JD_PAGE = 1; renderJobDetail(); }]);
         }
         if (JD_FILTERS.tenure) chips.push(['Tenure', JD_FILTERS.tenure, () => { JD_FILTERS.tenure = null; JD_PAGE = 1; renderJobDetail(); }]);
 
@@ -18545,14 +18910,61 @@ document.addEventListener('DOMContentLoaded', () => {
         renderJobDetail();
     };
 
+    // ── Job detail table — customizable columns ──────────────────────────────
+    // Same show/hide concept as Data Explorer's column groups (DE_COLS): TLs
+    // can hide columns they don't need and show them again later. Job ID,
+    // Date, and Reviewer stay pinned (always visible) since those are the
+    // identity of a row; everything else is toggleable.
+    let JD_JOB_COLS = { tl: true, sw: true, decision: true, dht: true, swtarget: true, notes: true };
+    const JD_JOB_COL_LABELS = { tl: 'TL', sw: 'SW', decision: 'Decision', dht: 'Decision HT', swtarget: 'SW AHT Target', notes: 'Notes' };
+    function jdRenderColToggles() {
+        const wrap = document.getElementById('jd-col-toggles');
+        if (!wrap) return;
+        wrap.innerHTML = `<span style="font-size:10px;color:var(--tm);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-right:2px">Columns:</span>` +
+            Object.keys(JD_JOB_COLS).map(k => {
+                const on = JD_JOB_COLS[k];
+                return `<button onclick="jdToggleJobCol('${k}')" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid ${on ? 'var(--pbd)' : 'var(--border)'};background:${on ? 'var(--psec)' : 'var(--sa)'};color:${on ? 'var(--purple)' : 'var(--tm)'}">${JD_JOB_COL_LABELS[k]}</button>`;
+            }).join('');
+    }
+    window.jdToggleJobCol = function(key) {
+        if (!(key in JD_JOB_COLS)) return;
+        JD_JOB_COLS[key] = !JD_JOB_COLS[key];
+        jdRenderColToggles();
+        jdApplyColVisibility();
+    };
+    function jdApplyColVisibility() {
+        Object.keys(JD_JOB_COLS).forEach(key => {
+            const show = JD_JOB_COLS[key];
+            document.querySelectorAll('#tab-jobdetail [data-col="' + key + '"]').forEach(el => {
+                el.style.display = show ? '' : 'none';
+            });
+        });
+    }
+
     function jdRenderJobTable() {
         const rosterMap = jdRosterMap();
+        // Populate dropdown options from rows filtered only by the universal
+        // bar (not by JD_LOCAL_FILTERS itself) — so choosing a TL doesn't
+        // immediately shrink the Reviewer/SW dropdown options out from under
+        // the person mid-selection.
+        const uSws = getSel('g-sw'), uWorkflows = getSel('g-workflow'),
+              uTls = getSel('g-tl'), uTenures = getSel('g-tenure');
+        let baseForOptions = JOBDETAIL_ROWS;
+        if (uSws.length) baseForOptions = baseForOptions.filter(r => uSws.includes(r.sw));
+        if (uWorkflows.length) baseForOptions = baseForOptions.filter(r => uWorkflows.includes(r.workflow));
+        if (uTls.length) baseForOptions = baseForOptions.filter(r => { const hit = rosterMap[r.actorId]; return hit && uTls.includes(hit.tl); });
+        if (uTenures.length) baseForOptions = baseForOptions.filter(r => { const hit = rosterMap[r.actorId]; return hit && uTenures.includes(hit.tenure); });
+        jdPopulateLocalFilterOptions(baseForOptions, rosterMap);
+
         const filtered = jdSortRows(jdFilteredJobs());
         const tbody = document.getElementById('jd-job-tbody');
         const emptyEl = document.getElementById('jd-job-empty');
         const pgEl = document.getElementById('jd-job-pagination');
-        const thAht = document.getElementById('jd-th-aht');
-        if (thAht) thAht.textContent = 'AHT (s) ' + (JD_SORT.col === 'aht' ? (JD_SORT.dir === 'asc' ? '▲' : '▼') : '');
+
+        ['jid','date','reviewer','tl','sw','decision','dht'].forEach(col => {
+            const el = document.getElementById('jd-job-sort-' + col);
+            if (el) el.textContent = JD_SORT.col === col ? (JD_SORT.dir === 'asc' ? ' ▲' : ' ▼') : '';
+        });
 
         if (!filtered.length) {
             tbody.innerHTML = '';
@@ -18572,18 +18984,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = hit ? hit.name : r.actorId;
             const tl = hit ? (hit.tl || '—') : '—';
             const bandObj = getBandTargets(r.workflow, r.sw, 'AHT');
-            const band = assignBand(r.aht, bandObj, true);
+            // Decision HT is banded directly against the SW's AHT target — this
+            // is the per-job raw decision time, not the blended AHT KPI, but
+            // it's still the meaningful signal at job grain, so it gets the
+            // same color treatment as everywhere else in the app.
+            const dhtBand = r.dht !== null ? assignBand(r.dht, bandObj, true) : null;
             return `<tr style="border-top:1px solid var(--divider)">
                 <td style="padding:6px 8px;font-family:var(--m);user-select:all;cursor:text">${r.jid}</td>
                 <td style="padding:6px 8px;font-family:var(--m)">${r.date || '—'}</td>
                 <td style="padding:6px 8px;user-select:all;cursor:text">${name}</td>
-                <td style="padding:6px 8px;color:var(--ts)">${tl}</td>
-                <td style="padding:6px 8px;color:var(--ts)">${r.sw || '—'}</td>
-                <td style="padding:6px 8px">${r.decision || '—'}</td>
-                <td style="padding:6px 8px;text-align:right;font-family:var(--m);font-weight:700${band ? `;color:${(JD_BAND_COLOR[band]||{}).fg||'var(--text)'}` : ''}">${r.aht === null ? '—' : Math.round(r.aht)}</td>
-                <td style="padding:6px 8px;color:var(--ts);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;cursor:text" title="${(r.notes||'').replace(/"/g,'&quot;')}">${r.notes || '—'}</td>
+                <td data-col="tl" style="padding:6px 8px;color:var(--ts)">${tl}</td>
+                <td data-col="sw" style="padding:6px 8px;color:var(--ts)">${r.sw || '—'}</td>
+                <td data-col="decision" style="padding:6px 8px">${r.decision || '—'}</td>
+                <td data-col="dht" style="padding:6px 8px;text-align:right;font-family:var(--m);font-weight:700;background:${dhtBand ? (JD_BAND_COLOR[dhtBand]||{}).bg||'transparent' : 'transparent'};color:${dhtBand ? (JD_BAND_COLOR[dhtBand]||{}).fg||'var(--text)' : 'var(--text)'}" title="This job's decision handle time${bandObj && bandObj.ach ? `, vs ${bandObj.ach.toFixed(2)} SW target` : ''}">${r.dht === null ? '—' : r.dht.toFixed(2)}</td>
+                <td data-col="swtarget" style="padding:6px 8px;text-align:right;font-family:var(--m);color:var(--tm)">${bandObj && bandObj.ach !== null && bandObj.ach !== undefined ? bandObj.ach.toFixed(2) : '—'}</td>
+                <td data-col="notes" style="padding:6px 8px;color:var(--ts);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;cursor:text" title="${(r.notes||'').replace(/"/g,'&quot;')}">${r.notes || '—'}</td>
             </tr>`;
         }).join('');
+        jdApplyColVisibility();
 
         pgEl.innerHTML = filtered.length <= JD_PAGE_SIZE ? '' :
             `<span style="color:var(--tm)">Page ${JD_PAGE} of ${totalPages} · ${filtered.length.toLocaleString()} jobs</span>
@@ -18615,16 +19033,18 @@ document.addEventListener('DOMContentLoaded', () => {
                   workflows = getSel('g-workflow'), roles = getSel('g-role'), reviewTypes = getSel('g-review-type');
             const monthRows = selMonths.length ? RAW_ROWS.filter(r => selMonths.includes(r.month)) : RAW_ROWS;
             const rows = filterRows(monthRows, tls, tenures, sws, workflows, roles, reviewTypes);
-            jdRenderSWTable(jdBuildSWBands(rows));
-            jdRenderReviewerPanel(jdBuildReviewerPanel(rows));
-            jdRenderTenurePanel(jdBuildTenurePanel(rows));
+            // Sparkline always shows the last 6 weeks regardless of the current
+            // month/week selection — same other-dimension filters, no month gate.
+            const sparkRows = filterRows(RAW_ROWS, tls, tenures, sws, workflows, roles, reviewTypes);
+            jdRenderSWTable(jdBuildSWBands(rows, sparkRows));
+            jdRenderReviewerPanel(jdBuildReviewerPanel(rows, sparkRows));
         } else {
             jdRenderSWTable([]);
             jdRenderReviewerPanel([]);
-            jdRenderTenurePanel([]);
         }
 
         jdRenderChips();
+        jdRenderColToggles();
         jdRenderJobTable();
     };
 
@@ -19129,6 +19549,7 @@ function nrtHandleUpload(input, type) {
             } else {
                 nrtParseRoster(e.target.result);
                 statusEl.textContent = '✓ Loaded ' + NRT_ROSTER.length.toLocaleString() + ' agents from ' + file.name;
+                if (typeof JOBDETAIL_ROWS !== 'undefined' && JOBDETAIL_ROWS.length && typeof jdBackfillRealAHT === 'function') jdBackfillRealAHT();
             }
             statusEl.style.color = 'var(--teal)';
             nrtPopulateFilters();
@@ -22382,6 +22803,15 @@ function gpDecReqExpand(open) {
         'Reviewer','Reviewer — Missed Violation','Reviewer — Over-enforcement'
     ]);
 
+    // Auditor-error L2s — same L1 ('People') as reviewer errors, but a
+    // distinct sub-category (audit-side mistakes, not reviewer-side).
+    // Kept separate from REVIEWER_L2 rather than merged in, per Karl.
+    const AUDITOR_L2 = new Set([
+        'Auditor — Missed Violation','Auditor — Over-enforcement','Auditor — Wrong Action',
+        'Auditor — Focus/Attention','Auditor — Bias','Auditor — Wellbeing','Auditor — Intentional Misconduct',
+        'Auditor'
+    ]);
+
     // Action plan taxonomy (reactive + proactive)
     const ACTION_PLANS = {
         'Reviewer — Missed Violation': {
@@ -22439,6 +22869,24 @@ function gpDecReqExpand(open) {
     function isVendor(row) { return VENDOR_L1.has(row.rca1); }
     function isMeta(row)   { return META_L1.has(row.rca1); }
     function isReviewerError(row) { return row.rca1 === 'People' && REVIEWER_L2.has(row.rca2); }
+    function isAuditorError(row)  { return row.rca1 === 'People' && AUDITOR_L2.has(row.rca2); }
+
+    // Diagnostic: if rows are tagged rca1='People' (i.e. a person-caused
+    // error) but their rca2 value isn't in EITHER REVIEWER_L2 or AUDITOR_L2,
+    // both isReviewerError() and isAuditorError() silently exclude them —
+    // which looks identical to "no errors" in the tables above. This has
+    // happened before when an export changed L2 wording (e.g. an encoding
+    // issue mangled the em-dash in "Reviewer — X" into garbage characters).
+    // Surface it instead of failing silently.
+    function rcaUnmatchedL2Warning(rows) {
+        const peopleRows = rows.filter(r => r.rca1 === 'People');
+        const unmatched = peopleRows.filter(r => !REVIEWER_L2.has(r.rca2) && !AUDITOR_L2.has(r.rca2));
+        if (!unmatched.length) return '';
+        const uniqueVals = [...new Set(unmatched.map(r => r.rca2 || '(blank)'))].slice(0, 8);
+        return `<div style="background:var(--csec);border:1px solid var(--cbd);border-radius:var(--r);padding:8px 12px;font-size:11px;color:var(--coral);font-weight:600;margin-bottom:10px">
+            ⚠ ${unmatched.length} row${unmatched.length!==1?'s':''} tagged "People" have an RCA L2 value not in the known taxonomy (Reviewer or Auditor), so they're excluded from those tables: ${uniqueVals.map(v=>`"${v}"`).join(', ')}${uniqueVals.length<[...new Set(unmatched.map(r=>r.rca2||'(blank)'))].length?'…':''}. If this looks like garbled text (e.g. a broken dash character) rather than a genuinely new category, the source file likely has an encoding issue — try re-exporting/re-saving it as UTF-8 before uploading.
+        </div>`;
+    }
 
     function scopeFilter(row) {
         if(_rcaScope === 'vendor') return isVendor(row);
@@ -22489,6 +22937,8 @@ function gpDecReqExpand(open) {
     function renderSummaryCards(rows) {
         const el = document.getElementById('rca-summary-cards');
         if(!el) return;
+        const warnEl = document.getElementById('rca-taxonomy-warning');
+        if(warnEl) warnEl.innerHTML = rcaUnmatchedL2Warning(rows);
         const total      = rows.length;
         const vendor     = rows.filter(isVendor).length;
         const meta       = rows.filter(isMeta).length;
@@ -22513,10 +22963,38 @@ function gpDecReqExpand(open) {
         renderRCAParetoChart();
     };
 
+    // Pareto-chart-only adjustment — separate from the page-wide scope
+    // buttons (All/Vendor/Meta) above, which affect every table on the tab.
+    // This only reshapes what feeds the Pareto chart:
+    //   raw          - no exclusions, every row currently in scope
+    //   metaAdjusted - excludes Policy and Tooling L1 rows
+    //   adjusted     - excludes Policy, Tooling, Protocol L1 rows, and
+    //                  Auditor L2 rows (a stricter cut, removing every
+    //                  non-reviewer-controllable category at once)
+    let _rcaParetoAdjust = 'raw';
+    window.rcaSetParetoAdjust = function(mode) {
+        _rcaParetoAdjust = mode;
+        document.querySelectorAll('.rca-padjust-btn').forEach(b => {
+            b.classList.toggle('rca-padjust-active', b.dataset.adjust === mode);
+        });
+        renderRCAParetoChart();
+    };
+    function rcaParetoAdjustFilter(row) {
+        if (_rcaParetoAdjust === 'metaAdjusted') {
+            return row.rca1 !== 'Policy' && row.rca1 !== 'Tooling';
+        }
+        if (_rcaParetoAdjust === 'adjusted') {
+            if (row.rca1 === 'Policy' || row.rca1 === 'Tooling' || row.rca1 === 'Protocol') return false;
+            if (AUDITOR_L2.has(row.rca2)) return false;
+            return true;
+        }
+        return true;
+    }
+
     window.renderRCAParetoChart = function() {
         const canvas = document.getElementById('rca-pareto-canvas');
         if(!canvas) return;
-        const rows  = getFiltered();
+        const rows  = getFiltered().filter(rcaParetoAdjustFilter);
         const topN  = parseInt((document.getElementById('rca-pareto-topn')||{}).value||'10');
 
         const dimLabels = { rca1:'L1',rca2:'L2',rca3:'L3',rca4:'L4',sw:'Sub-workflow',pol:'Policy',rv:'Reviewer',sup:'TL' };
@@ -22717,174 +23195,6 @@ function gpDecReqExpand(open) {
             `<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#EF4444"><span style="width:16px;height:2px;background:#EF4444;display:inline-block;border-radius:1px;opacity:0.6"></span>80% line</span>`;
     };
 
-    function renderReviewerTable(rows) {
-        const el = document.getElementById('rca-reviewer-table');
-        if(!el) return;
-
-        // Only reviewer errors for this table
-        const revRows = rows.filter(isReviewerError);
-        if(!revRows.length) {
-            el.innerHTML = '<div style="color:var(--tm);font-size:12px;padding:8px 0">No reviewer errors in current filter.</div>';
-            return;
-        }
-
-        // Aggregate per reviewer
-        const byRv = {};
-        revRows.forEach(r => {
-            if(!byRv[r.rv]) byRv[r.rv] = { rv:r.rv, sup:r.sup, total:0, byL2:{}, byL3:{}, lastDate:'', months:new Set() };
-            const b = byRv[r.rv];
-            b.total++;
-            b.byL2[r.rca2] = (b.byL2[r.rca2]||0)+1;
-            const l3key = (r.rca2||'')+'|'+(r.rca3||'');
-            b.byL3[l3key] = (b.byL3[l3key]||0)+1;
-            if(r.date > b.lastDate) b.lastDate = r.date;
-            if(r.month) b.months.add(r.month);
-        });
-
-        const sorted = Object.values(byRv).sort((a,b)=>b.total-a.total);
-
-        // Pattern flag: same L3 combo 2+ times in same month
-        function hasPattern(b) {
-            // Check monthly breakdown
-            const monthL3 = {};
-            revRows.filter(r=>r.rv===b.rv).forEach(r => {
-                const k = (r.month||'')+'|'+(r.rca2||'')+'|'+(r.rca3||'');
-                monthL3[k] = (monthL3[k]||0)+1;
-            });
-            return Object.values(monthL3).some(v=>v>=2);
-        }
-
-        el.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead><tr style="border-bottom:2px solid var(--border)">
-                <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Reviewer</th>
-                <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">TL</th>
-                <th style="text-align:center;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Errors</th>
-                <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Top L2</th>
-                <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Top L3</th>
-                <th style="text-align:center;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Pattern</th>
-                <th style="text-align:center;padding:6px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Actions</th>
-            </tr></thead>
-            <tbody>
-            ${sorted.map(b => {
-                const topL2 = Object.entries(b.byL2).sort((a,z)=>z[1]-a[1])[0];
-                const topL3entry = Object.entries(b.byL3).sort((a,z)=>z[1]-a[1])[0];
-                const topL3 = topL3entry ? topL3entry[0].split('|')[1] : '—';
-                const pattern = hasPattern(b);
-                const patternBadge = pattern
-                    ? `<span style="background:var(--csec);color:var(--coral);border-radius:var(--pill);padding:2px 7px;font-size:10px;font-weight:700">⚠ Pattern</span>`
-                    : `<span style="color:var(--tm);font-size:11px">—</span>`;
-                const rvShort = b.rv.split(',')[0];
-                return `<tr style="border-bottom:1px solid var(--divider)" class="rca-rv-row" data-rv="${b.rv}">
-                    <td style="padding:7px 8px;font-weight:600">${b.rv}</td>
-                    <td style="padding:7px 8px;color:var(--ts)">${b.sup.split(',')[0]||'—'}</td>
-                    <td style="padding:7px 8px;text-align:center;font-weight:700;color:${b.total>=5?'var(--coral)':b.total>=3?'var(--amber)':'var(--text)'}">${b.total}</td>
-                    <td style="padding:7px 8px;color:var(--ts);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${topL2?topL2[0]:''}">${topL2?`${topL2[0]} <span style="color:var(--tm)">(${topL2[1]})</span>`:' —'}</td>
-                    <td style="padding:7px 8px;color:var(--ts);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${topL3}">${topL3||'—'}</td>
-                    <td style="padding:7px 8px;text-align:center">${patternBadge}</td>
-                    <td style="padding:7px 8px;text-align:center">
-                        <button onclick="rcaShowActionPlan('${b.rv.replace(/'/g,"\\'")}','${(topL2?topL2[0]:'').replace(/'/g,"\\'")}','${(topL3||'').replace(/'/g,"\\'")}',${pattern})"
-                            style="font-size:10px;font-weight:700;color:#fff;background:var(--purple);border:none;border-radius:var(--pill);padding:3px 10px;cursor:pointer;font-family:var(--f)">Actions</button>
-                    </td>
-                </tr>`;
-            }).join('')}
-            </tbody>
-        </table></div>`;
-    }
-
-    function renderTrend(rows) {
-        const el = document.getElementById('rca-trend');
-        if(!el) return;
-
-        // Get sorted weeks
-        const weeks = [...new Set(rows.map(r=>r.week).filter(Boolean))].sort();
-        if(!weeks.length) { el.innerHTML = '<div style="color:var(--tm);font-size:12px">No weekly data available.</div>'; return; }
-
-        const l1s = ['People','Tooling','Policy','Protocol'];
-        const l1Colors = { People:'#B91C1C', Tooling:'#1A56DB', Policy:'#92400E', Protocol:'#0F766E' };
-
-        // Count per week per L1
-        const data = {};
-        l1s.forEach(l => data[l] = []);
-        weeks.forEach(wk => {
-            const wRows = rows.filter(r=>r.week===wk);
-            l1s.forEach(l => data[l].push(wRows.filter(r=>r.rca1===l).length));
-        });
-
-        const maxV = Math.max(1, ...l1s.flatMap(l=>data[l]));
-        const H = 120, W_bar = Math.max(18, Math.min(40, Math.floor(560/weeks.length/l1s.length)));
-        const groupW = W_bar * l1s.length + 4;
-        const totalW = weeks.length * groupW + 60;
-
-        let svg = `<div style="overflow-x:auto"><svg width="${totalW}" height="${H+50}" font-family="var(--f)">`;
-        // Y axis
-        for(let i=0;i<=4;i++) {
-            const y = H - Math.round(i/4*H) + 10;
-            const v = Math.round(i/4*maxV);
-            svg += `<text x="30" y="${y+4}" font-size="9" fill="var(--tm)" text-anchor="end">${v}</text>`;
-            svg += `<line x1="35" y1="${y}" x2="${totalW}" y2="${y}" stroke="var(--divider)" stroke-width="0.5"/>`;
-        }
-        // Bars
-        weeks.forEach((wk, wi) => {
-            const xBase = 40 + wi * groupW;
-            l1s.forEach((l, li) => {
-                const v = data[l][wi];
-                const barH = maxV > 0 ? Math.round(v/maxV*H) : 0;
-                const x = xBase + li*W_bar;
-                const y = H - barH + 10;
-                svg += `<rect x="${x}" y="${y}" width="${W_bar-2}" height="${barH}" fill="${l1Colors[l]}" opacity="0.85" rx="2"/>`;
-                if(v>0) svg += `<text x="${x+W_bar/2-1}" y="${y-3}" font-size="8" fill="${l1Colors[l]}" text-anchor="middle">${v}</text>`;
-            });
-            // Week label
-            const labelParts = wk.split('-');
-            const label = labelParts.length>=3 ? `${labelParts[1]}/${labelParts[2]}` : wk;
-            svg += `<text x="${xBase+groupW/2-4}" y="${H+26}" font-size="9" fill="var(--tm)" text-anchor="middle">${label}</text>`;
-        });
-        // Legend
-        let lx = 40;
-        l1s.forEach(l => {
-            svg += `<rect x="${lx}" y="${H+35}" width="10" height="10" fill="${l1Colors[l]}" rx="2"/>`;
-            svg += `<text x="${lx+13}" y="${H+44}" font-size="10" fill="var(--ts)">${l}</text>`;
-            lx += l.length*6.5 + 24;
-        });
-        svg += `</svg></div>`;
-        el.innerHTML = svg;
-    }
-
-    function renderNCTable(rows) {
-        const el = document.getElementById('rca-nc-table');
-        const cnt = document.getElementById('rca-nc-count');
-        if(!el) return;
-        const ncRows = rows.filter(isMeta);
-        if(cnt) cnt.textContent = `(${ncRows.length} error${ncRows.length!==1?'s':''})`;
-        if(!ncRows.length) { el.innerHTML = '<div style="color:var(--tm);font-size:12px">None in current filter.</div>'; return; }
-        el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead><tr style="border-bottom:1px solid var(--border)">
-                <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Reviewer</th>
-                <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">SW</th>
-                <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">L1</th>
-                <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">L2</th>
-                <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">L3</th>
-                <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase">Suggested Action</th>
-            </tr></thead>
-            <tbody>
-            ${ncRows.slice(0,50).map(r => {
-                const action = r.rca1==='Tooling' ? 'Open engineering ticket with job ID' :
-                               r.rca1==='Policy'  ? 'Contact POC for clarification' :
-                               'Escalate to Meta via POC';
-                return `<tr style="border-bottom:1px solid var(--divider)">
-                    <td style="padding:5px 8px">${r.rv}</td>
-                    <td style="padding:5px 8px;color:var(--ts)">${normSW(r.sw)||'—'}</td>
-                    <td style="padding:5px 8px"><span style="background:var(--bbg);color:var(--blue);border-radius:var(--pill);padding:1px 7px;font-size:10px;font-weight:700">${r.rca1}</span></td>
-                    <td style="padding:5px 8px;color:var(--ts)">${r.rca2||'—'}</td>
-                    <td style="padding:5px 8px;color:var(--ts)">${r.rca3||'—'}</td>
-                    <td style="padding:5px 8px;color:var(--teal);font-size:11px;font-weight:600">${action}</td>
-                </tr>`;
-            }).join('')}
-            ${ncRows.length>50?`<tr><td colspan="6" style="padding:8px;color:var(--tm);font-size:11px;text-align:center">+ ${ncRows.length-50} more rows</td></tr>`:''}
-            </tbody>
-        </table>`;
-    }
-
     // Action plan modal
     window.rcaShowActionPlan = function(rv, l2, l3, hasPattern) {
         const plans = ACTION_PLANS[l2] || {};
@@ -22954,11 +23264,18 @@ function gpDecReqExpand(open) {
         const metaEl = document.getElementById('rca-meta-label');
         if(metaEl) metaEl.textContent = `${filtered.length} error${filtered.length!==1?'s':''} · ${[...new Set(filtered.map(r=>r.rv))].length} reviewer${[...new Set(filtered.map(r=>r.rv))].length!==1?'s':''}`;
 
-        renderSummaryCards(filtered);
-        renderRCAParetoChart();
-        renderReviewerTable(filtered);
-        renderTrend(filtered);
-        renderNCTable(filtered);
+        // Each render step is isolated — if one throws (e.g. a charting library
+        // hiccup), the rest of the tab still renders instead of silently going
+        // blank.
+        const rcaSteps = [
+            ['renderSummaryCards',    () => renderSummaryCards(filtered)],
+            ['renderRCAParetoChart',  () => renderRCAParetoChart()],
+            ['miscRender',            () => { if (typeof window.miscRender === 'function') window.miscRender(); }],
+        ];
+        rcaSteps.forEach(([name, fn]) => {
+            try { fn(); }
+            catch (err) { console.error('[RCA Explorer] ' + name + ' failed:', err); }
+        });
     };
 
     // Re-render when tab becomes active
