@@ -18710,34 +18710,28 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${sign}${delta.toFixed(2)}${pctStr}`;
     }
 
-    // Default: group by workflow, highest total decision volume first, then
-    // by decisions within each workflow, highest first — busiest work
-    // surfaces at the top. Clicking a column header still re-sorts normally.
-    let JD_SW_SORT = { col: 'workflow', dir: 'desc' };
+    // Default: group by workflow alphabetically (unchanged from before),
+    // then by decisions within each workflow, highest first — this is the
+    // only change from prior behavior (which sorted sub-workflows
+    // alphabetically too). Clicking a column header still re-sorts normally.
+    let JD_SW_SORT = { col: 'workflow', dir: 'asc' };
     window.jdSortSW = function(col) {
         if (JD_SW_SORT.col === col) JD_SW_SORT.dir = (JD_SW_SORT.dir === 'asc') ? 'desc' : 'asc';
-        else { JD_SW_SORT.col = col; JD_SW_SORT.dir = (col === 'sw') ? 'asc' : 'desc'; }
+        else { JD_SW_SORT.col = col; JD_SW_SORT.dir = (col === 'workflow' || col === 'sw') ? 'asc' : 'desc'; }
         renderJobDetail();
     };
     function jdSortSWRows(bands) {
         const { col, dir } = JD_SW_SORT;
         const mul = dir === 'asc' ? 1 : -1;
-        // Workflow totals, used only for the default "workflow" column sort —
-        // groups workflows by total decision volume (highest first) rather
-        // than alphabetically, matching jdBuildSWBands' own pre-sort intent
-        // (which this function otherwise overrides on every render).
-        const workflowTotals = {};
-        bands.forEach(b => { workflowTotals[b.workflow] = (workflowTotals[b.workflow] || 0) + b.decisions; });
         return bands.slice().sort((a, b) => {
             let av, bv;
             if (col === 'workflow') {
-                // Group by workflow volume using the current sort direction,
-                // but within a workflow always break ties by decisions
+                // Group by workflow name (alphabetical, unchanged), but
+                // within a workflow always break ties by decisions
                 // descending (highest-volume SW first) — a fixed secondary
                 // sort, not affected by asc/desc toggling on this column.
-                av = workflowTotals[a.workflow] || 0; bv = workflowTotals[b.workflow] || 0;
-                if (av !== bv) return (av - bv) * mul;
-                if (a.workflow !== b.workflow) return (a.workflow || '').localeCompare(b.workflow || '');
+                av = a.workflow || ''; bv = b.workflow || '';
+                if (av !== bv) return av < bv ? -1*mul : 1*mul;
                 return b.decisions - a.decisions;
             }
             else if (col === 'sw') { av = a.sw || ''; bv = b.sw || ''; }
