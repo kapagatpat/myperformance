@@ -1333,13 +1333,13 @@ tr:hover td{background:#F8F9FB}
             <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Sub-workflow</label>
             <select id="jd-f-sw" data-all-label="All SWs" onchange="jdOnLocalFilterChange()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All SWs</option></select>
           </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;flex-direction:column;gap:4px;position:relative">
             <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Week</label>
-            <select id="jd-f-week" data-all-label="All Weeks" onchange="jdOnLocalFilterChange()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All Weeks</option></select>
+            <div id="jd-ms-week" class="jd-ms-wrap"></div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;flex-direction:column;gap:4px;position:relative">
             <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Day</label>
-            <select id="jd-f-day" data-all-label="All Days" onchange="jdOnLocalFilterChange()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px"><option value="">All Days</option></select>
+            <div id="jd-ms-day" class="jd-ms-wrap"></div>
           </div>
           <button onclick="jdClearLocalFilters()" style="font-size:11px;font-weight:700;color:var(--ts);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f)">✕ Clear</button>
         </div>
@@ -17879,7 +17879,7 @@ document.addEventListener('DOMContentLoaded', () => {
         miscMSLoad('rv',   rows.map(r => r.rv),   true);
         miscMSLoad('sw',   rows.map(r => r.sw),   true);
         miscMSLoad('pol',  rows.map(r => r.pol),  true);
-        miscMSLoad('nc',   ['Controllable','Non-controllable'], false);
+        miscMSLoad('nc',   ['Controllable','Non-controllable'], true);
         // Error type — fixed values
         const typeVals = ['FN','FP','TP','TN'];
         const typeLabels = { FN:'FN — missed violation', FP:'FP — over-enforcement', TP:'TP — correct (violating)', TN:'TN — correct (non-violating)' };
@@ -18192,25 +18192,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Local filters on the job table itself — separate from the universal
     // filter bar and from JD_FILTERS (which is set by clicking rows in the
     // panels above). These only affect the job table.
-    let JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '', week: '', day: '' };
+    // week/day are Sets (multi-select via checkbox dropdown); everything
+    // else here remains single-value from plain <select> elements.
+    let JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '', week: new Set(), day: new Set() };
     window.jdOnLocalFilterChange = function() {
         JD_LOCAL_FILTERS.jid = (document.getElementById('jd-f-jid') || {}).value || '';
         JD_LOCAL_FILTERS.tl = (document.getElementById('jd-f-tl') || {}).value || '';
         JD_LOCAL_FILTERS.reviewer = (document.getElementById('jd-f-reviewer') || {}).value || '';
         JD_LOCAL_FILTERS.sw = (document.getElementById('jd-f-sw') || {}).value || '';
-        JD_LOCAL_FILTERS.week = (document.getElementById('jd-f-week') || {}).value || '';
-        JD_LOCAL_FILTERS.day = (document.getElementById('jd-f-day') || {}).value || '';
         JD_PAGE = 1;
         jdRenderJobTable();
     };
     window.jdClearLocalFilters = function() {
-        JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '', week: '', day: '' };
+        JD_LOCAL_FILTERS = { jid: '', tl: '', reviewer: '', sw: '', week: new Set(), day: new Set() };
         const jidEl = document.getElementById('jd-f-jid'); if (jidEl) jidEl.value = '';
         const tlEl = document.getElementById('jd-f-tl'); if (tlEl) tlEl.value = '';
         const rvEl = document.getElementById('jd-f-reviewer'); if (rvEl) rvEl.value = '';
         const swEl = document.getElementById('jd-f-sw'); if (swEl) swEl.value = '';
-        const weekEl = document.getElementById('jd-f-week'); if (weekEl) weekEl.value = '';
-        const dayEl = document.getElementById('jd-f-day'); if (dayEl) dayEl.value = '';
+        jdMSUpdateLabel('week');
+        jdMSUpdateLabel('day');
         JD_PAGE = 1;
         jdRenderJobTable();
     };
@@ -18227,24 +18227,100 @@ document.addEventListener('DOMContentLoaded', () => {
         fill('jd-f-reviewer', rows.map(r => { const hit = rosterMap[r.actorId]; return hit ? hit.name : null; }));
         fill('jd-f-sw', rows.map(r => r.sw));
 
-        // Week — sorted chronologically (week is already the week-ending
-        // Friday YMD string), displayed as "WE dd Mon yyyy" like elsewhere.
-        const weekEl = document.getElementById('jd-f-week');
-        if (weekEl) {
-            const cur = weekEl.value;
-            const weeks = [...new Set(rows.map(r => r.week).filter(Boolean))].sort();
-            weekEl.innerHTML = `<option value="">${weekEl.dataset.allLabel || 'All Weeks'}</option>` +
-                weeks.map(w => `<option value="${w}" ${w===cur?'selected':''}>WE ${fmtW(w)}</option>`).join('');
-        }
-        // Day — sorted chronologically, displayed as "dd Mon yyyy".
-        const dayEl = document.getElementById('jd-f-day');
-        if (dayEl) {
-            const cur = dayEl.value;
-            const days = [...new Set(rows.map(r => r.date).filter(Boolean))].sort();
-            dayEl.innerHTML = `<option value="">${dayEl.dataset.allLabel || 'All Days'}</option>` +
-                days.map(d => `<option value="${d}" ${d===cur?'selected':''}>${fmtW(d)}</option>`).join('');
-        }
+        // Week/Day — multi-select checkbox dropdowns, sorted chronologically.
+        // Rebuilding the option list preserves the current selection (JD_LOCAL_FILTERS.week/day)
+        // as long as the values are still present in the new row set.
+        const weeks = [...new Set(rows.map(r => r.week).filter(Boolean))].sort();
+        const days = [...new Set(rows.map(r => r.date).filter(Boolean))].sort();
+        jdMSSetValues('week', weeks);
+        jdMSSetValues('day', days);
     }
+
+    // ── Week/Day multi-select checkbox dropdowns ─────────────────────────────
+    // Self-contained (values + selection state), separate from the misc-ms-*
+    // widget used on the RCA Explorer tab, which lives in a different IIFE.
+    const JD_MS = {
+        week: { values: [], label: 'Week', allLabel: 'All Weeks' },
+        day:  { values: [], label: 'Day',  allLabel: 'All Days'  }
+    };
+    function jdMSSetValues(key, values) {
+        JD_MS[key].values = values;
+        // Drop any selected values no longer present in this row set.
+        const sel = JD_LOCAL_FILTERS[key];
+        [...sel].forEach(v => { if (!values.includes(v)) sel.delete(v); });
+        jdMSRender(key);
+    }
+    function jdMSRender(key) {
+        const wrap = document.getElementById('jd-ms-' + key);
+        if (!wrap) return;
+        const cfg = JD_MS[key];
+        const fmtLabel = key === 'week' ? (v => 'WE ' + fmtW(v)) : (v => fmtW(v));
+        wrap.style.cssText = 'display:flex;flex-direction:column;gap:4px;position:relative';
+        wrap.innerHTML =
+            `<div id="jd-ms-trigger-${key}" onclick="jdMSToggle('${key}')" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:140px;cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;gap:6px"><span id="jd-ms-lbl-${key}"></span><span style="color:var(--tm);font-size:10px">▾</span></div>`
+          + `<div id="jd-ms-dd-${key}" style="display:none;position:absolute;top:100%;left:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:180px;max-height:280px;overflow-y:auto;margin-top:2px">`
+          +   `<div style="padding:6px 8px;border-bottom:1px solid var(--divider);display:flex;gap:6px">`
+          +     `<button onclick="jdMSAll('${key}')" style="font-size:10px;font-weight:700;color:var(--blue);background:none;border:none;cursor:pointer;font-family:var(--f);padding:2px 4px">All</button>`
+          +     `<button onclick="jdMSNone('${key}')" style="font-size:10px;font-weight:700;color:var(--ts);background:none;border:none;cursor:pointer;font-family:var(--f);padding:2px 4px">None</button>`
+          +   `</div>`
+          +   `<div id="jd-ms-list-${key}" style="padding:4px 0">` +
+                cfg.values.map(v => {
+                    const chk = JD_LOCAL_FILTERS[key].has(v);
+                    const esc = v.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+                    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 12px;cursor:pointer;font-size:12px;color:var(--text);white-space:nowrap" onmouseenter="this.style.background='var(--sa)'" onmouseleave="this.style.background=''">`
+                         + `<input type="checkbox" ${chk?'checked':''} onchange="jdMSCheck('${key}','${esc}',this.checked)" style="accent-color:var(--blue);cursor:pointer"> ${fmtLabel(v)}</label>`;
+                }).join('') +
+              `</div>`
+          + `</div>`;
+        jdMSUpdateLabel(key);
+    }
+    window.jdMSToggle = function(key) {
+        const dd = document.getElementById('jd-ms-dd-' + key);
+        if (!dd) return;
+        const isOpen = dd.style.display !== 'none';
+        Object.keys(JD_MS).forEach(k => {
+            const d = document.getElementById('jd-ms-dd-' + k);
+            if (d) d.style.display = 'none';
+        });
+        if (!isOpen) dd.style.display = 'block';
+    };
+    window.jdMSAll = function(key) {
+        JD_LOCAL_FILTERS[key] = new Set(JD_MS[key].values);
+        jdMSRender(key);
+        JD_PAGE = 1;
+        jdRenderJobTable();
+    };
+    window.jdMSNone = function(key) {
+        JD_LOCAL_FILTERS[key] = new Set();
+        jdMSRender(key);
+        JD_PAGE = 1;
+        jdRenderJobTable();
+    };
+    window.jdMSCheck = function(key, val, checked) {
+        if (checked) JD_LOCAL_FILTERS[key].add(val); else JD_LOCAL_FILTERS[key].delete(val);
+        jdMSUpdateLabel(key);
+        JD_PAGE = 1;
+        jdRenderJobTable();
+    };
+    function jdMSUpdateLabel(key) {
+        const lblEl = document.getElementById('jd-ms-lbl-' + key);
+        if (!lblEl) return;
+        const cfg = JD_MS[key];
+        const sel = JD_LOCAL_FILTERS[key];
+        lblEl.textContent = (sel.size === 0 || sel.size === cfg.values.length)
+            ? cfg.allLabel
+            : (sel.size === 1 ? [...sel][0] : sel.size + ' selected');
+    }
+    // Close dropdowns when clicking outside any jd-ms-wrap
+    document.addEventListener('click', function(e) {
+        const inAny = e.target.closest('.jd-ms-wrap');
+        if (!inAny) {
+            Object.keys(JD_MS).forEach(k => {
+                const d = document.getElementById('jd-ms-dd-' + k);
+                if (d) d.style.display = 'none';
+            });
+        }
+    });
 
     // ── CSV parsing ──────────────────────────────────────────────────────────
     // The shared parseCSVRow() elsewhere in this file toggles quote-state on
@@ -18996,8 +19072,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (JD_LOCAL_FILTERS.tl) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && hit.tl === JD_LOCAL_FILTERS.tl; });
         if (JD_LOCAL_FILTERS.reviewer) rows = rows.filter(r => { const hit = rosterMap[r.actorId]; return hit && hit.name === JD_LOCAL_FILTERS.reviewer; });
         if (JD_LOCAL_FILTERS.sw) rows = rows.filter(r => r.sw === JD_LOCAL_FILTERS.sw);
-        if (JD_LOCAL_FILTERS.week) rows = rows.filter(r => r.week === JD_LOCAL_FILTERS.week);
-        if (JD_LOCAL_FILTERS.day) rows = rows.filter(r => r.date === JD_LOCAL_FILTERS.day);
+        if (JD_LOCAL_FILTERS.week.size) rows = rows.filter(r => JD_LOCAL_FILTERS.week.has(r.week));
+        if (JD_LOCAL_FILTERS.day.size) rows = rows.filter(r => JD_LOCAL_FILTERS.day.has(r.date));
 
         return rows;
     }
