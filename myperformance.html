@@ -586,14 +586,6 @@ tr:hover td{background:#F8F9FB}
             <select id="de-tenure" multiple data-label="Tenures" onchange="renderDataExplorer()" style="height:30px;font-size:12px;min-width:110px"></select>
           </div>
           <div class="de-toolbar-section">
-            <span class="de-toolbar-label">Tenure Bucket</span>
-            <select id="de-tenure-bucket" multiple data-label="Tenure Buckets" onchange="renderDataExplorer()" style="height:30px;font-size:12px;min-width:130px"></select>
-          </div>
-          <div class="de-toolbar-section">
-            <span class="de-toolbar-label">Wave</span>
-            <select id="de-wave" multiple data-label="Waves" onchange="renderDataExplorer()" style="height:30px;font-size:12px;min-width:110px"></select>
-          </div>
-          <div class="de-toolbar-section">
             <span class="de-toolbar-label">Role</span>
             <select id="de-role" multiple data-label="Roles" onchange="renderDataExplorer()" style="height:30px;font-size:12px;min-width:110px"></select>
           </div>
@@ -654,6 +646,8 @@ tr:hover td{background:#F8F9FB}
               <button class="de-dim-btn" data-dim="sw" onclick="deDimClick('sw')">Sub-workflow</button>
               <button class="de-dim-btn" data-dim="policy" onclick="deDimClick('policy')">Policy</button>
               <button class="de-dim-btn" data-dim="tenure" onclick="deDimClick('tenure')">Tenure</button>
+              <button class="de-dim-btn" data-dim="tenurebucket" onclick="deDimClick('tenurebucket')">Tenure Bucket</button>
+              <button class="de-dim-btn" data-dim="wave" onclick="deDimClick('wave')">Wave</button>
               <button class="de-dim-btn" data-dim="role" onclick="deDimClick('role')">Role</button>
               <button class="de-dim-btn" data-dim="month" onclick="deDimClick('month')">Month</button>
               <button class="de-dim-btn" data-dim="week" onclick="deDimClick('week')">Week</button>
@@ -732,8 +726,8 @@ tr:hover td{background:#F8F9FB}
         <div><h1>Team Insights & Benchmarks</h1><p>Identify macro-level defect drivers.</p></div>
         <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;flex-wrap:wrap">
           <button id="ti-latest-sup-btn" onclick="toggleLatestSupervisor()" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--ts);border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">Latest Supervisor</button>
-          <button onclick="generateTLCoachingDoc()" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--purple);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📄 Mid Month Coaching</button>
-          <button onclick="generateTLMonthlyDoc()" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📅 Monthly TL Doc</button>
+          <button onclick="openTlCoachingModal('midmonth')" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--purple);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📄 Mid Month Coaching</button>
+          <button onclick="openTlCoachingModal('monthly')" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📅 Monthly TL Doc</button>
         </div>
       </div>
 
@@ -13566,7 +13560,7 @@ const DE_LAYER_CLASSES = ['de-l1','de-l2','de-l3','de-l4'];
 const DE_CRUMB_CLASSES = ['c1','c2','c3','c4'];
 const DE_DIM_LABELS = {
     reviewer:'Reviewer', supervisor:'Supervisor', sw:'Sub-workflow', workflow:'Workflow',
-    policy:'Policy', tenure:'Tenure', month:'Month', week:'Week',
+    policy:'Policy', tenure:'Tenure', tenurebucket:'Tenure Bucket', wave:'Wave', month:'Month', week:'Week',
     reviewtype:'Review Type'
 };
 
@@ -13665,8 +13659,6 @@ function deInitFilters() {
     const allTLs      = [...new Set(RAW_ROWS.map(r=>r.supervisor).filter(Boolean))].sort();
     const allReviewers= [...new Set(RAW_ROWS.map(r=>r.reviewer).filter(Boolean))].sort();
     const allTenures  = [...new Set(RAW_ROWS.map(r=>r.tenure).filter(Boolean))].sort();
-    const allTenureBuckets = [...new Set(RAW_ROWS.map(r=>r.tenureBucket).filter(Boolean))].sort();
-    const allWaves    = [...new Set(RAW_ROWS.map(r=>r.wave).filter(Boolean))].sort();
     const allRoles    = [...new Set(RAW_ROWS.map(r=>r.role).filter(Boolean))].sort();
     const allWF       = [...new Set(RAW_ROWS.map(r=>r.workflow).filter(Boolean))].sort();
     const allSW       = [...new Set(RAW_ROWS.map(r=>r.sw).filter(Boolean))].sort();
@@ -13675,15 +13667,13 @@ function deInitFilters() {
     populateMulti('de-tl',          allTLs);
     populateMulti('de-reviewer',    allReviewers);
     populateMulti('de-tenure',      allTenures);
-    populateMulti('de-tenure-bucket', allTenureBuckets);
-    populateMulti('de-wave',        allWaves);
     populateMulti('de-role',        allRoles);
     populateMulti('de-workflow',    allWF);
     populateMulti('de-subworkflow', allSW);
     populateMulti('de-review-type-de', allRTs);
 
     // Rebuild option labels if wrappers already exist; init them if not yet created
-    ['de-month','de-week','de-tl','de-tenure','de-tenure-bucket','de-wave','de-role','de-workflow','de-subworkflow','de-review-type-de'].forEach(id => {
+    ['de-month','de-week','de-tl','de-tenure','de-role','de-workflow','de-subworkflow','de-review-type-de'].forEach(id => {
         const sel = document.getElementById(id);
         if(!sel) return;
         if(sel._msWrap && sel._rebuildOptions) sel._rebuildOptions();
@@ -13695,7 +13685,7 @@ function deInitFilters() {
 
 function deClearFilters() {
     // Reset all DE local multiselect filters
-    ['de-month','de-week','de-tl','de-reviewer','de-tenure','de-tenure-bucket','de-wave','de-role','de-workflow','de-subworkflow','de-review-type-de'].forEach(id => {
+    ['de-month','de-week','de-tl','de-reviewer','de-tenure','de-role','de-workflow','de-subworkflow','de-review-type-de'].forEach(id => {
         const sel = document.getElementById(id);
         if(sel) {
             Array.from(sel.options).forEach(o => o.selected = false);
@@ -13925,6 +13915,8 @@ function deDimVal(r, dim) {
     if(dim==='workflow')  return r.workflow||'';
     if(dim==='policy')    return r.pol||'';
     if(dim==='tenure')    return r.tenure||'';
+    if(dim==='tenurebucket') return r.tenureBucket||'';
+    if(dim==='wave')      return r.wave||'';
     if(dim==='role')      return r.role||'';
     if(dim==='month')     return r.month||'';
     if(dim==='week')      return r.week||'';
@@ -14092,8 +14084,6 @@ function renderDataExplorer() {
     const selTLs      = Array.from((document.getElementById('de-tl')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selReviewers = Array.from((document.getElementById('de-reviewer')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selTenures  = Array.from((document.getElementById('de-tenure')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
-    const selTenureBuckets = Array.from((document.getElementById('de-tenure-bucket')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
-    const selWaves    = Array.from((document.getElementById('de-wave')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selRoles    = Array.from((document.getElementById('de-role')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selWF       = Array.from((document.getElementById('de-workflow')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selSW       = Array.from((document.getElementById('de-subworkflow')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
@@ -14110,8 +14100,6 @@ function renderDataExplorer() {
         (!selTLs.length       || selTLs.includes(r.supervisor)) &&
         (!selReviewers.length || selReviewers.includes(r.reviewer)) &&
         (!selTenures.length   || selTenures.includes(r.tenure)) &&
-        (!selTenureBuckets.length || selTenureBuckets.includes(r.tenureBucket)) &&
-        (!selWaves.length     || selWaves.includes(r.wave)) &&
         (!selRoles.length     || selRoles.includes(r.role)) &&
         (!selWF.length        || selWF.includes(r.workflow)) &&
         (!selSW.length        || selSW.includes(r.sw)) &&
@@ -25666,6 +25654,633 @@ function mcdGenerate(){
   }
 }
 // ─── END MONTHLY COACHING MODAL ──────────────────────────────────────────────
+</script>
+
+<!-- ─── TL COACHING MODAL (Supervisor → TL) ──────────────────────────────── -->
+<style>
+#tcm-overlay{display:none;position:fixed;inset:0;background:rgba(15,18,28,.55);z-index:9000;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto}
+#tcm-overlay.tcm-open{display:flex}
+#tcm-modal{background:var(--surface);border-radius:var(--r-xl);border:1px solid var(--border);width:100%;max-width:700px;overflow:hidden;box-shadow:0 8px 40px rgba(15,18,28,.22);margin:auto}
+.tcm-hdr{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:var(--surface)}
+.tcm-title{font-size:14px;font-weight:800;color:var(--text)}
+.tcm-sub{font-size:11px;color:var(--tm);margin-top:2px}
+.tcm-close{background:none;border:none;cursor:pointer;font-size:18px;color:var(--tm);line-height:1;padding:2px 6px;border-radius:var(--r-xs);font-family:var(--f)}
+.tcm-close:hover{background:var(--sa);color:var(--text)}
+.tcm-body{padding:16px 20px;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 160px);overflow-y:auto}
+.tcm-sec{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tm);margin-bottom:7px}
+.tcm-opp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.tcm-opp-item{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--sa);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--text);transition:all .12s;user-select:none}
+.tcm-opp-item:hover{border-color:var(--purple)}
+.tcm-opp-item.tcm-opp-checked{background:var(--pbg);border-color:var(--purple);color:var(--purple);font-weight:700}
+.tcm-opp-item.tcm-opp-disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
+.tcm-opp-cb{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--tm);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:800}
+.tcm-opp-item.tcm-opp-checked .tcm-opp-cb{background:var(--purple);border-color:var(--purple)}
+.tcm-opp-cnt{font-size:10px;color:var(--tm);margin-left:auto;font-weight:700}
+.tcm-opp-cnt.tcm-max{color:var(--coral)}
+.tcm-fa{border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)}
+.tcm-fa-hdr{padding:9px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;gap:8px;background:var(--sa)}
+.tcm-badge{font-size:10px;font-weight:800;padding:2px 9px;border-radius:var(--pill);flex-shrink:0}
+.tcm-badge-r{background:var(--csec);color:var(--coral)}
+.tcm-badge-a{background:var(--abg);color:var(--amber)}
+.tcm-badge-g{background:var(--gsec);color:var(--green)}
+.tcm-badge-n{background:var(--sa);color:var(--tm);border:1px solid var(--border)}
+.tcm-fa-title{font-size:12px;font-weight:600;color:var(--text);flex:1;line-height:1.3}
+.tcm-fa-body{padding:12px 14px;background:var(--surface);display:flex;flex-direction:column;gap:10px}
+.tcm-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.tcm-metric{background:var(--sa);border:1px solid var(--border);border-radius:var(--r-xs);padding:6px 10px}
+.tcm-metric-lbl{font-size:10px;color:var(--tm);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.tcm-metric-val{font-size:13px;font-weight:800;font-family:var(--m)}
+.tcm-act-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.tcm-act-col-hdr{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ts);margin-bottom:5px}
+.tcm-cnt{font-size:10px;color:var(--tm);margin-left:auto}
+.tcm-cnt.tcm-max{color:var(--coral)}
+.tcm-picker{width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:6px 9px;font-family:var(--f);font-size:11px;color:var(--text);background:var(--surface);cursor:pointer;margin-bottom:5px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238E95A3' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:22px}
+.tcm-picker:focus{outline:none;border-color:var(--blue)}
+.tcm-act-list{display:flex;flex-direction:column;gap:4px;min-height:28px}
+.tcm-act-item{display:flex;align-items:flex-start;gap:5px;padding:5px 8px;background:var(--sa);border:1px solid var(--border);border-radius:var(--r-xs);font-size:11px;color:var(--ts);line-height:1.4}
+.tcm-act-txt{flex:1}
+.tcm-act-rm{font-size:13px;color:var(--tm);cursor:pointer;flex-shrink:0;font-weight:800;padding:0 2px;line-height:1}
+.tcm-act-rm:hover{color:var(--coral)}
+.tcm-act-date{border:1px solid var(--border);border-radius:4px;font-size:10px;padding:1px 4px;background:var(--surface);color:var(--ts);flex-shrink:0;width:118px;cursor:pointer}
+.tcm-add-btn{width:100%;border:1.5px dashed var(--border);border-radius:var(--r-xs);padding:5px;font-family:var(--f);font-size:11px;color:var(--blue);background:transparent;cursor:pointer;text-align:center;margin-top:2px;transition:all .15s}
+.tcm-add-btn:hover{border-color:var(--blue);background:var(--bbg)}
+.tcm-notes{width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:8px 11px;font-family:var(--f);font-size:12px;color:var(--text);background:var(--surface);resize:vertical;line-height:1.6;min-height:52px}
+.tcm-notes:focus{outline:none;border-color:var(--blue)}
+.tcm-notes::placeholder{color:var(--tm)}
+.tcm-val-err{background:var(--cbg);border:1px solid var(--cbd);border-radius:var(--r-xs);padding:7px 12px;font-size:11px;color:var(--coral);display:none}
+.tcm-val-err.tcm-show{display:block}
+.tcm-empty-note{font-size:12px;color:var(--tm);padding:14px;text-align:center;background:var(--sa);border:1px dashed var(--border);border-radius:var(--r)}
+.tcm-ftr{padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--sa)}
+.tcm-btn{padding:7px 16px;border-radius:var(--r);border:1.5px solid var(--border);background:transparent;font-family:var(--f);font-size:12px;font-weight:700;color:var(--ts);cursor:pointer;transition:all .15s}
+.tcm-btn:hover{background:var(--surface);border-color:var(--ts)}
+.tcm-btn-primary{background:var(--purple);border-color:var(--purple);color:#fff}
+.tcm-btn-primary:hover{opacity:.9}
+</style>
+
+<div id="tcm-overlay" onclick="tcmOverlayClick(event)">
+<div id="tcm-modal">
+  <div class="tcm-hdr">
+    <div>
+      <div class="tcm-title" id="tcm-title">TL coaching doc</div>
+      <div class="tcm-sub" id="tcm-sub">Select opportunities, then add committed actions</div>
+    </div>
+    <button class="tcm-close" onclick="closeTcmModal()" title="Close">✕</button>
+  </div>
+
+  <div class="tcm-body">
+
+    <div>
+      <div class="tcm-sec">Opportunities <span class="tcm-opp-cnt" id="tcm-opp-cnt">0 / 4</span></div>
+      <div class="tcm-opp-grid" id="tcm-opp-grid"><!-- populated by JS --></div>
+    </div>
+
+    <div id="tcm-fa-container" style="display:flex;flex-direction:column;gap:10px">
+      <div class="tcm-empty-note">Select at least one opportunity above to add coaching actions.</div>
+    </div>
+
+    <div>
+      <div class="tcm-sec">Notes (optional)</div>
+      <textarea class="tcm-notes" id="tcm-notes" rows="2" placeholder="Prior coaching history, context, or anything relevant going into this conversation."></textarea>
+    </div>
+
+    <div class="tcm-val-err" id="tcm-val-err">Each selected opportunity (except "No opportunities") needs at least 1 TL action and 1 Supervisor action before generating.</div>
+  </div>
+
+  <div class="tcm-ftr">
+    <button class="tcm-btn" onclick="closeTcmModal()">Cancel</button>
+    <button class="tcm-btn tcm-btn-primary" onclick="tcmGenerate()">Generate doc →</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ─── TL COACHING MODAL ─────────────────────────────────────────────────────────
+// Namespace: tcm* / _tcm. Mirrors the mcd (Monthly Coaching Doc) mechanism —
+// checklist-driven focus areas instead of fixed Quality/Efficiency/Attendance,
+// matching the Supervisor's TL opportunity-assessment form.
+
+const TCM_OPPORTUNITIES = [
+  { key:'none',    label:'No opportunities' },
+  { key:'map',     label:'MAP Completion' },
+  { key:'tops',    label:'TOPS Adoption',    metric:'tops' },
+  { key:'coach',   label:'Quality of Coaching', metric:'coach' },
+  { key:'bi',      label:'Lack of BI knowledge / expertise' },
+  { key:'product', label:'Product Training / Knowledge', metric:'product' },
+  { key:'client',  label:'Client Process Training / Knowledge' },
+  { key:'fin',     label:'Actions alignment with financial results', metric:'fin' },
+  { key:'other',   label:'Other' }
+];
+
+var _tcm = {
+  tl:'', mode:'monthly', month:'', periodLabel:'',
+  selected:new Set(),
+  metrics:{},           // computed per metric key: {tops:{...}, coach:{...}, product:{...}, fin:{...}}
+  actions:{}            // per opp key: {tl:[...], sup:[...]}
+};
+
+function openTlCoachingModal(mode){
+  const tls = typeof getSel==='function' ? getSel('g-tl') : [];
+  if(!tls.length){ alert('Please select a TL in the filter bar first.'); return; }
+  if(tls.length > 1){ alert('Please select a single TL in the filter bar to build a coaching doc.'); return; }
+  const tl = tls[0];
+
+  const sws = typeof getSel==='function' ? getSel('g-sw') : [];
+  const workflows = typeof getSel==='function' ? getSel('g-workflow') : [];
+  const tenures = typeof getSel==='function' ? getSel('g-tenure') : [];
+  const roles = typeof getSel==='function' ? getSel('g-role') : [];
+  const reviewTypes = typeof getSel==='function' ? getSel('g-review-type') : [];
+  const selMonths = typeof getSelMonths==='function' ? getSelMonths() : [];
+
+  const allMonths = [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort();
+  const periodMonths = selMonths.length ? selMonths : [allMonths[allMonths.length-1]];
+  const periodLabel = periodMonths.map(fmtMonth).join(', ');
+
+  const periodRows = filterRows(qaFilter(RAW_ROWS), tls, tenures, sws, workflows, roles, reviewTypes)
+      .filter(r => r.sw && r.sw!=='(blank)' && periodMonths.includes(r.month));
+
+  if(!periodRows.length){ alert(`No data found for ${sn(tl)} in ${periodLabel}.`); return; }
+
+  _tcm.tl = tl;
+  _tcm.mode = mode || 'monthly';
+  _tcm.periodLabel = periodLabel;
+  _tcm.selected = new Set();
+  _tcm.actions = {};
+
+  const ACC_TARGET = 0.96;
+
+  // ── Team quality + efficiency (same aggregation as generateTLCoachingDoc) ──
+  let tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0;
+  periodRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;});
+  const tot = tpa+fpa+fna+tna;
+  const teamAcc = tot>0 ? (tpa+tna)/tot : null;
+  const teamAHT = dec>0 ? Math.round((dht+nht)/dec) : null;
+  const ahtTgt = (sws.length===1 && SW_TARGETS[sws[0]]) ? SW_TARGETS[sws[0]].aht : (typeof T!=='undefined' ? T.aht.v : null);
+
+  // ── TOPS (topsA/topsB summed across team, from quality rows) ───────────────
+  let topsA=0, topsB=0;
+  periodRows.forEach(r=>{ topsA += r.topsA||0; topsB += r.topsB||0; });
+  const topsScore = topsB>0 ? Math.min(topsA/topsB, 1) : null;
+  const TOPS_TARGET = 0.98;
+
+  // ── WFM aggregates via aggWfm — supervisorFilter narrows to this TL's team ──
+  let wfm = { abs:null, aoa:null, msv:null };
+  if(typeof aggWfm === 'function'){
+    try {
+      const wkSet = new Set(periodRows.map(r=>r.week).filter(Boolean));
+      wfm = aggWfm(null, wkSet.size ? wkSet : null, new Set([tl]));
+    } catch(e){ console.warn('[tcm] aggWfm failed', e); }
+  }
+  const ABS_TARGET = (typeof T!=='undefined') ? T.abs.v : 0.05;
+  const AOA_TARGET = (typeof T!=='undefined') ? T.aoa.v : 0.98;
+  const MSV_TARGET = (typeof T!=='undefined') ? T.msv.v : 0.98;
+
+  _tcm.metrics = {
+    coach:  { acc:teamAcc, accTgt:ACC_TARGET, aht:teamAHT, ahtTgt:ahtTgt },
+    tops:   { val:topsScore, tgt:TOPS_TARGET },
+    fin:    { val:wfm.abs, tgt:ABS_TARGET },
+    product:{ msv:wfm.msv, msvTgt:MSV_TARGET, aoa:wfm.aoa, aoaTgt:AOA_TARGET }
+  };
+
+  document.getElementById('tcm-title').textContent =
+    (mode==='midmonth' ? 'Mid month coaching — ' : 'Monthly TL doc — ') + sn(tl);
+  document.getElementById('tcm-sub').textContent = periodLabel;
+  document.getElementById('tcm-notes').value = '';
+  document.getElementById('tcm-val-err').classList.remove('tcm-show');
+
+  tcmRenderOpps();
+  tcmRenderFocusAreas();
+
+  document.getElementById('tcm-overlay').classList.add('tcm-open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeTcmModal(){
+  document.getElementById('tcm-overlay').classList.remove('tcm-open');
+  document.body.style.overflow = '';
+}
+function tcmOverlayClick(e){ if(e.target===document.getElementById('tcm-overlay')) closeTcmModal(); }
+
+function tcmEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function tcmRenderOpps(){
+  const grid = document.getElementById('tcm-opp-grid');
+  grid.innerHTML = TCM_OPPORTUNITIES.map(o => {
+    const checked = _tcm.selected.has(o.key);
+    return `<div class="tcm-opp-item${checked?' tcm-opp-checked':''}" id="tcm-opp-${o.key}" onclick="tcmToggleOpp('${o.key}')">
+      <div class="tcm-opp-cb">${checked?'✓':''}</div>
+      <div>${tcmEsc(o.label)}</div>
+    </div>`;
+  }).join('');
+  tcmUpdateOppCount();
+}
+
+function tcmToggleOpp(key){
+  if(key === 'none'){
+    if(_tcm.selected.has('none')){ _tcm.selected.clear(); }
+    else { _tcm.selected.clear(); _tcm.selected.add('none'); _tcm.actions = {}; }
+  } else {
+    _tcm.selected.delete('none');
+    if(_tcm.selected.has(key)){
+      _tcm.selected.delete(key);
+      delete _tcm.actions[key];
+    } else {
+      if(_tcm.selected.size >= 4){ return; } // max 4, silently ignore like mcd's max-3
+      _tcm.selected.add(key);
+      if(!_tcm.actions[key]) _tcm.actions[key] = { tl:[], sup:[] };
+    }
+  }
+  tcmRenderOpps();
+  tcmRenderFocusAreas();
+}
+
+function tcmUpdateOppCount(){
+  const el = document.getElementById('tcm-opp-cnt');
+  const n = _tcm.selected.has('none') ? 0 : _tcm.selected.size;
+  el.textContent = n + ' / 4';
+  el.className = 'tcm-opp-cnt' + (n>=4 ? ' tcm-max' : '');
+  // grey out unselected items once 4 are picked (excluding 'none')
+  const atMax = _tcm.selected.size >= 4 && !_tcm.selected.has('none');
+  TCM_OPPORTUNITIES.forEach(o=>{
+    const el2 = document.getElementById('tcm-opp-'+o.key);
+    if(!el2) return;
+    if(o.key!=='none' && atMax && !_tcm.selected.has(o.key)) el2.classList.add('tcm-opp-disabled');
+    else el2.classList.remove('tcm-opp-disabled');
+  });
+}
+
+// ── Action banks: TL-side and Supervisor-side, per opportunity key ─────────
+const TCM_ACTION_BANK = {
+  map: {
+    tl: [
+      'Complete outstanding MAP items and log completion date',
+      'Block calendar time weekly until MAP is fully closed out',
+      'Review MAP checklist with Supervisor to confirm no items were missed'
+    ],
+    sup: [
+      'Review MAP completion status with TL weekly until closed',
+      'Remove blockers preventing MAP completion (access, time, tooling)',
+      'Set a hard completion date and confirm at next 1:1'
+    ]
+  },
+  tops: {
+    tl: [
+      'Review TOPS adoption gap with team — identify which reviewers are under-using TOPS',
+      'Run a TOPS refresher session with the team this period',
+      'Track TOPS usage weekly and share progress with Supervisor'
+    ],
+    sup: [
+      'Review TOPS adoption trend with TL at next 1:1',
+      'Confirm TL has the tooling/access needed to drive TOPS adoption',
+      'Escalate to OAM if TOPS adoption does not improve next period'
+    ]
+  },
+  coach: {
+    tl: [
+      'Increase coaching session frequency for reviewers below target this period',
+      'Document every coaching session with a clear outcome, not just notes',
+      'Pull team defect drivers and run a calibration session on the top policy',
+      'Shadow a peer TL\u2019s coaching session for technique comparison'
+    ],
+    sup: [
+      'Sit in on one of TL\u2019s coaching sessions this period and give direct feedback',
+      'Review TL\u2019s coaching log for completeness and outcome documentation',
+      'Pair TL with a stronger-performing TL for peer calibration',
+      'Escalate to OAM if team quality/AHT does not improve next period'
+    ]
+  },
+  bi: {
+    tl: [
+      'Complete relevant BI training modules and share completion with Supervisor',
+      'Shadow a peer TL or analyst on BI reporting this period',
+      'Bring one BI question or use case to each 1:1 until confident'
+    ],
+    sup: [
+      'Identify specific BI gaps with TL and assign targeted training',
+      'Pair TL with an analyst or peer TL for hands-on BI practice',
+      'Review a BI output together and walk through the logic step by step'
+    ]
+  },
+  product: {
+    tl: [
+      'Review MSV and AOA gaps with team — identify which SWs are driving the gap',
+      'Run a refresher session on product/process alignment for flagged SWs',
+      'Self-audit a sample of recent decisions against product guidance'
+    ],
+    sup: [
+      'Review MSV/AOA trend with TL at next 1:1',
+      'Confirm TL has current product documentation and guidance updates',
+      'Escalate to OAM if MSV/AOA does not improve next period'
+    ]
+  },
+  client: {
+    tl: [
+      'Complete outstanding client process training modules',
+      'Request a walkthrough session with the client process owner',
+      'Document key client process updates and brief the team'
+    ],
+    sup: [
+      'Confirm TL has access to the latest client process documentation',
+      'Arrange a session with the client process owner if gaps persist',
+      'Review client process adherence with TL at next 1:1'
+    ]
+  },
+  fin: {
+    tl: [
+      'Review absenteeism drivers with team — flag any recurring patterns',
+      'Discuss attendance expectations directly with affected reviewers',
+      'Track team absenteeism weekly and report trend to Supervisor'
+    ],
+    sup: [
+      'Review absenteeism trend with TL at next 1:1',
+      'Support TL in having direct attendance conversations where needed',
+      'Escalate to OAM if team absenteeism exceeds target for 2 consecutive months'
+    ]
+  },
+  other: {
+    tl: [
+      'Define the specific gap and agree a concrete action with Supervisor',
+      'Set a check-in date to review progress on this item'
+    ],
+    sup: [
+      'Document the specific concern and agreed action clearly',
+      'Follow up at next 1:1 to confirm progress'
+    ]
+  }
+};
+
+function tcmPct(v){ return v!==null && v!==undefined ? (v*100).toFixed(2)+'%' : '—'; }
+function tcmSecs(v){ return v!==null && v!==undefined ? Math.round(v)+'s' : '—'; }
+function tcmFlagClass(off){ return off===null ? 'tcm-badge-n' : (off ? 'tcm-badge-r' : 'tcm-badge-g'); }
+function tcmFlagLabel(off){ return off===null ? 'No data' : (off ? 'Off target' : 'On target'); }
+
+function tcmMetricsBlock(key){
+  const m = _tcm.metrics;
+  if(key === 'coach'){
+    const c = m.coach;
+    const accOff = c.acc!==null ? c.acc < c.accTgt : null;
+    const ahtOff = (c.aht!==null && c.ahtTgt) ? c.aht > c.ahtTgt : null;
+    const bothOff = accOff===true && ahtOff===true; // AND logic per spec
+    return {
+      badgeClass: (accOff===null&&ahtOff===null) ? 'tcm-badge-n' : (bothOff ? 'tcm-badge-r' : 'tcm-badge-g'),
+      badgeLabel: (accOff===null&&ahtOff===null) ? 'No data' : (bothOff ? 'Off target' : 'On target'),
+      html: `<div class="tcm-metrics">
+        <div class="tcm-metric"><div class="tcm-metric-lbl">Team Adj Accuracy</div><div class="tcm-metric-val" style="color:${accOff?'var(--coral)':'var(--green)'}">${tcmPct(c.acc)}</div></div>
+        <div class="tcm-metric"><div class="tcm-metric-lbl">Team AHT</div><div class="tcm-metric-val" style="color:${ahtOff?'var(--coral)':'var(--green)'}">${tcmSecs(c.aht)}${c.ahtTgt?' / '+tcmSecs(c.ahtTgt)+' tgt':''}</div></div>
+      </div>`
+    };
+  }
+  if(key === 'tops'){
+    const t = m.tops;
+    const off = t.val!==null ? t.val < t.tgt : null;
+    return {
+      badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
+      html: `<div class="tcm-metrics">
+        <div class="tcm-metric"><div class="tcm-metric-lbl">TOPS (A/B)</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(t.val)} <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(t.tgt)} tgt</span></div></div>
+      </div>`
+    };
+  }
+  if(key === 'fin'){
+    const f = m.fin;
+    const off = f.val!==null ? f.val > f.tgt : null;
+    return {
+      badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
+      html: `<div class="tcm-metrics">
+        <div class="tcm-metric"><div class="tcm-metric-lbl">Absenteeism</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(f.val)} <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(f.tgt)} tgt</span></div></div>
+      </div>`
+    };
+  }
+  if(key === 'product'){
+    const p = m.product;
+    const msvOff = p.msv!==null ? p.msv < p.msvTgt : null;
+    const aoaOff = p.aoa!==null ? p.aoa < p.aoaTgt : null;
+    const bothOff = msvOff===true && aoaOff===true; // AND logic, consistent with Quality of Coaching
+    return {
+      badgeClass: (msvOff===null&&aoaOff===null) ? 'tcm-badge-n' : (bothOff ? 'tcm-badge-r' : 'tcm-badge-g'),
+      badgeLabel: (msvOff===null&&aoaOff===null) ? 'No data' : (bothOff ? 'Off target' : 'On target'),
+      html: `<div class="tcm-metrics">
+        <div class="tcm-metric"><div class="tcm-metric-lbl">MSV</div><div class="tcm-metric-val" style="color:${msvOff?'var(--coral)':'var(--green)'}">${tcmPct(p.msv)}</div></div>
+        <div class="tcm-metric"><div class="tcm-metric-lbl">AOA</div><div class="tcm-metric-val" style="color:${aoaOff?'var(--coral)':'var(--green)'}">${tcmPct(p.aoa)}</div></div>
+      </div>`
+    };
+  }
+  return null; // qualitative-only opportunity
+}
+
+function tcmRenderFocusAreas(){
+  const container = document.getElementById('tcm-fa-container');
+  const keys = [...TCM_OPPORTUNITIES.map(o=>o.key)].filter(k => _tcm.selected.has(k) && k!=='none');
+
+  if(!keys.length){
+    container.innerHTML = _tcm.selected.has('none')
+      ? `<div class="tcm-empty-note">"No opportunities" selected — no coaching actions needed this period.</div>`
+      : `<div class="tcm-empty-note">Select at least one opportunity above to add coaching actions.</div>`;
+    return;
+  }
+
+  container.innerHTML = keys.map(key => {
+    const opp = TCM_OPPORTUNITIES.find(o=>o.key===key);
+    const metricBlock = tcmMetricsBlock(key);
+    const badgeClass = metricBlock ? metricBlock.badgeClass : 'tcm-badge-n';
+    const badgeLabel = metricBlock ? metricBlock.badgeLabel : 'Manual';
+    const bank = TCM_ACTION_BANK[key] || {tl:[],sup:[]};
+    if(!_tcm.actions[key]) _tcm.actions[key] = {tl:[],sup:[]};
+
+    const tlOpts = bank.tl.map(a=>`<option value="${tcmEsc(a)}">${tcmEsc(a.length>70?a.slice(0,70)+'…':a)}</option>`).join('');
+    const supOpts = bank.sup.map(a=>`<option value="${tcmEsc(a)}">${tcmEsc(a.length>70?a.slice(0,70)+'…':a)}</option>`).join('');
+
+    return `<div class="tcm-fa" id="tcm-fa-${key}">
+      <div class="tcm-fa-hdr">
+        <span class="tcm-badge ${badgeClass}">${badgeLabel}</span>
+        <span class="tcm-fa-title">${tcmEsc(opp.label)}</span>
+      </div>
+      <div class="tcm-fa-body">
+        ${metricBlock ? metricBlock.html : ''}
+        <div class="tcm-act-cols">
+          <div>
+            <div class="tcm-act-col-hdr">🔎 TL <span class="tcm-cnt" id="tcm-cnt-tl-${key}">0 / 3</span></div>
+            <select class="tcm-picker" id="tcm-pk-tl-${key}" onchange="tcmAddAction('${key}','tl',this)">
+              <option value="">— select action —</option>
+              ${tlOpts}
+            </select>
+            <div class="tcm-act-list" id="tcm-list-tl-${key}"></div>
+            <button class="tcm-add-btn" onclick="document.getElementById('tcm-pk-tl-${key}').focus()">+ Add TL action</button>
+          </div>
+          <div>
+            <div class="tcm-act-col-hdr">👥 Supervisor <span class="tcm-cnt" id="tcm-cnt-sup-${key}">0 / 3</span></div>
+            <select class="tcm-picker" id="tcm-pk-sup-${key}" onchange="tcmAddAction('${key}','sup',this)">
+              <option value="">— select action —</option>
+              ${supOpts}
+            </select>
+            <div class="tcm-act-list" id="tcm-list-sup-${key}"></div>
+            <button class="tcm-add-btn" onclick="document.getElementById('tcm-pk-sup-${key}').focus()">+ Add Supervisor action</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  keys.forEach(key => { tcmRenderList(key,'tl'); tcmRenderList(key,'sup'); tcmUpdateCount(key,'tl'); tcmUpdateCount(key,'sup'); });
+}
+
+function tcmEomDate(){
+  const d = new Date();
+  const end = new Date(d.getFullYear(), d.getMonth()+1, 0);
+  return end.toISOString().slice(0,10);
+}
+
+function tcmAddAction(key, side, sel){
+  if(!sel.value) return;
+  const list = _tcm.actions[key][side];
+  if(list.length >= 3){ sel.value=''; alert('Maximum 3 actions per side.'); return; }
+  if(list.findIndex(x=>x.text===sel.value) >= 0){ sel.value=''; return; }
+  list.push({ text: sel.value, date: tcmEomDate() });
+  tcmRenderList(key, side);
+  tcmUpdateCount(key, side);
+  sel.value = '';
+}
+
+function tcmRemoveAction(key, side, idx){
+  _tcm.actions[key][side].splice(idx,1);
+  tcmRenderList(key, side);
+  tcmUpdateCount(key, side);
+}
+
+function tcmUpdateActionDate(key, side, idx, val){
+  if(_tcm.actions[key][side][idx]) _tcm.actions[key][side][idx].date = val;
+}
+
+function tcmRenderList(key, side){
+  const el = document.getElementById(`tcm-list-${side}-${key}`);
+  if(!el) return;
+  el.innerHTML = _tcm.actions[key][side].map((a,i)=>{
+    const dateEl = a.date ? `<input type="date" class="tcm-act-date" value="${tcmEsc(a.date)}" onchange="tcmUpdateActionDate('${key}','${side}',${i},this.value)" />` : '';
+    return `<div class="tcm-act-item"><span class="tcm-act-txt">${tcmEsc(a.text)}</span>${dateEl}<span class="tcm-act-rm" onclick="tcmRemoveAction('${key}','${side}',${i})">×</span></div>`;
+  }).join('');
+}
+
+function tcmUpdateCount(key, side){
+  const el = document.getElementById(`tcm-cnt-${side}-${key}`);
+  if(!el) return;
+  const n = _tcm.actions[key][side].length;
+  el.textContent = n + ' / 3';
+  el.className = 'tcm-cnt' + (n>=3 ? ' tcm-max' : '');
+}
+
+function tcmGenerate(){
+  if(_tcm.selected.size === 0){
+    document.getElementById('tcm-val-err').classList.add('tcm-show');
+    document.getElementById('tcm-val-err').textContent = 'Select at least one opportunity before generating.';
+    return;
+  }
+  if(!_tcm.selected.has('none')){
+    let err = false;
+    _tcm.selected.forEach(key=>{
+      const a = _tcm.actions[key];
+      if(!a || a.tl.length<1 || a.sup.length<1) err = true;
+    });
+    if(err){
+      document.getElementById('tcm-val-err').textContent = 'Each selected opportunity needs at least 1 TL action and 1 Supervisor action before generating.';
+      document.getElementById('tcm-val-err').classList.add('tcm-show');
+      return;
+    }
+  }
+  document.getElementById('tcm-val-err').classList.remove('tcm-show');
+
+  const config = {
+    tl: _tcm.tl,
+    mode: _tcm.mode,
+    periodLabel: _tcm.periodLabel,
+    opportunities: [...TCM_OPPORTUNITIES.map(o=>o.key)].filter(k=>_tcm.selected.has(k)),
+    oppLabels: Object.fromEntries(TCM_OPPORTUNITIES.map(o=>[o.key,o.label])),
+    actions: JSON.parse(JSON.stringify(_tcm.actions)),
+    metrics: _tcm.metrics,
+    notes: document.getElementById('tcm-notes').value.trim()
+  };
+
+  closeTcmModal();
+  try { _tcmGenerateDoc(config); }
+  catch(err){
+    const msg = 'TL Coaching Doc error:\n\n' + err.message + '\n\nStack:\n' + (err.stack||'').split('\n').slice(0,5).join('\n');
+    alert(msg); console.error('[tcmGenerate]', err);
+  }
+}
+
+// ── Final doc renderer — reuses the same visual language as the existing TL docs ──
+function _tcmGenerateDoc(config){
+  const surface='#FFFFFF', lightGray='#F4F6F9', borderColor='#DDE1E9', divider='#E8EBF0';
+  const textPri='#1A1D23', textSec='#555B67', textMuted='#8E95A3';
+  const blue='#1A56DB', green='#15803D', red='#B91C1C', amber='#92400E', purple='#5B21B6';
+  const purpleBg='#F5F3FF', purpleBd='#C4B5FD';
+  const sans="'DM Sans',system-ui,sans-serif";
+  const mono="'JetBrains Mono','SF Mono',monospace";
+  const dateStr = (() => { const d=new Date(); const day=String(d.getDate()).padStart(2,'0'); const mon=d.toLocaleDateString('en-GB',{month:'short'}); return `${day} ${mon} ${d.getFullYear()}`; })();
+
+  const secHead = (label, color) =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;margin-top:20px">
+      <div style="width:3px;height:18px;border-radius:0;background:${color};flex-shrink:0"></div>
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${textPri}">${label}</div>
+    </div>`;
+
+  const actList = (acts) => acts.map(a=>{
+    const dt = a.date ? ` <span style="font-size:11px;color:${textMuted};font-style:italic">(by ${a.date})</span>` : '';
+    return `<div style="padding:5px 0;border-bottom:0.5px solid ${borderColor};font-size:13px;color:${textSec};line-height:1.5">→ ${a.text}${dt}</div>`;
+  }).join('');
+
+  const oppBlock = (key) => {
+    const label = config.oppLabels[key];
+    const a = config.actions[key] || {tl:[],sup:[]};
+    return `<div style="border:1px solid ${borderColor};border-radius:10px;overflow:hidden;margin-bottom:12px">
+      <div style="padding:9px 14px;background:${lightGray};border-bottom:1px solid ${divider};font-size:12px;font-weight:700;color:${textPri}">${label}</div>
+      <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${textSec};margin-bottom:5px">TL Actions</div>
+          ${a.tl.length ? actList(a.tl) : `<div style="font-size:12px;color:${textMuted}">None added</div>`}
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${textSec};margin-bottom:5px">Supervisor Actions</div>
+          ${a.sup.length ? actList(a.sup) : `<div style="font-size:12px;color:${textMuted}">None added</div>`}
+        </div>
+      </div>
+    </div>`;
+  };
+
+  const noOpp = config.opportunities.includes('none');
+  const oppKeys = config.opportunities.filter(k=>k!=='none');
+
+  const docHTML = `<div style="max-width:700px;font-family:${sans};color:${textPri}">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div>
+        <div style="font-size:18px;font-weight:800;color:${textPri}">${config.mode==='midmonth'?'Mid Month Coaching':'Monthly TL Coaching'} — ${sn(config.tl)}</div>
+        <div style="font-size:12px;color:${textSec};margin-top:2px">${config.periodLabel} · Generated ${dateStr}</div>
+      </div>
+    </div>
+
+    ${secHead('Opportunities', purple)}
+    ${noOpp
+      ? `<div style="padding:12px 14px;background:${purpleBg};border:1px solid ${purpleBd};border-radius:10px;font-size:13px;color:${purple};font-weight:600">No opportunities identified this period.</div>`
+      : oppKeys.map(oppBlock).join('')
+    }
+
+    ${config.notes ? secHead('Notes', blue) + `<div style="padding:12px 14px;background:${lightGray};border-radius:10px;font-size:13px;color:${textSec};line-height:1.6;white-space:pre-wrap">${config.notes}</div>` : ''}
+
+    <div style="margin-top:24px;padding-top:14px;border-top:1px solid ${divider};font-size:11px;color:${textMuted}">
+      This document reflects a Supervisor-led review of ${sn(config.tl)}'s ${config.mode==='midmonth'?'mid-month':'monthly'} performance and development areas, discussed and agreed collaboratively.
+    </div>
+  </div>`;
+
+  // Reuse existing artifact/window-open pattern from other doc generators if present,
+  // otherwise open in a new window as a straightforward fallback.
+  const win = window.open('', '_blank');
+  if(win){
+    win.document.write(`<!DOCTYPE html><html><head><title>${config.mode==='midmonth'?'Mid Month Coaching':'Monthly TL Doc'} — ${sn(config.tl)}</title>
+      <style>body{margin:0;padding:32px;background:#F4F6F9}</style></head>
+      <body>${docHTML}</body></html>`);
+    win.document.close();
+  } else {
+    alert('Please allow pop-ups to view the generated document.');
+  }
+}
+// ─── END TL COACHING MODAL ──────────────────────────────────────────────────
 </script>
 </body>
 </html>
