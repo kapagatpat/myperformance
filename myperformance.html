@@ -411,6 +411,7 @@ tr:hover td{background:#F8F9FB}
     <button class="tab t-sc" onclick="showTab('scorecard',this)"><div class="tab-icon">📋</div>Reviewer Scorecard</button>
     <button class="tab t-sv" onclick="showTab('supervisor',this)"><div class="tab-icon">👥</div>Supervisor Scorecard</button>
     <button class="tab t-sr" onclick="showTab('stackrank',this)"><div class="tab-icon">🏅</div>Stack Ranking</button>
+    <button class="tab t-inc" onclick="showTab('incentive',this)"><div class="tab-icon">🏄</div>Incentive</button>
 
     <div class="sb-label" style="margin-top:1rem">Measure and Analyze</div>
     <button class="tab t-ti" onclick="showTab('team',this)"><div class="tab-icon">🔎</div>Team Insights</button>
@@ -428,9 +429,6 @@ tr:hover td{background:#F8F9FB}
     <button class="tab t-guide" onclick="showTab('guide',this)"><div class="tab-icon">📖</div>TL Guide</button>
     <button class="tab t-nrt" onclick="showTab('nrt',this)"><div class="tab-icon">🎯</div>NRT QA</button>
     <button class="tab t-nrt-aht" onclick="showTab('nrt-aht',this)"><div class="tab-icon">⏱️</div>NRT AHT</button>
-
-    <div class="sb-label" style="margin-top:1rem">Incentives</div>
-    <button class="tab t-inc" onclick="showTab('incentive',this)"><div class="tab-icon">🏄</div>Incentive</button>
 
     <div class="sb-label" style="margin-top:1rem">Data Engine</div>
     <button class="tab t-up active" onclick="showTab('upload',this)"><div class="tab-icon">⚙️</div>Load Dataset</button>
@@ -586,6 +584,14 @@ tr:hover td{background:#F8F9FB}
           <div class="de-toolbar-section">
             <span class="de-toolbar-label">Tenure</span>
             <select id="de-tenure" multiple data-label="Tenures" onchange="renderDataExplorer()" style="height:30px;font-size:12px;min-width:110px"></select>
+          </div>
+          <div class="de-toolbar-section">
+            <span class="de-toolbar-label">Tenure Bucket</span>
+            <select id="de-tenure-bucket" multiple data-label="Tenure Buckets" onchange="renderDataExplorer()" style="height:30px;font-size:12px;min-width:130px"></select>
+          </div>
+          <div class="de-toolbar-section">
+            <span class="de-toolbar-label">Wave</span>
+            <select id="de-wave" multiple data-label="Waves" onchange="renderDataExplorer()" style="height:30px;font-size:12px;min-width:110px"></select>
           </div>
           <div class="de-toolbar-section">
             <span class="de-toolbar-label">Role</span>
@@ -2069,8 +2075,13 @@ tr:hover td{background:#F8F9FB}
         <strong>TOPS:</strong> Read from MPR CSV (TOPS A / TOPS B columns). If columns are absent or zero, manual entry fields appear per row.
       </div>
 
-      <!-- Scheme legend cards -->
-      <div id="inc-legend" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem"></div>
+      <!-- Scheme legend cards (collapsible, default collapsed) -->
+      <div style="margin-bottom:1.5rem">
+        <button onclick="window._incToggleLegend()" id="inc-legend-toggle" style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ts);background:var(--sa);border:1px solid var(--border);border-radius:var(--pill);padding:5px 12px;cursor:pointer;font-family:var(--f)">
+          <span id="inc-legend-caret" style="transition:transform .15s;display:inline-block">▸</span> Scheme
+        </button>
+        <div id="inc-legend" style="display:none;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px"></div>
+      </div>
 
       <!-- Main table -->
       <div id="inc-table-wrap" style="overflow-x:auto">
@@ -13654,6 +13665,8 @@ function deInitFilters() {
     const allTLs      = [...new Set(RAW_ROWS.map(r=>r.supervisor).filter(Boolean))].sort();
     const allReviewers= [...new Set(RAW_ROWS.map(r=>r.reviewer).filter(Boolean))].sort();
     const allTenures  = [...new Set(RAW_ROWS.map(r=>r.tenure).filter(Boolean))].sort();
+    const allTenureBuckets = [...new Set(RAW_ROWS.map(r=>r.tenureBucket).filter(Boolean))].sort();
+    const allWaves    = [...new Set(RAW_ROWS.map(r=>r.wave).filter(Boolean))].sort();
     const allRoles    = [...new Set(RAW_ROWS.map(r=>r.role).filter(Boolean))].sort();
     const allWF       = [...new Set(RAW_ROWS.map(r=>r.workflow).filter(Boolean))].sort();
     const allSW       = [...new Set(RAW_ROWS.map(r=>r.sw).filter(Boolean))].sort();
@@ -13662,13 +13675,15 @@ function deInitFilters() {
     populateMulti('de-tl',          allTLs);
     populateMulti('de-reviewer',    allReviewers);
     populateMulti('de-tenure',      allTenures);
+    populateMulti('de-tenure-bucket', allTenureBuckets);
+    populateMulti('de-wave',        allWaves);
     populateMulti('de-role',        allRoles);
     populateMulti('de-workflow',    allWF);
     populateMulti('de-subworkflow', allSW);
     populateMulti('de-review-type-de', allRTs);
 
     // Rebuild option labels if wrappers already exist; init them if not yet created
-    ['de-month','de-week','de-tl','de-tenure','de-role','de-workflow','de-subworkflow','de-review-type-de'].forEach(id => {
+    ['de-month','de-week','de-tl','de-tenure','de-tenure-bucket','de-wave','de-role','de-workflow','de-subworkflow','de-review-type-de'].forEach(id => {
         const sel = document.getElementById(id);
         if(!sel) return;
         if(sel._msWrap && sel._rebuildOptions) sel._rebuildOptions();
@@ -13680,7 +13695,7 @@ function deInitFilters() {
 
 function deClearFilters() {
     // Reset all DE local multiselect filters
-    ['de-month','de-week','de-tl','de-reviewer','de-tenure','de-role','de-workflow','de-subworkflow','de-review-type-de'].forEach(id => {
+    ['de-month','de-week','de-tl','de-reviewer','de-tenure','de-tenure-bucket','de-wave','de-role','de-workflow','de-subworkflow','de-review-type-de'].forEach(id => {
         const sel = document.getElementById(id);
         if(sel) {
             Array.from(sel.options).forEach(o => o.selected = false);
@@ -14077,6 +14092,8 @@ function renderDataExplorer() {
     const selTLs      = Array.from((document.getElementById('de-tl')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selReviewers = Array.from((document.getElementById('de-reviewer')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selTenures  = Array.from((document.getElementById('de-tenure')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
+    const selTenureBuckets = Array.from((document.getElementById('de-tenure-bucket')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
+    const selWaves    = Array.from((document.getElementById('de-wave')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selRoles    = Array.from((document.getElementById('de-role')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selWF       = Array.from((document.getElementById('de-workflow')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
     const selSW       = Array.from((document.getElementById('de-subworkflow')||{options:[]}).options).filter(o=>o.selected&&o.value).map(o=>o.value);
@@ -14093,6 +14110,8 @@ function renderDataExplorer() {
         (!selTLs.length       || selTLs.includes(r.supervisor)) &&
         (!selReviewers.length || selReviewers.includes(r.reviewer)) &&
         (!selTenures.length   || selTenures.includes(r.tenure)) &&
+        (!selTenureBuckets.length || selTenureBuckets.includes(r.tenureBucket)) &&
+        (!selWaves.length     || selWaves.includes(r.wave)) &&
         (!selRoles.length     || selRoles.includes(r.role)) &&
         (!selWF.length        || selWF.includes(r.workflow)) &&
         (!selSW.length        || selSW.includes(r.sw)) &&
@@ -17244,6 +17263,8 @@ function processCSVData(csvString) {
             reviewer,
             supervisor: (r['Supervisor name']||'').trim(),
             tenure:     r['Tenure']||'',
+            tenureBucket: getVal(r,'Tenure Bucket','TenureBucket','Tenure bucket','tenure_bucket')||'',
+            wave:       getVal(r,'Wave','wave')||'',
             role:       r['Role']||'',
             language:   r['Language']||'',
             reviewType: getVal(r,'review type','Review Type','Review type','ReviewType','review_type','Job Type','Audit Type','Type')||'',
@@ -24121,6 +24142,16 @@ function gpDecReqExpand(open) {
     renderIncentive();
   };
 
+  // ── Legend collapse toggle (default collapsed) ───────────────────────────────
+  let _incLegendOpen = false;
+  window._incToggleLegend = function() {
+    _incLegendOpen = !_incLegendOpen;
+    const el = document.getElementById('inc-legend');
+    const caret = document.getElementById('inc-legend-caret');
+    if (el) el.style.display = _incLegendOpen ? 'grid' : 'none';
+    if (caret) caret.style.transform = _incLegendOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+  };
+
   // ── View toggle ───────────────────────────────────────────────────────────────
 
   window.incSetView = function(v) {
@@ -24211,8 +24242,6 @@ function gpDecReqExpand(open) {
   // ── Reviewer table ────────────────────────────────────────────────────────────
 
   function renderReviewerTable(monthRows, month) {
-    const julyScheme = isJulyScheme(month);
-
     // Group by reviewer
     const rvMap = {};
     monthRows.forEach(r => {
@@ -24264,11 +24293,10 @@ function gpDecReqExpand(open) {
     const _thYellow = (txt, right=true) => `<th style="padding:7px 8px;text-align:${right?'right':'left'};font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--amber);background:#FFFBEB;border-bottom:1px solid var(--border);white-space:nowrap">${txt}</th>`;
     const _thGreen  = (txt, right=true) => `<th style="padding:7px 8px;text-align:${right?'right':'left'};font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--green);background:var(--gbg);border-bottom:1px solid var(--border);white-space:nowrap">${txt}</th>`;
 
-    let html;
-    if (julyScheme) {
-      // July column order: Total | Base Score | Base Accuracy | Bonus Points | Precision | Recall | # SW AHT Met | Absenteeism
-      // Base cols (green): Base Score, Base Accuracy. Bonus cols (yellow): Bonus Points, Precision, Recall, # SW AHT Met, Absenteeism.
-      html = `
+    // Unified column layout for both June and July:
+    // Total | Base Score | Base Accuracy | Bonus Points | Precision | Recall | # SW AHT Met | Absenteeism
+    // Base cols (green): Base Score, Base Accuracy. Bonus cols (yellow): Bonus Points, Precision, Recall, # SW AHT Met, Absenteeism.
+    let html = `
       <colgroup>
         <col style="width:20px">
         <col style="width:200px">
@@ -24295,31 +24323,6 @@ function gpDecReqExpand(open) {
         ${_thYellow('# SW with AHT Met')}
         ${_thYellow('Absent ≤5%')}
       </tr></thead><tbody>`;
-    } else {
-      html = `
-      <colgroup>
-        <col style="width:20px">
-        <col style="width:200px">
-        <col style="width:200px">
-        <col style="width:110px">
-        <col style="width:100px">
-        <col style="width:100px">
-        <col style="width:100px">
-        <col style="width:160px">
-        <col style="width:110px">
-      </colgroup>
-      <thead><tr style="background:var(--sa)">
-        <th style="padding:7px 4px;border-bottom:1px solid var(--border)"></th>
-        <th style="padding:7px 8px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--tm);border-bottom:1px solid var(--border)">Reviewer</th>
-        <th style="padding:7px 8px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--tm);border-bottom:1px solid var(--border)">TL</th>
-        ${_thPurple('Total Score')}
-        ${_thYellow('Base Acc')}
-        ${_thYellow('Precision')}
-        ${_thYellow('Recall')}
-        ${_thYellow('# SW with AHT Met')}
-        ${_thYellow('Absent ≤5%')}
-      </tr></thead><tbody>`;
-    }
 
     reviewers_.forEach(rv => {
       const { rows, supervisor } = rvMap[rv];
@@ -24357,7 +24360,7 @@ function gpDecReqExpand(open) {
       const total = components.every(v => v !== null)
         ? acc + precBonus + recBonus + ahtBonus + absBonus
         : null;
-      // Bonus Points = sum of the 4 bonus components (July view)
+      // Bonus Points = sum of the 4 bonus components
       const bonusPoints = components.slice(1).every(v => v !== null)
         ? precBonus + recBonus + ahtBonus + absBonus
         : null;
@@ -24371,23 +24374,26 @@ function gpDecReqExpand(open) {
         : '—';
 
       const _rid = `rv-${rvRowIdx++}`;
-      // Points earned breakdown (for expandable row)
-      const _ptsBreakdown = [
-        { label: 'Base Acc', pts: acc,       raw: acc      !== null ? pct2(acc)       : '—' },
-        { label: 'Precision',pts: precBonus, raw: prec     !== null ? pct2(prec)      : '—' },
-        { label: 'Recall',   pts: recBonus,  raw: rec      !== null ? pct2(rec)       : '—' },
-        { label: 'AHT',      pts: ahtBonus,  raw: ahtLabel },
-        { label: 'Absent',   pts: absBonus,  raw: absRate  !== null ? pct2(absRate)   : '—' },
-      ];
-      const _ptsHtml = _ptsBreakdown.map(p => {
-        const pts = p.pts !== null ? (p.pts*100).toFixed(4)+'%' : '—';
-        const col = p.pts !== null && p.pts > 0 ? 'var(--green)' : (p.pts === 0 ? 'var(--coral)' : 'var(--tm)');
-        return `<td style="padding:4px 8px;font-size:10px;font-family:var(--m);color:${col};text-align:right;border-bottom:1px solid var(--divider)">${pts}</td>`;
-      }).join('');
-      const _totalPtsEarned = total !== null ? (total*100).toFixed(4)+'%' : '—';
+      // Points earned breakdown (for expandable row) — must align 1:1 under their header columns.
+      // Header columns after "TL" are: Total | Base Score | Base Accuracy | Bonus Points | Precision | Recall | # SW AHT Met | Absenteeism
+      // Total/Base Score/Bonus Points are summary cells already shown in the main row, so the
+      // breakdown row shows blanks under those and only prints per-metric pts under their own columns.
+      const _blankTd = `<td style="padding:4px 8px;font-size:10px;color:var(--tm);border-bottom:1px solid var(--divider)"></td>`;
+      const _ptsCellFor = (pts) => {
+        const disp = pts !== null ? (pts*100).toFixed(4)+'%' : '—';
+        const col = pts !== null && pts > 0 ? 'var(--green)' : (pts === 0 ? 'var(--coral)' : 'var(--tm)');
+        return `<td style="padding:4px 8px;font-size:10px;font-family:var(--m);color:${col};text-align:right;border-bottom:1px solid var(--divider)">${disp}</td>`;
+      };
+      const _ptsHtml =
+        _blankTd +                     // under Base Score (summary, no separate pts)
+        _ptsCellFor(acc) +             // under Base Accuracy
+        _blankTd +                     // under Bonus Points (summary, no separate pts)
+        _ptsCellFor(precBonus) +       // under Precision
+        _ptsCellFor(recBonus) +        // under Recall
+        _ptsCellFor(ahtBonus) +        // under # SW with AHT Met
+        _ptsCellFor(absBonus);         // under Absent ≤5%
 
-      if (julyScheme) {
-        html += `<tr style="cursor:pointer" onclick="window._incToggleRV('${_rid}')">
+      html += `<tr style="cursor:pointer" onclick="window._incToggleRV('${_rid}')">
         <td style="padding:7px 4px;text-align:center;width:20px;border-bottom:1px solid var(--divider);color:var(--tm);font-size:10px"><span id="inc-toggle-${_rid}">▸</span></td>
         <td style="padding:7px 8px;font-size:13px;font-weight:700;color:var(--text);border-bottom:1px solid var(--divider);white-space:nowrap;cursor:pointer" onclick="event.stopPropagation();window._incShowPhoto('${rv.replace(/'/g,"'")}','${(supervisor||'').replace(/'/g,"'")}',this)" title="Click for profile">${rv}</td>
         ${tdPlain(supervisor||'—')}
@@ -24404,23 +24410,6 @@ function gpDecReqExpand(open) {
         <td colspan="4" style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--ts);border-bottom:1px solid var(--divider)">pts breakdown</td>
         ${_ptsHtml}
       </tr>`;
-      } else {
-        html += `<tr style="cursor:pointer" onclick="window._incToggleRV('${_rid}')">
-        <td style="padding:7px 4px;text-align:center;width:20px;border-bottom:1px solid var(--divider);color:var(--tm);font-size:10px"><span id="inc-toggle-${_rid}">▸</span></td>
-        <td style="padding:7px 8px;font-size:13px;font-weight:700;color:var(--text);border-bottom:1px solid var(--divider);white-space:nowrap;cursor:pointer" onclick="event.stopPropagation();window._incShowPhoto('${rv.replace(/'/g,"'")}','${(supervisor||'').replace(/'/g,"'")}',this)" title="Click for profile">${rv}</td>
-        ${tdPlain(supervisor||'—')}
-        ${tdBg(total !== null ? `<strong>${pct2(total)}</strong>` : '—', true, true, totalColor, '#F3F0FF')}
-        ${tdBg(pct2(acc),  true, true,  acc  !== null ? scoreColor(acc,  1) : 'var(--tm)', '#FFFBEB')}
-        ${tdBg(pct2(prec), true, false, prec !== null ? scoreColor(prec, 1) : 'var(--tm)', '#FFFBEB')}
-        ${tdBg(pct2(rec),  true, false, rec  !== null ? scoreColor(rec,  1) : 'var(--tm)', '#FFFBEB')}
-        ${tdBg(ahtLabel,   true,  false, ahtB.bonus !== null ? scoreColor(ahtB.bonus, 1) : 'var(--tm)', '#FFFBEB')}
-        ${tdBg(absRate !== null ? pct2(absRate) + (absBonus===0.01 ? ' ✓' : ' ✗') : '—', true, false, absBonus===0.01 ? 'var(--green)' : 'var(--coral)', '#FFFBEB')}
-      </tr>
-      <tr id="inc-expand-${_rid}" style="display:none;background:var(--sa)">
-        <td colspan="4" style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--ts);border-bottom:1px solid var(--divider)">pts breakdown</td>
-        ${_ptsHtml}
-      </tr>`;
-      }
     });
 
     html += '</tbody>';
@@ -24679,7 +24668,7 @@ function gpDecReqExpand(open) {
         rvMap[r.reviewer].rows.push(r);
       });
       const monthWeeks = [...new Set(monthRows.map(r => r.week))];
-      const sheetData = [['Reviewer','TL','Total Score','Pts Earned','Base Acc','Precision Pts','Recall Pts','AHT Pts','Absent Pts','Base Acc %','Precision %','Recall %','AHT Hit Ratio','Absenteeism %']];
+      const sheetData = [['Reviewer','TL','Total Score','Base Score','Base Accuracy','Bonus Points','Precision Pts','Recall Pts','AHT Pts','Absent Pts','Base Accuracy %','Precision %','Recall %','AHT Hit Ratio','Absenteeism %']];
       Object.keys(rvMap).forEach(rv => {
         const { rows, supervisor } = rvMap[rv];
         const qRows = incQualityFilter(rows.filter(r => r.sw), _incMonth);
@@ -24699,8 +24688,9 @@ function gpDecReqExpand(open) {
         const ab=ahtB.bonus!==null?Math.min(ahtB.bonus,1)*0.01:null;
         const comps=[acc,pb,rb,ab,absBonus];
         const total=comps.every(v=>v!==null)?acc+pb+rb+ab+absBonus:null;
+        const bonusPts=comps.slice(1).every(v=>v!==null)?pb+rb+ab+absBonus:null;
         const fmt=v=>v!==null?(v*100).toFixed(4)+'%':'';
-        sheetData.push([rv,supervisor||'',fmt(total),fmt(total),fmt(acc),fmt(pb),fmt(rb),fmt(ab),absBonus!==null?fmt(absBonus):'',fmt(acc),fmt(prec),fmt(rec),ahtB.eligible>0?((ahtB.hit/ahtB.eligible)*100).toFixed(2)+'%':'',fmt(absRate)]);
+        sheetData.push([rv,supervisor||'',fmt(total),fmt(acc),fmt(acc),fmt(bonusPts),fmt(pb),fmt(rb),fmt(ab),absBonus!==null?fmt(absBonus):'',fmt(acc),fmt(prec),fmt(rec),ahtB.eligible>0?((ahtB.hit/ahtB.eligible)*100).toFixed(2)+'%':'',fmt(absRate)]);
       });
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
       const wb = XLSX.utils.book_new();
