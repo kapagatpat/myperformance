@@ -25690,6 +25690,16 @@ function mcdGenerate(){
 .tcm-metric{background:var(--sa);border:1px solid var(--border);border-radius:var(--r-xs);padding:6px 10px}
 .tcm-metric-lbl{font-size:10px;color:var(--tm);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
 .tcm-metric-val{font-size:13px;font-weight:800;font-family:var(--m)}
+.tcm-commit-lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--tm);margin-bottom:4px}
+.tcm-commit-row{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--sa);border:1px solid var(--border);border-radius:var(--r)}
+.tcm-commit-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.tcm-commit-txt{font-size:11px;color:var(--ts);flex:1;min-width:0}
+.tcm-commit-arr{font-size:13px;color:var(--tm);flex-shrink:0}
+.tcm-commit-inp{width:90px;font-size:11px;font-family:var(--m);padding:3px 6px;border-radius:var(--r-xs);border:1.5px solid var(--pbd);background:var(--pbg);color:var(--purple);text-align:right;font-weight:700;flex-shrink:0}
+.tcm-commit-inp:focus{outline:none;border-color:var(--purple)}
+.tcm-commit-inp-wide{width:100%;font-size:11px;font-family:var(--f);padding:5px 8px;border-radius:var(--r-xs);border:1.5px solid var(--pbd);background:var(--pbg);color:var(--purple);font-weight:600}
+.tcm-commit-inp-wide:focus{outline:none;border-color:var(--purple)}
+.tcm-commit-hint{font-size:10px;color:var(--tm);margin-top:3px;line-height:1.4}
 .tcm-act-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
 .tcm-act-col-hdr{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ts);margin-bottom:5px}
 .tcm-cnt{font-size:10px;color:var(--tm);margin-left:auto}
@@ -26013,6 +26023,46 @@ function tcmSecs(v){ return v!==null && v!==undefined ? Math.round(v)+'s' : '—
 function tcmFlagClass(off){ return off===null ? 'tcm-badge-n' : (off ? 'tcm-badge-r' : 'tcm-badge-g'); }
 function tcmFlagLabel(off){ return off===null ? 'No data' : (off ? 'Off target' : 'On target'); }
 
+// ── Commit target defaults — pre-filled to the metric's target, editable by Supervisor ──
+// Metric-backed opportunities pre-fill to the actual target value (e.g. "98%", "900s").
+// Qualitative opportunities pre-fill to a generic placeholder the Supervisor is expected to edit.
+function tcmDefaultCommit(key){
+  const m = _tcm.metrics;
+  switch(key){
+    case 'tops':    return { current: tcmPct(m.tops.val),  default: tcmPct(m.tops.tgt) };
+    case 'fin':      return { current: tcmPct(m.fin.val),   default: '≤'+tcmPct(m.fin.tgt) };
+    case 'product':  return { current: `MSV ${tcmPct(m.product.msv)} / AOA ${tcmPct(m.product.aoa)}`, default: `MSV ≥${tcmPct(m.product.msvTgt)} / AOA ≥${tcmPct(m.product.aoaTgt)}` };
+    case 'coach':    return { current: `Acc ${tcmPct(m.coach.acc)} / AHT ${tcmSecs(m.coach.aht)}`, default: `Acc ≥${tcmPct(m.coach.accTgt)} / AHT ≤${tcmSecs(m.coach.ahtTgt)}` };
+    case 'map':      return { current: null, default: 'Complete MAP by EOM' };
+    case 'bi':       return { current: null, default: 'Close identified BI knowledge gap by EOM' };
+    case 'client':   return { current: null, default: 'Complete client process training by EOM' };
+    case 'other':    return { current: null, default: 'Define target with Supervisor' };
+    default:         return { current: null, default: '' };
+  }
+}
+
+function tcmCommitBlock(key){
+  const c = tcmDefaultCommit(key);
+  const isQualitative = (c.current === null);
+  if(isQualitative){
+    return `<div>
+      <div class="tcm-commit-lbl">Commit target</div>
+      <input class="tcm-commit-inp-wide" type="text" id="tcm-commit-${key}" value="${tcmEsc(c.default)}" />
+      <div class="tcm-commit-hint">Pre-filled placeholder — replace with a specific, checkable target for next period.</div>
+    </div>`;
+  }
+  return `<div>
+    <div class="tcm-commit-lbl">Commit target</div>
+    <div class="tcm-commit-row">
+      <div class="tcm-commit-dot" style="background:var(--purple)"></div>
+      <span class="tcm-commit-txt">Current: ${tcmEsc(c.current)}</span>
+      <span class="tcm-commit-arr">→</span>
+      <input class="tcm-commit-inp" type="text" id="tcm-commit-${key}" value="${tcmEsc(c.default)}" />
+    </div>
+    <div class="tcm-commit-hint">Pre-filled to target. Adjust for phasing (e.g. partial improvement this period).</div>
+  </div>`;
+}
+
 function tcmMetricsBlock(key){
   const m = _tcm.metrics;
   if(key === 'coach'){
@@ -26095,6 +26145,7 @@ function tcmRenderFocusAreas(){
       </div>
       <div class="tcm-fa-body">
         ${metricBlock ? metricBlock.html : ''}
+        ${tcmCommitBlock(key)}
         <div class="tcm-act-cols">
           <div>
             <div class="tcm-act-col-hdr">🔎 TL <span class="tcm-cnt" id="tcm-cnt-tl-${key}">0 / 3</span></div>
@@ -26186,6 +26237,14 @@ function tcmGenerate(){
   }
   document.getElementById('tcm-val-err').classList.remove('tcm-show');
 
+  const oppKeysForCommit = [...TCM_OPPORTUNITIES.map(o=>o.key)].filter(k=>_tcm.selected.has(k) && k!=='none');
+  const commits = {};
+  oppKeysForCommit.forEach(key=>{
+    const el = document.getElementById('tcm-commit-'+key);
+    const d = tcmDefaultCommit(key);
+    commits[key] = { current: d.current, target: el ? el.value.trim() : d.default };
+  });
+
   const config = {
     tl: _tcm.tl,
     mode: _tcm.mode,
@@ -26194,6 +26253,7 @@ function tcmGenerate(){
     oppLabels: Object.fromEntries(TCM_OPPORTUNITIES.map(o=>[o.key,o.label])),
     actions: JSON.parse(JSON.stringify(_tcm.actions)),
     metrics: _tcm.metrics,
+    commits: commits,
     notes: document.getElementById('tcm-notes').value.trim()
   };
 
@@ -26229,8 +26289,14 @@ function _tcmGenerateDoc(config){
   const oppBlock = (key) => {
     const label = config.oppLabels[key];
     const a = config.actions[key] || {tl:[],sup:[]};
+    const commit = (config.commits && config.commits[key]) ? config.commits[key] : null;
+    const commitHtml = commit ? `<div style="padding:8px 14px;background:${purpleBg};border-bottom:1px solid ${divider};font-size:12px;color:${purple};display:flex;gap:10px;flex-wrap:wrap">
+      ${commit.current!==null ? `<span><strong>Current:</strong> ${commit.current}</span>` : ''}
+      <span><strong>Committed target for next period:</strong> ${commit.target}</span>
+    </div>` : '';
     return `<div style="border:1px solid ${borderColor};border-radius:10px;overflow:hidden;margin-bottom:12px">
       <div style="padding:9px 14px;background:${lightGray};border-bottom:1px solid ${divider};font-size:12px;font-weight:700;color:${textPri}">${label}</div>
+      ${commitHtml}
       <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div>
           <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${textSec};margin-bottom:5px">TL Actions</div>
