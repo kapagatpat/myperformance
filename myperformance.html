@@ -261,6 +261,7 @@ tr:hover td{background:#F8F9FB}
 .c-warn{background:var(--abg);color:var(--amber)}
 .c-bad{background:var(--cbg);color:var(--coral)}
 .c-na{color:var(--tm)}
+.c-secondary{opacity:0.5}
 
 /* OPP PANEL */
 .dr-opp-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:1.25rem}
@@ -374,6 +375,7 @@ tr:hover td{background:#F8F9FB}
 .de-n.de-warn{color:var(--amber);background:var(--asec)}
 .de-n.de-bad{color:var(--coral);font-weight:600;background:var(--csec)}
 .de-n.de-muted{color:var(--tm)}
+.de-n.de-secondary{opacity:0.5}
 .vsf-pill{display:inline-block;padding:1px 7px;border-radius:var(--pill);font-size:11px;font-weight:700;white-space:nowrap}
 .vsf-pill.vsf-good{background:var(--gsec);color:var(--green)}
 .vsf-pill.vsf-warn{background:var(--asec);color:var(--amber)}
@@ -1289,7 +1291,7 @@ tr:hover td{background:#F8F9FB}
             <summary style="display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;list-style:none">
               <span style="font-size:9px;font-weight:800;background:var(--bbg);color:var(--blue);padding:2px 8px;border-radius:var(--pill)">Main CSV</span>
               <span style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)">Whom to target</span>
-              <span style="font-size:10px;color:var(--tm);margin-left:auto">min. 5 decisions · Approaching/NI only · click a header to sort</span>
+              <span style="font-size:10px;color:var(--tm);margin-left:auto">min. 5 decisions · Approaching/NI only · click a reviewer row to expand · click a header to sort</span>
             </summary>
             <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
               <div style="overflow-x:auto">
@@ -1682,6 +1684,7 @@ tr:hover td{background:#F8F9FB}
       </div>
 
       <div id="psp-diag" style="margin-bottom:1rem"></div>
+      <div id="psp-hist-card" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;margin-bottom:1rem"></div>
       <div id="psp-content"></div>
     </section>
 
@@ -3535,19 +3538,23 @@ function renderSummaryTable(rows, tableId, showSW) {
     if(thead) thead.innerHTML=groupRow+weekRow;
 
     // Data rows — full-cell coloring, AR-gated
-    // tcell(val, key, isMTD, ar) — ar used to gate quality coloring
+    // tcell(val, key, isMTD, ar) — ar decides which of Accuracy vs P&R is
+    // "primary" for this period. The non-primary one still gets its real
+    // color (green/amber/coral) so the signal isn't lost, just rendered at
+    // 50% opacity so it visually recedes behind the primary metric.
     const cellBg  = (cls) => cls==='good'?'var(--gbg)':cls==='warn'?'var(--abg)':cls==='bad'?'var(--cbg)':'';
     const cellFg  = (cls) => cls==='good'?'var(--green)':cls==='warn'?'var(--amber)':cls==='bad'?'var(--coral)':'';
     const tcell=(val,key,isMTD,ar)=>{
-        // AR gating: skip color on Acc if AR>=10%, skip P&R if AR<10%
-        const skip = (key==='adj_acc'&&ar!==null&&ar>=0.10) || ((key==='prec'||key==='rec')&&(ar===null||ar<0.10));
-        const cls  = skip?'na':flag(val,key);
+        // AR gating: Acc is secondary if AR>=10%, P&R is secondary if AR<10%
+        const secondary = (key==='adj_acc'&&ar!==null&&ar>=0.10) || ((key==='prec'||key==='rec')&&(ar===null||ar<0.10));
+        const cls  = flag(val,key);
         const disp = val!==null?(key==='aht'?Number(val).toFixed(2)+'s':p(val)):'—';
-        const bg   = isMTD ? 'var(--bbg)' : (skip?'':cellBg(cls));
-        const fg   = isMTD ? (skip?'var(--blue)':cellFg(cls)||'var(--blue)') : (skip?'var(--tm)':cellFg(cls)||'var(--text)');
+        const bg   = isMTD ? 'var(--bbg)' : cellBg(cls);
+        const fg   = isMTD ? (cellFg(cls)||'var(--blue)') : (cellFg(cls)||'var(--text)');
         const borderL = isMTD ? '2px solid var(--bbd)' : '1px solid var(--divider)';
         const fw   = isMTD ? '700' : '600';
-        return `<td style="background:${bg};border-left:${borderL};padding:3px 7px"><span style="font-family:var(--m);font-size:11px;font-weight:${fw};color:${fg}">${disp}</span></td>`;
+        const opacity = secondary ? '0.5' : '1';
+        return `<td style="background:${bg};border-left:${borderL};padding:3px 7px;opacity:${opacity}"><span style="font-family:var(--m);font-size:11px;font-weight:${fw};color:${fg}">${disp}</span></td>`;
     };
 
     let accRow=`<tr><td><strong>Adj Accuracy ↑</strong></td>`;
@@ -4157,16 +4164,23 @@ function renderTLCards(rows) {
               <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Team Accuracy</div>
               ${(()=>{
                 const _highAR = ar!==null&&ar>=0.10;
-                const _accC = _highAR ? 'var(--tm)' : (accMet?'var(--green)':'var(--coral)');
-                const _barC = _highAR ? 'var(--divider)' : (accMet?'var(--green)':'var(--coral)');
-                const _gapTxt = _highAR ? '<span style="font-size:10px;color:var(--tm);font-style:italic">AR≥10% — see P&amp;R</span>' : (accGap?accMet?accGap+'pp above':accGap+'pp below':'—');
-                return '<div style="display:flex;align-items:baseline;gap:4px;flex-wrap:wrap">'
+                // AR≥10% makes Accuracy the secondary metric here (P&R is
+                // primary) — still color it green/coral for its actual
+                // pass/fail state, just faded via opacity on the whole block
+                // rather than forced to gray, so the signal isn't lost.
+                const _accC = accMet?'var(--green)':'var(--coral)';
+                const _barC = _accC;
+                const _gapTxt = accGap?(accMet?accGap+'pp above':accGap+'pp below'):'—';
+                const _op = _highAR ? '0.5' : '1';
+                return '<div style="opacity:'+_op+'">'
+                  +'<div style="display:flex;align-items:baseline;gap:4px;flex-wrap:wrap">'
                   +'<span style="font-size:20px;font-weight:800;color:'+_accC+';font-family:var(--m)">'+fmtPct(acc)+'</span>'
                   +(!_highAR?deltaChip(acc,accTgt,'positive'):'')
                   +'</div>'
                   +'<div style="font-size:11px;color:var(--tm);margin-top:4px">Target '+fmtPct(accTgt)+'</div>'
-                  +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_barC+';width:'+(!_highAR?barFill(acc,accTgt,'positive'):0)+'%"></div></div>'
-                  +'<div style="font-size:10px;color:'+_accC+';margin-top:4px">'+_gapTxt+'</div>';
+                  +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_barC+';width:'+barFill(acc,accTgt,'positive')+'%"></div></div>'
+                  +'<div style="font-size:10px;color:'+_accC+';margin-top:4px">'+_gapTxt+(_highAR?' <span style="font-style:italic">(AR≥10% — see P&amp;R)</span>':'')+'</div>'
+                  +'</div>';
               })()}
             </div>
 
@@ -4174,16 +4188,19 @@ function renderTLCards(rows) {
               <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Precision</div>
               ${(()=>{
                 const _highAR = ar!==null&&ar>=0.10;
-                const _precC = !_highAR ? 'var(--tm)' : (prec!==null&&prec>=accTgt?'var(--green)':prec!==null&&prec>=0.93?'var(--amber)':'var(--coral)');
-                const _barC  = !_highAR ? 'var(--divider)' : (prec!==null&&prec>=accTgt?'var(--green)':'var(--amber)');
-                const _subTxt = !_highAR ? '<span style="font-size:10px;color:var(--tm);font-style:italic">AR&lt;10% — see Accuracy</span>' : (teamPrec!==null?'Team '+fmtPct(teamPrec):'—');
-                return '<div style="display:flex;align-items:baseline;gap:4px;flex-wrap:wrap">'
+                const _precC = prec!==null&&prec>=accTgt?'var(--green)':prec!==null&&prec>=0.93?'var(--amber)':'var(--coral)';
+                const _barC  = prec!==null&&prec>=accTgt?'var(--green)':'var(--amber)';
+                const _subTxt = teamPrec!==null?'Team '+fmtPct(teamPrec):'—';
+                const _op = !_highAR ? '0.5' : '1';
+                return '<div style="opacity:'+_op+'">'
+                  +'<div style="display:flex;align-items:baseline;gap:4px;flex-wrap:wrap">'
                   +'<span style="font-size:20px;font-weight:800;color:'+_precC+';font-family:var(--m)">'+fmtPct(prec)+'</span>'
-                  +(_highAR&&prec!==null&&teamPrec!==null?deltaChip(prec,teamPrec,'positive'):'')
+                  +(prec!==null&&teamPrec!==null?deltaChip(prec,teamPrec,'positive'):'')
                   +'</div>'
                   +'<div style="font-size:11px;color:var(--tm);margin-top:4px">FP control</div>'
-                  +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_barC+';width:'+(_highAR?barFill(prec,accTgt,'positive'):0)+'%"></div></div>'
-                  +'<div style="font-size:10px;color:var(--tm);margin-top:4px">'+_subTxt+'</div>';
+                  +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_barC+';width:'+barFill(prec,accTgt,'positive')+'%"></div></div>'
+                  +'<div style="font-size:10px;color:var(--tm);margin-top:4px">'+_subTxt+(!_highAR?' <span style="font-style:italic">(AR&lt;10% — see Accuracy)</span>':'')+'</div>'
+                  +'</div>';
               })()}
             </div>
 
@@ -4191,16 +4208,19 @@ function renderTLCards(rows) {
               <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Recall</div>
               ${(()=>{
                 const _highAR = ar!==null&&ar>=0.10;
-                const _recC = !_highAR ? 'var(--tm)' : (rec!==null&&rec>=accTgt?'var(--green)':rec!==null&&rec>=0.93?'var(--amber)':'var(--coral)');
-                const _barC = !_highAR ? 'var(--divider)' : (rec!==null&&rec>=accTgt?'var(--green)':'var(--amber)');
-                const _subTxt = !_highAR ? '<span style="font-size:10px;color:var(--tm);font-style:italic">AR&lt;10% — see Accuracy</span>' : (teamRec!==null?'Team '+fmtPct(teamRec):'—');
-                return '<div style="display:flex;align-items:baseline;gap:4px;flex-wrap:wrap">'
+                const _recC = rec!==null&&rec>=accTgt?'var(--green)':rec!==null&&rec>=0.93?'var(--amber)':'var(--coral)';
+                const _barC = rec!==null&&rec>=accTgt?'var(--green)':'var(--amber)';
+                const _subTxt = teamRec!==null?'Team '+fmtPct(teamRec):'—';
+                const _op = !_highAR ? '0.5' : '1';
+                return '<div style="opacity:'+_op+'">'
+                  +'<div style="display:flex;align-items:baseline;gap:4px;flex-wrap:wrap">'
                   +'<span style="font-size:20px;font-weight:800;color:'+_recC+';font-family:var(--m)">'+fmtPct(rec)+'</span>'
-                  +(_highAR&&rec!==null&&teamRec!==null?deltaChip(rec,teamRec,'positive'):'')
+                  +(rec!==null&&teamRec!==null?deltaChip(rec,teamRec,'positive'):'')
                   +'</div>'
                   +'<div style="font-size:11px;color:var(--tm);margin-top:4px">FN control</div>'
-                  +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_barC+';width:'+(_highAR?barFill(rec,accTgt,'positive'):0)+'%"></div></div>'
-                  +'<div style="font-size:10px;color:var(--tm);margin-top:4px">'+_subTxt+'</div>';
+                  +'<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;border-radius:2px;background:'+_barC+';width:'+barFill(rec,accTgt,'positive')+'%"></div></div>'
+                  +'<div style="font-size:10px;color:var(--tm);margin-top:4px">'+_subTxt+(!_highAR?' <span style="font-style:italic">(AR&lt;10% — see Accuracy)</span>':'')+'</div>'
+                  +'</div>';
               })()}
             </div>
 
@@ -5522,11 +5542,15 @@ function generateTLCoachingDoc() {
         const recSub  = prevRec!==null  ? deltaPct(teamRec,prevRec,true)   : 'Undertagging signal';
         const arSub   = prevAR!==null   ? deltaPct(teamAR,prevAR,false)    : '(TP+FP) / Total';
 
-        // Color coding mirrors monthly TL: AR-gated
+        // Color coding mirrors monthly TL: AR-gated, but the non-primary
+        // metric still gets its real color — just faded via opacity — so
+        // the signal isn't lost, only de-emphasized.
         const highAR = deIsHighAR(teamAR, teamPAR);
-        const accC   = highAR ? textMuted : col(teamAcc);
-        const precC  = !highAR ? textMuted : (teamPrec!==null?col(teamPrec):textMuted);
-        const recC   = !highAR ? textMuted : (teamRec!==null?col(teamRec):textMuted);
+        const accC   = col(teamAcc);
+        const precC  = teamPrec!==null?col(teamPrec):textMuted;
+        const recC   = teamRec!==null?col(teamRec):textMuted;
+        const accOp  = highAR ? '0.5' : '1';
+        const prOp   = !highAR ? '0.5' : '1';
 
         // Row 2: AHT · Decisions · AOA · Quick Alignment
         const _jt = calcJobTarget(periodRows);
@@ -5552,9 +5576,9 @@ function generateTLCoachingDoc() {
         const qalnC=_qaln!==null?(_qaln>=QALN_TGT?green:(_qaln>=0.95?amber:red)):textMuted;
 
         return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;align-items:stretch">
-          ${kpiCard('Accuracy',    pct(teamAcc),  accSub,  accC)}
-          ${kpiCard('Precision',   pct(teamPrec), precSub, precC)}
-          ${kpiCard('Recall',      pct(teamRec),  recSub,  recC)}
+          <div style="opacity:${accOp};flex:1;min-width:130px;display:flex">${kpiCard('Accuracy',    pct(teamAcc),  accSub,  accC)}</div>
+          <div style="opacity:${prOp};flex:1;min-width:130px;display:flex">${kpiCard('Precision',   pct(teamPrec), precSub, precC)}</div>
+          <div style="opacity:${prOp};flex:1;min-width:130px;display:flex">${kpiCard('Recall',      pct(teamRec),  recSub,  recC)}</div>
           ${kpiCard('Action rate', teamAR!==null?pct(teamAR):'—', arSub, textSec)}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:stretch">
@@ -5610,27 +5634,29 @@ function generateTLCoachingDoc() {
                     ${filled.map(w=>{
                       if(w.acc===null) return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;color:${textMuted}">—</td>`;
                       const highAR=deIsHighAR(w.ar,w.par);
-                      if(highAR) return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;color:${textMuted}">${pct(w.acc)}</td>`;
                       const on=w.acc>=ACC_DOC_TARGET;
-                      return `<td style="padding:6px 4px;text-align:center;background:${on?'#DCFCE7':'#FEF2F2'};font-weight:700;font-family:${mono};font-size:12px;color:${on?green:red}">${pct(w.acc)}</td>`;
+                      const op=highAR?'0.5':'1';
+                      return `<td style="padding:6px 4px;text-align:center;background:${on?'#DCFCE7':'#FEF2F2'};font-weight:700;font-family:${mono};font-size:12px;color:${on?green:red};opacity:${op}">${pct(w.acc)}</td>`;
                     }).join('')}
                   </tr>
                   <tr style="border-bottom:0.5px solid ${borderColor}">
                     <td style="padding:6px 10px;font-size:11px;color:${textMuted}">Adj precision</td>
                     ${filled.map(w=>{
+                      if(w.prec===null) return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;color:${textMuted}">—</td>`;
                       const highAR=deIsHighAR(w.ar,w.par);
-                      if(!highAR||w.prec===null) return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;color:${textMuted}">${w.prec!==null?pct(w.prec):'—'}</td>`;
                       const on=w.prec>=ACC_DOC_TARGET;
-                      return `<td style="padding:6px 4px;text-align:center;background:${on?'#DCFCE7':'#FEF2F2'};font-weight:700;font-family:${mono};font-size:12px;color:${on?green:red}">${pct(w.prec)}</td>`;
+                      const op=!highAR?'0.5':'1';
+                      return `<td style="padding:6px 4px;text-align:center;background:${on?'#DCFCE7':'#FEF2F2'};font-weight:700;font-family:${mono};font-size:12px;color:${on?green:red};opacity:${op}">${pct(w.prec)}</td>`;
                     }).join('')}
                   </tr>
                   <tr style="border-bottom:0.5px solid ${borderColor}">
                     <td style="padding:6px 10px;font-size:11px;color:${textMuted}">Adj recall</td>
                     ${filled.map(w=>{
+                      if(w.rec===null) return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;color:${textMuted}">—</td>`;
                       const highAR=deIsHighAR(w.ar,w.par);
-                      if(!highAR||w.rec===null) return `<td style="padding:6px 4px;text-align:center;font-family:${mono};font-size:12px;color:${textMuted}">${w.rec!==null?pct(w.rec):'—'}</td>`;
                       const on=w.rec>=ACC_DOC_TARGET;
-                      return `<td style="padding:6px 4px;text-align:center;background:${on?'#DCFCE7':'#FEF2F2'};font-weight:700;font-family:${mono};font-size:12px;color:${on?green:red}">${pct(w.rec)}</td>`;
+                      const op=!highAR?'0.5':'1';
+                      return `<td style="padding:6px 4px;text-align:center;background:${on?'#DCFCE7':'#FEF2F2'};font-weight:700;font-family:${mono};font-size:12px;color:${on?green:red};opacity:${op}">${pct(w.rec)}</td>`;
                     }).join('')}
                   </tr>
                   <tr>
@@ -5794,9 +5820,11 @@ function generateTLCoachingDoc() {
               const aht =s.dec>0?Math.round((s.dht+s.nht)/s.dec):null;
               const tgt =SW_TARGETS[sw]?.aht||null;
               const highAR=deIsHighAR(ar,par);
-              const accC =highAR?textMuted:(acc!==null?col(acc):textMuted);
-              const precC=!highAR?textMuted:(prec!==null?col(prec):textMuted);
-              const recC =!highAR?textMuted:(rec!==null?col(rec):textMuted);
+              const accC =acc!==null?col(acc):textMuted;
+              const precC=prec!==null?col(prec):textMuted;
+              const recC =rec!==null?col(rec):textMuted;
+              const accOp=highAR?'0.5':'1';
+              const prOp=!highAR?'0.5':'1';
               const ahtC =tgt&&aht!==null?(aht<=tgt?green:aht<=tgt*1.05?amber:red):textSec;
 
               // Reviewers who missed AHT on this SW (≥5 decisions, over target)
@@ -5831,9 +5859,9 @@ function generateTLCoachingDoc() {
 
               return `<tr style="border-bottom:${i<swList.length-1?`0.5px solid ${divider}`:'none'}">
                 <td style="padding:7px 10px;font-size:12px;font-weight:700;color:${textPri}">${sw}</td>
-                <td style="padding:7px 8px;text-align:center;font-size:12px;font-weight:700;font-family:${mono};color:${accC};background:${accC===green?'#DCFCE7':accC===red?'#FEF2F2':accC===amber?'#FEF3C7':'transparent'}">${pct(acc)}</td>
-                <td style="padding:7px 8px;text-align:center;font-size:12px;font-weight:${highAR&&prec!==null?'700':'400'};font-family:${mono};color:${precC};background:${precC===green?'#DCFCE7':precC===red?'#FEF2F2':precC===amber?'#FEF3C7':'transparent'}">${prec!==null?pct(prec):'—'}</td>
-                <td style="padding:7px 8px;text-align:center;font-size:12px;font-weight:${highAR&&rec!==null?'700':'400'};font-family:${mono};color:${recC};background:${recC===green?'#DCFCE7':recC===red?'#FEF2F2':recC===amber?'#FEF3C7':'transparent'}">${rec!==null?pct(rec):'—'}</td>
+                <td style="padding:7px 8px;text-align:center;font-size:12px;font-weight:700;font-family:${mono};color:${accC};background:${accC===green?'#DCFCE7':accC===red?'#FEF2F2':accC===amber?'#FEF3C7':'transparent'};opacity:${accOp}">${pct(acc)}</td>
+                <td style="padding:7px 8px;text-align:center;font-size:12px;font-weight:${highAR&&prec!==null?'700':'400'};font-family:${mono};color:${precC};background:${precC===green?'#DCFCE7':precC===red?'#FEF2F2':precC===amber?'#FEF3C7':'transparent'};opacity:${prOp}">${prec!==null?pct(prec):'—'}</td>
+                <td style="padding:7px 8px;text-align:center;font-size:12px;font-weight:${highAR&&rec!==null?'700':'400'};font-family:${mono};color:${recC};background:${recC===green?'#DCFCE7':recC===red?'#FEF2F2':recC===amber?'#FEF3C7':'transparent'};opacity:${prOp}">${rec!==null?pct(rec):'—'}</td>
                 <td style="padding:7px 8px;text-align:center;font-size:12px;font-family:${mono};color:${ahtC};background:${ahtC===green?'#DCFCE7':ahtC===red?'#FEF2F2':ahtC===amber?'#FEF3C7':'transparent'}">${aht!==null?aht+'s':'—'}</td>
                 <td style="padding:7px 8px;text-align:center;font-size:12px;color:${textSec}">${s.dec.toLocaleString()}</td>
               </tr>`;
@@ -6166,9 +6194,9 @@ function generateTLMonthlyDoc() {
 
     const sec1 = `
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;align-items:stretch">
-        ${(()=>{const _scHighAR=currStats.ar!==null&&currStats.ar>=0.10;const _scAccC=_scHighAR?textMuted:col(currStats.acc);const _scAccSub=prevStats?delta(currStats.acc,prevStats.acc,true):'Target: '+Math.round(ACC_TGT*100)+'%';return kpiCard('Accuracy',pct(currStats.acc),_scAccSub,_scAccC);})()}
-        ${(()=>{const _scHighAR=currStats.ar!==null&&currStats.ar>=0.10;const _scPrecC=!_scHighAR?textMuted:(currStats.prec!==null?col(currStats.prec):textMuted);const _scPrecSub=prevStats&&prevStats.prec!==null?delta(currStats.prec,prevStats.prec,true):'Overtagging';return kpiCard('Precision',pct(currStats.prec),_scPrecSub,_scPrecC);})()}
-        ${(()=>{const _scHighAR=currStats.ar!==null&&currStats.ar>=0.10;const _scRecC=!_scHighAR?textMuted:(currStats.rec!==null?col(currStats.rec):textMuted);const _scRecSub=prevStats&&prevStats.rec!==null?delta(currStats.rec,prevStats.rec,true):'Undertagging';return kpiCard('Recall',pct(currStats.rec),_scRecSub,_scRecC);})()}
+        ${(()=>{const _scHighAR=currStats.ar!==null&&currStats.ar>=0.10;const _scAccC=col(currStats.acc);const _scAccSub=prevStats?delta(currStats.acc,prevStats.acc,true):'Target: '+Math.round(ACC_TGT*100)+'%';return `<div style="opacity:${_scHighAR?'0.5':'1'}">${kpiCard('Accuracy',pct(currStats.acc),_scAccSub,_scAccC)}</div>`;})()}
+        ${(()=>{const _scHighAR=currStats.ar!==null&&currStats.ar>=0.10;const _scPrecC=currStats.prec!==null?col(currStats.prec):textMuted;const _scPrecSub=prevStats&&prevStats.prec!==null?delta(currStats.prec,prevStats.prec,true):'Overtagging';return `<div style="opacity:${!_scHighAR?'0.5':'1'}">${kpiCard('Precision',pct(currStats.prec),_scPrecSub,_scPrecC)}</div>`;})()}
+        ${(()=>{const _scHighAR=currStats.ar!==null&&currStats.ar>=0.10;const _scRecC=currStats.rec!==null?col(currStats.rec):textMuted;const _scRecSub=prevStats&&prevStats.rec!==null?delta(currStats.rec,prevStats.rec,true):'Undertagging';return `<div style="opacity:${!_scHighAR?'0.5':'1'}">${kpiCard('Recall',pct(currStats.rec),_scRecSub,_scRecC)}</div>`;})()}
         ${kpiCard('Action rate', currStats.ar!==null?pct(currStats.ar):'—',
             prevStats&&prevStats.ar!==null?delta(currStats.ar,prevStats.ar,false,v=>(v*100).toFixed(2)+'%'):'(TP+FP) / Total', textSec)}
       </div>
@@ -7947,9 +7975,9 @@ function renderDrillDown(){
           <!-- Col 1: Quality -->
           ${(()=>{
             const _highAR = cAr!==null&&cAr>=0.10;
-            const _accCls = _highAR ? 'c-na' : cellCls(cAcc,'adj_acc');
-            const _preCls = !_highAR ? 'c-na' : cellCls(cPrec,'prec');
-            const _recCls = !_highAR ? 'c-na' : cellCls(cRec,'rec');
+            const _accCls = cellCls(cAcc,'adj_acc') + (_highAR ? ' c-secondary' : '');
+            const _preCls = cellCls(cPrec,'prec') + (!_highAR ? ' c-secondary' : '');
+            const _recCls = cellCls(cRec,'rec') + (!_highAR ? ' c-secondary' : '');
             return `<div class="snap-kpi-col">
               <div class="snap-kpi-col-head">Quality</div>
               <div class="snap-kpi-row ${_accCls}">
@@ -7960,12 +7988,12 @@ function renderDrillDown(){
               <div class="snap-kpi-row ${_preCls}">
                 <span class="snap-kpi-label">Precision</span>
                 <span class="snap-kpi-val">${fmt(cPrec)}</span>
-                ${_highAR?deltaStr(cPrec,pPrec,'positive'):'<span class="snap-kpi-dim">AR&lt;10%</span>'}
+                ${deltaStr(cPrec,pPrec,'positive')}
               </div>
               <div class="snap-kpi-row ${_recCls}">
                 <span class="snap-kpi-label">Recall</span>
                 <span class="snap-kpi-val">${fmt(cRec)}</span>
-                ${_highAR?deltaStr(cRec,pRec,'positive'):'<span class="snap-kpi-dim">AR&lt;10%</span>'}
+                ${deltaStr(cRec,pRec,'positive')}
               </div>
               <div class="snap-kpi-row">
                 <span class="snap-kpi-label">Action Rate</span>
@@ -8192,9 +8220,16 @@ function renderDrillOppPanel(rows, rv, el) {
 
 // PSP status filter state
 let PSP_STATUS_FILTER = 'all';
+// PSP histogram bin filter state — { lo, hi } range on the active KPI's
+// cohort-month value, or null when no bar is selected (shows everyone).
+let PSP_HIST_BIN = null;
 
 function switchPSPTable(tab) {
     window._pspActiveTab = tab;
+    // Different KPI = different value scale, so any active bin selection
+    // from the previous KPI's histogram no longer means anything — clear it
+    // rather than silently filtering the new table by a stale range.
+    PSP_HIST_BIN = null;
     const tabs = ['acc','prec','rec','aht','nht'];
     const colors = { acc: 'var(--blue)', prec: 'var(--coral)', rec: 'var(--green)', aht: 'var(--amber)', nht: 'var(--teal)' };
     const borders = { acc: 'var(--bbd)', prec: 'var(--cbd)', rec: 'var(--gbd)', aht: 'var(--abd)', nht: 'var(--tbd)' };
@@ -8214,6 +8249,298 @@ function switchPSPTable(tab) {
             }
         }
     });
+    // Redraw the histogram for whichever KPI is now active (each KPI has its
+    // own value scale/bins/target), and reapply row visibility for the bin
+    // filter — done by toggling existing <tr> display, not rebuilding table
+    // HTML, so this doesn't need to re-run renderPSP()'s data prep.
+    renderPSPHistogram();
+    if(document.getElementById('chart-expand-modal')?.classList.contains('open')) renderPSPHistogram('psp-hist-expand-wrap', 260);
+    pspApplyBinFilterToDOM();
+}
+
+// ── PSP histogram (Average / Stdev / VSF / N + distribution bars) ──────────
+// Same VSF formula used in Data Explorer: (population stdev × 6) / mean.
+function pspCalcVSF(vals) {
+    if(!vals || vals.length < 2) return null;
+    const mean = vals.reduce((a,b)=>a+b,0) / vals.length;
+    if(mean === 0) return null;
+    return (calcStdev(vals) * 6) / mean;
+}
+function pspVSFBadge(v) {
+    if(v === null) return '';
+    const bg  = v > 1.0 ? 'var(--csec)' : (v > 0.7 ? 'var(--asec)' : 'var(--gsec)');
+    const col = v > 1.0 ? 'var(--coral)' : (v > 0.7 ? 'var(--amber)' : 'var(--green)');
+    return `<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:100px;background:${bg};color:${col}">VSF ${v.toFixed(2)}</span>`;
+}
+
+const PSP_KPI_LABELS = { acc:'Accuracy', prec:'Adj Precision', rec:'Adj Recall', aht:'AHT', nht:'NHT%' };
+
+function pspInclusiveDateRange(dateRange, cohortMonth) {
+    // Prefer the real min/max r.date values present in the uploaded CSV for
+    // this cohort month — a calendar month's 1st/last day is wrong whenever
+    // the export doesn't cover the full month (e.g. a partial current
+    // month, or a data pull that starts mid-month).
+    if(dateRange && dateRange.first && dateRange.last) {
+        const fmt = ymd => {
+            const d = new Date(ymd + 'T00:00:00Z');
+            if(isNaN(d.getTime())) return ymd;
+            return d.toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone:'UTC' });
+        };
+        const yr = dateRange.last.slice(0,4);
+        return dateRange.first === dateRange.last
+            ? `${fmt(dateRange.first)}, ${yr}`
+            : `${fmt(dateRange.first)} – ${fmt(dateRange.last)}, ${yr}`;
+    }
+    // Fallback (no rows with a usable date for this month, e.g. AHT-only
+    // exports without a date column): calendar bounds are better than
+    // nothing, but this should be rare.
+    if(!cohortMonth) return '';
+    const parts = cohortMonth.split('-');
+    if(parts.length < 2) return '';
+    const y = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+    const first = new Date(Date.UTC(y, m-1, 1));
+    const last  = new Date(Date.UTC(y, m, 0));
+    const fmt = d => d.toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone:'UTC' });
+    return `${fmt(first)} – ${fmt(last)}, ${y}`;
+}
+
+function renderPSPHistogram(containerId, chartHeight) {
+    containerId = containerId || 'psp-hist-card';
+    chartHeight = chartHeight || 120;
+    const isExpandedView = containerId !== 'psp-hist-card';
+    const card = document.getElementById(containerId);
+    if(!card) return;
+    const tab  = window._pspActiveTab || 'acc';
+    const data = (window._pspHistData || {})[tab];
+    const cohortMonth = window._pspHistCohortMonth;
+    const dateRange = pspInclusiveDateRange(window._pspHistDateRange, cohortMonth);
+    const titleBlock = `
+        <div style="font-size:13px;font-weight:800;color:var(--text)">TPMY MVIO — ${PSP_KPI_LABELS[tab]}</div>
+        <div style="font-size:11px;color:var(--tm);margin-top:1px">${dateRange}${cohortMonth ? ' (' + fmtMonth(cohortMonth) + ')' : ''}</div>`;
+
+    if(!data || !data.vals || data.vals.length === 0) {
+        card.innerHTML = titleBlock + `<div style="text-align:center;color:var(--tm);font-size:12px;padding:1rem">No data for this KPI's distribution yet.</div>`;
+        return;
+    }
+    const entries = data.vals; // [{name, value}, ...] (AHT entries also carry sw, swTarget)
+    const vals = entries.map(e => e.value);
+    const n = vals.length;
+    const mean = vals.reduce((a,b)=>a+b,0) / n;
+    const stdev = calcStdev(vals);
+    const vsf = pspCalcVSF(vals);
+
+    // AHT's target is per sub-workflow, so there's no single number to draw
+    // a line at when multiple SWs are mixed together. But once the person
+    // filters (via the global SW filter) down to one sub-workflow, every
+    // entry here carries that same swTarget — in that case use it, so the
+    // line reappears exactly when it becomes meaningful again.
+    let effectiveTarget = data.target;
+    let effectiveTgtDir = data.tgtDir;
+    if(tab === 'aht' && entries.length) {
+        const uniqueSws = new Set(entries.map(e => e.sw));
+        if(uniqueSws.size === 1 && entries[0].swTarget) {
+            effectiveTarget = entries[0].swTarget;
+        }
+    }
+
+    // Pass rate = reviewers/rows meeting target ÷ total headcount (n) —
+    // only meaningful when this KPI has one overall (or, for AHT, one
+    // currently-in-view SW) target.
+    let passRateHtml = '';
+    if(effectiveTarget !== null && effectiveTarget !== undefined) {
+        const passCount = vals.filter(v => effectiveTgtDir === 'up' ? v >= effectiveTarget : v <= effectiveTarget).length;
+        const passPct = n > 0 ? Math.round((passCount / n) * 100) : 0;
+        passRateHtml = `<span style="font-size:11px;color:var(--tm)">Pass Rate=<strong style="color:var(--text)">${passCount}/${n} (${passPct}%)</strong></span>`;
+    }
+
+    // 7 equal-width bins spanning the actual data range for this KPI/month —
+    // works across very different scales (% metrics vs AHT-in-seconds)
+    // without needing a fixed band table per KPI.
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const BIN_COUNT = 7;
+    const span = hi - lo;
+    const binWidth = span > 0 ? span / BIN_COUNT : 1;
+    const bins = Array.from({length: BIN_COUNT}, (_, i) => {
+        const binLo = lo + i * binWidth;
+        const binHi = i === BIN_COUNT - 1 ? hi + 1e-9 : lo + (i+1) * binWidth; // include max in last bin
+        return { lo: binLo, hi: binHi, count: 0, members: [] };
+    });
+    entries.forEach(e => {
+        const idx = span > 0 ? Math.min(BIN_COUNT - 1, Math.floor((e.value - lo) / binWidth)) : 0;
+        bins[idx].count++;
+        bins[idx].members.push(e.name);
+    });
+    const maxCount = Math.max(...bins.map(b => b.count), 1);
+
+    // Y-axis ticks (count of reviewers) — 4 evenly spaced steps from 0 to a
+    // "nice" rounded max just above the tallest bar, so the axis has real
+    // numbers instead of just unlabeled bar heights.
+    const yAxisMax = Math.max(4, Math.ceil(maxCount * 1.15));
+    const Y_TICKS = 4;
+    const yTickVals = Array.from({length: Y_TICKS + 1}, (_, i) => Math.round(yAxisMax - (yAxisMax / Y_TICKS) * i));
+
+    // Color a bin green/coral based on where it sits vs target, when a
+    // target is available (overall, or AHT's SW-specific one — see above).
+    function binColor(b) {
+        if(effectiveTarget === null || effectiveTarget === undefined) return 'var(--blue)';
+        const mid = (b.lo + b.hi) / 2;
+        const passing = effectiveTgtDir === 'up' ? mid >= effectiveTarget : mid <= effectiveTarget;
+        return passing ? 'var(--green)' : 'var(--coral)';
+    }
+
+    // Where the target line sits horizontally across the bin axis (0-100%),
+    // so it can be drawn as an actual line over the bars, not just quoted
+    // as text. Clamped so an out-of-range target still shows at the edge
+    // rather than disappearing.
+    let targetLinePct = null;
+    if(effectiveTarget !== null && effectiveTarget !== undefined && span > 0) {
+        targetLinePct = ((effectiveTarget - lo) / span) * 100;
+        targetLinePct = Math.max(0, Math.min(100, targetLinePct));
+    }
+
+    const barsHtml = bins.map((b, i) => {
+        const heightPct = Math.round((b.count / yAxisMax) * 100);
+        const active = PSP_HIST_BIN && Math.abs(PSP_HIST_BIN.lo - b.lo) < 1e-9 && Math.abs(PSP_HIST_BIN.hi - b.hi) < 1e-9;
+        const label = data.fmt(b.lo) + '–' + data.fmt(b.hi);
+        const tooltipNames = b.members.length ? b.members.join(', ') : 'No one in this range';
+        const tooltip = `${label}: ${b.count} — ${tooltipNames}`;
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer" onclick="pspHistBarClick(${b.lo},${b.hi})" title="${tooltip.replace(/"/g,'&quot;')}">
+            <div style="font-size:10px;font-weight:700;color:var(--text);margin-bottom:3px">${b.count}</div>
+            <div style="width:100%;border-radius:4px 4px 0 0;background:${binColor(b)};height:${Math.max(heightPct,3)}%;opacity:${active ? '1' : (PSP_HIST_BIN ? '0.35' : '1')};outline:${active ? '2px solid var(--text)' : 'none'};outline-offset:1px;transition:opacity .15s"></div>
+        </div>`;
+    }).join('');
+
+    // X-axis labels (one per bin edge under the chart) + Y-axis label.
+    const xLabels = bins.map(b => `<div style="flex:1;text-align:center;font-size:9px;color:var(--tm);white-space:nowrap">${data.fmt(b.lo)}–${data.fmt(b.hi)}</div>`).join('');
+    const xAxisTitle = PSP_KPI_LABELS[tab] + (data.unit === 's' ? ' (seconds)' : ' (%)');
+
+    const targetLine = (effectiveTarget !== null && effectiveTarget !== undefined)
+        ? `Target: <strong style="color:var(--text)">${data.fmt(effectiveTarget)}</strong>${tab === 'aht' && entries.length && new Set(entries.map(e=>e.sw)).size === 1 ? ` (${entries[0].sw})` : ''}`
+        : `Target varies by sub-workflow — filter to one SW to see its line`;
+
+    // Direction arrow — which way is "good" for this KPI (up for
+    // Accuracy/Precision/Recall, down for AHT/NHT%). Drawn as a small
+    // vertical arrow beside the chart rather than in the legend text, so
+    // it reads at a glance without needing to parse a sentence.
+    const dirUp = effectiveTgtDir === 'up';
+    const dirArrow = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:26px;margin-right:4px" title="${dirUp ? 'Higher is better' : 'Lower is better'}">
+            <div style="font-size:16px;line-height:1;color:${dirUp ? 'var(--green)' : 'var(--coral)'};transform:${dirUp ? 'none' : 'rotate(180deg)'}">▲</div>
+            <div style="font-size:8px;color:var(--tm);margin-top:2px;white-space:nowrap">${dirUp ? 'Higher\u00A0good' : 'Lower\u00A0good'}</div>
+        </div>`;
+
+    const showingLabel = PSP_HIST_BIN
+        ? `Showing: ${data.fmt(PSP_HIST_BIN.lo)}–${data.fmt(PSP_HIST_BIN.hi)} only — click the bar again or Reset to clear`
+        : `Showing: all ${n} reviewers — click a bar to filter the table below, hover a bar to see who's in it`;
+
+    card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div>${titleBlock}<div style="font-size:11px;color:var(--tm);margin-top:4px">${targetLine}</div></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="font-size:11px;color:var(--tm)">N=<strong style="color:var(--text)">${n}</strong></span>
+                <span style="font-size:11px;color:var(--tm)">Avg=<strong style="color:var(--text)">${data.fmt(mean)}</strong></span>
+                <span style="font-size:11px;color:var(--tm)">Stdev=<strong style="color:var(--text)">${data.fmt(stdev)}</strong></span>
+                ${passRateHtml}
+                ${pspVSFBadge(vsf)}
+                ${PSP_HIST_BIN ? `<button onclick="pspHistReset()" style="font-size:11px;font-weight:700;color:var(--ts);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:4px 12px;cursor:pointer;font-family:var(--f)">✕ Reset</button>` : ''}
+                ${isExpandedView ? '' : `<button class="chart-expand-btn" onclick="openExpandPSPHistogram()" title="Expand chart">⛶ Expand</button>`}
+            </div>
+        </div>
+        <div style="display:flex;align-items:stretch;gap:8px">
+            ${dirArrow}
+            <div style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;width:28px">
+                <div style="font-size:8px;color:var(--tm);font-weight:700;margin-bottom:2px;white-space:nowrap">Count</div>
+                <div style="display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;height:${chartHeight}px;width:100%">
+                    ${yTickVals.map(v => `<div style="font-size:9px;color:var(--tm);line-height:1">${v}</div>`).join('')}
+                </div>
+            </div>
+            <div style="flex:1;min-width:0">
+                <div style="position:relative;display:flex;align-items:flex-end;gap:6px;height:${chartHeight}px;padding:0 4px;border-bottom:2px solid var(--divider);border-left:1px solid var(--divider);margin-top:14px">
+                    ${targetLinePct !== null ? `<div style="position:absolute;left:${targetLinePct}%;top:0;bottom:0;border-left:2px dashed var(--green);pointer-events:none"></div>` : ''}
+                    ${barsHtml}
+                </div>
+                <div style="display:flex;gap:6px;padding:0 4px;margin-top:6px">${xLabels}</div>
+                <div style="text-align:center;font-size:9px;color:var(--tm);font-weight:700;margin-top:2px">${xAxisTitle}</div>
+            </div>
+        </div>
+        <div style="font-size:10px;color:var(--tm);margin-top:8px">${showingLabel}</div>
+    `;
+}
+
+window.pspHistBarClick = function(lo, hi) {
+    // Clicking the already-active bar toggles it back off.
+    if(PSP_HIST_BIN && Math.abs(PSP_HIST_BIN.lo - lo) < 1e-9 && Math.abs(PSP_HIST_BIN.hi - hi) < 1e-9) {
+        PSP_HIST_BIN = null;
+    } else {
+        PSP_HIST_BIN = { lo, hi };
+    }
+    renderPSPHistogram();
+    if(document.getElementById('chart-expand-modal')?.classList.contains('open')) renderPSPHistogram('psp-hist-expand-wrap', 260);
+    pspApplyBinFilterToDOM();
+};
+window.pspHistReset = function() {
+    PSP_HIST_BIN = null;
+    renderPSPHistogram();
+    if(document.getElementById('chart-expand-modal')?.classList.contains('open')) renderPSPHistogram('psp-hist-expand-wrap', 260);
+    pspApplyBinFilterToDOM();
+};
+
+// Opens the shared chart-expand modal with a larger copy of the histogram —
+// this chart is hand-built HTML/CSS rather than a Chart.js canvas, so it
+// gets its own expand path instead of reusing openExpandChart()'s
+// canvas-cloning logic.
+window.openExpandPSPHistogram = function() {
+    const modal = document.getElementById('chart-expand-modal');
+    const titleEl = document.getElementById('chart-expand-title');
+    const canvasWrap = document.getElementById('chart-expand-wrap');
+    const histWrap = document.getElementById('psp-hist-expand-wrap');
+    if(!modal || !histWrap) return;
+    titleEl.textContent = 'TPMY MVIO — ' + (PSP_KPI_LABELS[window._pspActiveTab || 'acc']) + ' Distribution';
+    canvasWrap.style.display = 'none';
+    histWrap.style.display = 'block';
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    renderPSPHistogram('psp-hist-expand-wrap', 260);
+};
+
+// Shows/hides rows in the currently-visible PSP table based on PSP_HIST_BIN,
+// reading each row's data-cohortval — no HTML rebuild needed, so this is
+// cheap enough to run on every bar click.
+function pspApplyBinFilterToDOM() {
+    const tab = window._pspActiveTab || 'acc';
+    const wrap = document.getElementById('psp-tbl-' + tab);
+    if(!wrap) return;
+    const rows = wrap.querySelectorAll('tbody tr');
+    let anyVisible = false;
+    rows.forEach(tr => {
+        if(!PSP_HIST_BIN) { tr.style.display = ''; anyVisible = true; return; }
+        const raw = tr.getAttribute('data-cohortval');
+        if(raw === null || raw === '') { tr.style.display = 'none'; return; }
+        const v = parseFloat(raw);
+        const match = v >= PSP_HIST_BIN.lo && v < PSP_HIST_BIN.hi;
+        tr.style.display = match ? '' : 'none';
+        if(match) anyVisible = true;
+    });
+    // If a real (non-empty-state) row set exists but nothing matches the bin,
+    // show a one-off "no matches" message rather than leaving the table
+    // looking blank with no explanation.
+    let emptyMsg = wrap.querySelector('.psp-bin-empty-msg');
+    if(PSP_HIST_BIN && !anyVisible && rows.length) {
+        if(!emptyMsg) {
+            const tbody = wrap.querySelector('tbody');
+            if(tbody) {
+                emptyMsg = document.createElement('tr');
+                emptyMsg.className = 'psp-bin-empty-msg';
+                const colCount = (wrap.querySelector('thead tr')||{}).children?.length || 10;
+                emptyMsg.innerHTML = `<td colspan="${colCount}" style="text-align:center;padding:1.5rem;color:var(--tm)">No reviewers in this range.</td>`;
+                tbody.appendChild(emptyMsg);
+            }
+        } else {
+            emptyMsg.style.display = '';
+        }
+    } else if(emptyMsg) {
+        emptyMsg.style.display = 'none';
+    }
 }
 
 function pspExportXLSX() {
@@ -8367,6 +8694,15 @@ function renderPSP() {
     // Aggregate per reviewer per month — use ALL months (no month filter) for historical columns
     const allRows = filterRows(qaFilter(RAW_ROWS), tls, tenures, sws, workflows, roles, reviewTypes);
     const rvMonthMap = {};
+
+    // Real inclusive date range for the cohort month — the earliest/latest
+    // r.date actually present in the uploaded data for that month, not the
+    // calendar month's 1st/last day (which can be wrong if the export
+    // doesn't cover the full month, e.g. a partial current month).
+    const cohortMonthDates = allRows.filter(r => r.month === cohortMonth && r.date).map(r => r.date).sort();
+    const cohortDateRange = cohortMonthDates.length
+        ? { first: cohortMonthDates[0], last: cohortMonthDates[cohortMonthDates.length-1] }
+        : null;
     allRows.forEach(r => {
         if(!rvMonthMap[r.reviewer]) rvMonthMap[r.reviewer] = {};
         if(!rvMonthMap[r.reviewer][r.month]) rvMonthMap[r.reviewer][r.month] = {tpa:0,fpa:0,fna:0,tna:0,dht:0,nht:0,dec:0,sched:0,actual:0,supervisor:r.supervisor};
@@ -8466,6 +8802,10 @@ function renderPSP() {
                 ? matching.map(r=>r.outerHTML).join('')
                 : `<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No reviewers match this filter.</td></tr>`;
         }
+        // NOTE: histogram bin filtering is applied afterward, directly on
+        // the live DOM (see pspApplyBinFilterToDOM), not here — it needs to
+        // toggle row visibility without a full re-render every time a bar is
+        // clicked, and every row already carries data-cohortval for that.
         return `<div style="margin-bottom:2rem">
             <div style="background:${color};color:#fff;padding:9px 16px;border-radius:var(--rl) var(--rl) 0 0;font-weight:800;font-size:13px">${icon} ${title}</div>
             <div class="twrap" style="border-radius:0 0 var(--rl) var(--rl);margin-bottom:0"><table style="min-width:600px">
@@ -8483,6 +8823,7 @@ function renderPSP() {
 
     // ── TABLE 1: ACCURACY ──────────────────────────────────────────────────
     let accRows = '';
+    const accVals = []; // cohort-month values, for histogram + stats strip
     reviewers.forEach(rv => {
         const cohortData = rvMonthMap[rv][cohortMonth];  // current month data
         const preData    = preMonth ? rvMonthMap[rv][preMonth] : null; // previous month data
@@ -8498,7 +8839,8 @@ function renderPSP() {
             return d ? monthCell(getAcc(d), v=>p(v), overallAccTgt, 'up') : `<td style="text-align:center;color:var(--tm)">—</td>`;
         }).join('');
         const rowData = cohortData || preData;
-        accRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}">
+        if(currVal !== null) accVals.push({ name: sn(rv), value: currVal });
+        accRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currVal !== null ? currVal : ''}">
             <td style="font-weight:700;font-size:12px">${sn(rv)}</td>
             <td style="font-size:11px;color:var(--ts)">${stl(rowData.supervisor)}</td>
             <td>${pspStatus(isPSP)}</td>
@@ -8510,6 +8852,7 @@ function renderPSP() {
 
     // ── TABLE 1b: ADJ PRECISION ───────────────────────────────────────────
     let precRows = '';
+    const precVals = [];
     reviewers.forEach(rv => {
         const cohortData = rvMonthMap[rv][cohortMonth];
         const preData    = preMonth ? rvMonthMap[rv][preMonth] : null;
@@ -8523,7 +8866,8 @@ function renderPSP() {
             return d ? monthCell(getPrec(d), v=>p(v), overallAccTgt, 'up') : `<td style="text-align:center;color:var(--tm)">—</td>`;
         }).join('');
         const rowData = cohortData || preData;
-        precRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}">
+        if(currVal !== null) precVals.push({ name: sn(rv), value: currVal });
+        precRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currVal !== null ? currVal : ''}">
             <td style="font-weight:700;font-size:12px">${sn(rv)}</td>
             <td style="font-size:11px;color:var(--ts)">${stl(rowData.supervisor)}</td>
             <td>${pspStatus(isPSP)}</td>
@@ -8535,6 +8879,7 @@ function renderPSP() {
 
     // ── TABLE 1c: ADJ RECALL ──────────────────────────────────────────────
     let recRows = '';
+    const recVals = [];
     reviewers.forEach(rv => {
         const cohortData = rvMonthMap[rv][cohortMonth];
         const preData    = preMonth ? rvMonthMap[rv][preMonth] : null;
@@ -8548,7 +8893,8 @@ function renderPSP() {
             return d ? monthCell(getRec(d), v=>p(v), overallAccTgt, 'up') : `<td style="text-align:center;color:var(--tm)">—</td>`;
         }).join('');
         const rowData = cohortData || preData;
-        recRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}">
+        if(currVal !== null) recVals.push({ name: sn(rv), value: currVal });
+        recRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currVal !== null ? currVal : ''}">
             <td style="font-weight:700;font-size:12px">${sn(rv)}</td>
             <td style="font-size:11px;color:var(--ts)">${stl(rowData.supervisor)}</td>
             <td>${pspStatus(isPSP)}</td>
@@ -8560,6 +8906,7 @@ function renderPSP() {
 
 
     let ahtRows = '';
+    const ahtVals = [];
     reviewers.forEach(rv => {
         const swMap = rvSwMonthMap[rv] || {};
         Object.keys(swMap).sort().forEach(sw => {
@@ -8583,7 +8930,8 @@ function renderPSP() {
                 const d = swMap[sw][m];
                 return d && d.dec > 0 ? monthCell((d.dht+d.nht)/d.dec, v=>Number(v).toFixed(2)+'s', ahtTgt, 'dn') : `<td style="text-align:center;color:var(--tm)">—</td>`;
             }).join('');
-            ahtRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}">
+            if(currAHT !== null) ahtVals.push({ name: sn(rv) + ' · ' + sw, value: currAHT, sw, swTarget: ahtTgt });
+            ahtRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currAHT !== null ? currAHT : ''}">
                 <td style="font-weight:700;font-size:12px">${sn(rv)}<br><span style="font-size:10px;font-weight:500;color:var(--tm)">${sw}</span></td>
                 <td style="font-size:11px;color:var(--ts)">${stl(supervisor)}</td>
                 <td>${pspStatus(isPSP)}</td>
@@ -8596,6 +8944,7 @@ function renderPSP() {
 
     // ── TABLE 3: NHT% ─────────────────────────────────────────────────────
     let nhtRows = '';
+    const nhtVals = [];
     reviewers.forEach(rv => {
         const cohortData = rvMonthMap[rv][cohortMonth];
         const preData    = preMonth ? rvMonthMap[rv][preMonth] : null;
@@ -8614,7 +8963,8 @@ function renderPSP() {
             return total>0 ? monthCell(d.nht/total, v=>p(v,2), nhtTgt, 'dn') : `<td style="text-align:center;color:var(--tm)">—</td>`;
         }).join('');
         const rowData = cohortData || preData;
-        nhtRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}">
+        if(currNHT !== null) nhtVals.push({ name: sn(rv), value: currNHT });
+        nhtRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currNHT !== null ? currNHT : ''}">
             <td style="font-weight:700;font-size:12px">${sn(rv)}</td>
             <td style="font-size:11px;color:var(--ts)">${stl(rowData.supervisor)}</td>
             <td>${pspStatus(isPSP)}</td>
@@ -8660,6 +9010,20 @@ function renderPSP() {
         + '<div id="psp-tbl-rec" style="display:none">' + buildPSPTable('Adj Recall', '🎯', 'var(--green)', 'var(--gsec)', recRows || '<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No data.</td></tr>') + '</div>'
         + '<div id="psp-tbl-aht" style="display:none">' + buildPSPTable('AHT per Subworkflow', '⏱', 'var(--amber)', 'var(--abg)', ahtRows || '<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No data.</td></tr>') + '</div>'
         + '<div id="psp-tbl-nht" style="display:none">' + buildPSPTable('NHT%', '📋', 'var(--teal)', 'var(--tbg)', nhtRows || '<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No data.</td></tr>') + '</div>';
+
+    // Stash per-KPI value arrays + display config for the histogram, so
+    // switchPSPTable() / bar clicks can redraw it and re-filter rows without
+    // needing to re-run all of renderPSP()'s data prep above.
+    window._pspHistData = {
+        acc:  { vals: accVals,  target: overallAccTgt, tgtDir: 'up', fmt: v => p(v),          unit: '%'  },
+        prec: { vals: precVals, target: overallAccTgt, tgtDir: 'up', fmt: v => p(v),          unit: '%'  },
+        rec:  { vals: recVals,  target: overallAccTgt, tgtDir: 'up', fmt: v => p(v),          unit: '%'  },
+        aht:  { vals: ahtVals,  target: null,           tgtDir: 'dn', fmt: v => v.toFixed(2)+'s', unit: 's'  },
+        nht:  { vals: nhtVals,  target: nhtTgt,         tgtDir: 'dn', fmt: v => p(v,2),        unit: '%'  },
+    };
+    window._pspHistCohortMonth = cohortMonth;
+    window._pspHistDateRange = cohortDateRange;
+
     // Restore last active tab
     switchPSPTable(window._pspActiveTab || 'acc');
 }
@@ -13594,19 +13958,20 @@ function deGroupCols(grp, colDefs, compDefs) {
 }
 
 function deCells(s, includeWfm, ahtTgt, includeTs) {
-    const n = function(v,t,tgt){ return `<td class="de-n ${deClass(v,t,tgt)}" data-t="${t}">${deFmt(v,t)}</td>`; };
+    const n = function(v,t,tgt,isSecondary){ return `<td class="de-n ${deClass(v,t,tgt)}${isSecondary?' de-secondary':''}" data-t="${t}">${deFmt(v,t)}</td>`; };
     const A = 0.96;
-    // AR-gating: AR>=10% → format Precision+Recall only; AR<10% → format Accuracy only
+    // AR-gating: AR>=10% → Precision+Recall are primary, Accuracy secondary;
+    // AR<10% → Accuracy is primary, Precision+Recall secondary. Both still
+    // get colored against the real target — the non-primary one just
+    // renders faded (de-secondary), rather than uncolored/muted.
     const ar  = s.ar  !== undefined ? s.ar  : null;
     const par = s.par !== undefined ? s.par : null;
     const highAR = deIsHighAR(ar, par); // respects DE_CF_MODE toggle (auto/ar/pr)
-    const accTgt   = highAR ? null : A;   // format Accuracy only when not highAR
-    const prrecTgt = highAR ? A    : null; // format P+R only when highAR
-    const adj  = DE_COLS.adj  ? n(s.adj_acc,'pct',accTgt)+n(s.adj_prec,'pct',prrecTgt)+n(s.adj_rec,'pct',prrecTgt)
+    const adj  = DE_COLS.adj  ? n(s.adj_acc,'pct',A,highAR)+n(s.adj_prec,'pct',A,!highAR)+n(s.adj_rec,'pct',A,!highAR)
                               + (DE_COLS.comp_adj  ? n(s.tpa,'int',null)+n(s.fpa,'int',null)+n(s.fna,'int',null)+n(s.tna,'int',null) : '') : '';
-    const meta = DE_COLS.meta ? n(s.meta_acc,'pct',accTgt)+n(s.meta_prec,'pct',prrecTgt)+n(s.meta_rec,'pct',prrecTgt)
+    const meta = DE_COLS.meta ? n(s.meta_acc,'pct',A,highAR)+n(s.meta_prec,'pct',A,!highAR)+n(s.meta_rec,'pct',A,!highAR)
                               + (DE_COLS.comp_meta ? n(s.mtpa,'int',null)+n(s.mfpa,'int',null)+n(s.mfna,'int',null)+n(s.mtna,'int',null) : '') : '';
-    const raw  = DE_COLS.raw  ? n(s.raw_acc,'pct',accTgt)+n(s.raw_prec,'pct',prrecTgt)+n(s.raw_rec,'pct',prrecTgt)
+    const raw  = DE_COLS.raw  ? n(s.raw_acc,'pct',A,highAR)+n(s.raw_prec,'pct',A,!highAR)+n(s.raw_rec,'pct',A,!highAR)
                               + (DE_COLS.comp_raw  ? n(s.tp,'int',null)+n(s.fp,'int',null)+n(s.fn,'int',null)+n(s.tn,'int',null) : '') : '';
     const eff  = DE_COLS.eff  ? n(s.aht,'sec',ahtTgt!==undefined?ahtTgt:null)+n(s.nht_pct,'nht',null)+n(s.dec,'int',null)
                               + (includeWfm && s.throughput!==undefined ? n(s.throughput,'tput',null) : '<td class="de-n de-muted">—</td>')
@@ -14654,12 +15019,16 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         return ` <span style="color:${good?green:red};font-size:10px">${sign} ${fmt(Math.abs(d))}</span>`;
     };
 
-    // AR-gated coloring: AR < 10% → color Accuracy only; AR ≥ 10% → color P&R only
+    // AR-gated coloring: AR < 10% → Accuracy is primary; AR ≥ 10% → P&R is
+    // primary. The non-primary metric still shows its real pass/fail color,
+    // faded via opacity, rather than switching to muted gray.
     const _ar = currStats.ar;
     const _highAR = _ar !== null && _ar >= 0.10;
-    const accColor  = _highAR ? textMuted : col(currStats.acc);
-    const precColor = !_highAR || currStats.prec === null ? textMuted : col(currStats.prec);
-    const recColor  = !_highAR || currStats.rec  === null ? textMuted : col(currStats.rec);
+    const accColor  = col(currStats.acc);
+    const precColor = currStats.prec === null ? textMuted : col(currStats.prec);
+    const recColor  = currStats.rec  === null ? textMuted : col(currStats.rec);
+    const accOp  = _highAR ? '0.5' : '1';
+    const prOp   = !_highAR ? '0.5' : '1';
     const accSub  = prevStats ? delta(currStats.acc,  prevStats.acc,  true, v=>(v*100).toFixed(2)+'%') : 'Target: '+Math.round(ACC_TGT*100)+'%';
     const precSub = prevStats ? delta(currStats.prec, prevStats.prec, true, v=>(v*100).toFixed(2)+'%') : 'Target: '+Math.round(ACC_TGT*100)+'%';
     const recSub  = prevStats ? delta(currStats.rec,  prevStats.rec,  true, v=>(v*100).toFixed(2)+'%') : 'Target: '+Math.round(ACC_TGT*100)+'%';
@@ -14673,9 +15042,9 @@ function generateReviewerMonthlyDoc(mcdConfig) {
     const absCardSub = 'Target: <5%';
 
     const sec1 = `<div style="display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:7px;margin-bottom:7px;align-items:stretch">
-        ${kpiCard('Accuracy',    pct(currStats.acc),  accSub,  accColor)}
-        ${kpiCard('Precision',   pct(currStats.prec), precSub, precColor)}
-        ${kpiCard('Recall',      pct(currStats.rec),  recSub,  recColor)}
+        <div style="opacity:${accOp};display:flex">${kpiCard('Accuracy',    pct(currStats.acc),  accSub,  accColor)}</div>
+        <div style="opacity:${prOp};display:flex">${kpiCard('Precision',   pct(currStats.prec), precSub, precColor)}</div>
+        <div style="opacity:${prOp};display:flex">${kpiCard('Recall',      pct(currStats.rec),  recSub,  recColor)}</div>
         ${kpiCard('Action Rate', currStats.ar!==null?pct(currStats.ar):'\u2014', teamStats.ar!==null?'Team: '+pct(teamStats.ar):'(TP+FP) / Total', textSec)}
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:7px;margin-bottom:12px;align-items:stretch">
@@ -15039,18 +15408,21 @@ function generateReviewerMonthlyDoc(mcdConfig) {
                             const cs = qaCell(sw, mo);
                             const isCurr = mo===currMonth;
                             const bl = `border-left:1px solid ${borderColor};`;
-                            // Helper: cell bg/color based on active metric and hasData
+                            // Helper: cell bg/color based on active metric and hasData.
+                            // "active" decides which of Acc vs P&R is primary
+                            // for this AR band — the non-primary one still
+                            // gets its real pass/fail color, just faded via
+                            // opacity, so the signal isn't lost.
                             const qc = (met, active) => {
-                                if(!cs.hasData) return {bg:'transparent',c:textMuted,fw:'400'};
-                                if(!active) return {bg:'transparent',c:textSec,fw:'400'};
-                                return met ? {bg:'#DCFCE7',c:green,fw:'700'} : {bg:'#FEF2F2',c:red,fw:'700'};
+                                if(!cs.hasData) return {bg:'transparent',c:textMuted,fw:'400',op:'1'};
+                                return { bg: met?'#DCFCE7':'#FEF2F2', c: met?green:red, fw:'700', op: active?'1':'0.5' };
                             };
                             const highAR = cs.moHighAR;
                             const accSt  = qc(cs.accMet,  !highAR);
                             const precSt = qc(cs.precMet,  highAR);
                             const recSt  = qc(cs.recMet,   highAR);
                             const td = (val, st, extra='') =>
-                                `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${st.fw};color:${st.c};background:${st.bg};${extra}">${val}</td>`;
+                                `<td style="padding:4px 4px;text-align:center;font-family:${mono};font-size:10px;font-weight:${st.fw};color:${st.c};background:${st.bg};opacity:${st.op};${extra}">${val}</td>`;
                             // AHT
                             const ahtD   = swAHTByMonth[sw]?.[mo];
                             const ahtDec = ahtD?.dec||0;
@@ -16225,19 +16597,22 @@ function _generateCoachingDocInner(mcdConfig) {
                 const isMTD = vi===vals.length-1;
                 const bl = isMTD?'border-left:2px solid #C7D2FE;':isFirst?'border-left:2px solid '+borderColor+';':'border-left:0.5px solid '+divider+';';
                 const bg = isMTD?'background:#EEF2FF;':vi===displayWks.length-1?'background:#F5F7FF;':'';
-                const {txt,bg:cellBg,c,fw} = v;
-                return `<td style="padding:5px 5px;text-align:center;font-family:${mono};font-size:10px;font-weight:${fw};color:${c};background:${cellBg||bg.replace('background:','').replace(';','')};${bl}border-bottom:${borderB}">${txt}</td>`;
+                const {txt,bg:cellBg,c,fw,op} = v;
+                return `<td style="padding:5px 5px;text-align:center;font-family:${mono};font-size:10px;font-weight:${fw};color:${c};background:${cellBg||bg.replace('background:','').replace(';','')};${bl}border-bottom:${borderB};opacity:${op!==undefined?op:'1'}">${txt}</td>`;
             }).join('');
             return `<tr><td style="padding:5px 10px;font-size:11px;font-weight:500;color:${textSec};border-bottom:${borderB};${leftBorderStyle}white-space:nowrap">${lbl}</td>${cells}</tr>`;
         };
 
-        // Helper to build a cell value object
+        // Helper to build a cell value object. "active" decides whether this
+        // metric is primary under the current AR gating — non-active still
+        // gets its real pass/fail color (op flags it for the caller to fade
+        // at 50% opacity), rather than switching to plain muted text.
         const qCell = (val, tgt, active, fmtFn) => {
-            if(val===null) return {txt:'—',c:textMuted,fw:'400'};
+            if(val===null) return {txt:'—',c:textMuted,fw:'400',op:'1'};
             const txt = fmtFn ? fmtFn(val) : fmt1(val);
-            if(!active) return {txt,c:textSec,fw:'400'};
             const met = tgt!==null && val>=tgt;
-            return {txt, bg:tgt!==null?qcBg(met,true):undefined, c:tgt!==null?qcC(met,true):textSec, fw:tgt!==null?qcFw(true):'400'};
+            const op = active ? '1' : '0.5';
+            return {txt, bg:tgt!==null?qcBg(met,true):undefined, c:tgt!==null?qcC(met,true):textSec, fw:tgt!==null?qcFw(true):'400', op};
         };
         const plainCell = (txt) => ({txt:txt==='—'?txt:txt, c:textSec, fw:'400'});
         const msvCell = (v) => {
@@ -18978,6 +19353,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Groups the flat reviewer x SW rows into one row per reviewer, with the
+    // individual SW rows nested underneath (collapsed by default). Keeps
+    // every existing column/behavior — just changes how it's laid out, so a
+    // reviewer flagged on several SWs takes one line instead of several.
+    const JD_BAND_SEVERITY = { ni: 2, app: 1 };
+    function jdGroupReviewerRows(rows) {
+        const byReviewer = {};
+        rows.forEach(r => {
+            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviewer: r.reviewer, name: r.name, rows: [] };
+            byReviewer[r.reviewer].rows.push(r);
+        });
+        return Object.values(byReviewer).map(g => {
+            const decisions = g.rows.reduce((s, r) => s + r.decisions, 0);
+            // Worst-band child drives the parent's headline AHT/status — the
+            // SW that most needs attention is what a TL should see first
+            // without expanding.
+            const worst = g.rows.slice().sort((a, b) => (JD_BAND_SEVERITY[b.band]||0) - (JD_BAND_SEVERITY[a.band]||0) || b.aht - a.aht)[0];
+            return { reviewer: g.reviewer, name: g.name, decisions, swCount: g.rows.length,
+                     worstAht: worst.aht, worstBand: worst.band, worstStatus: worst.status, worstSw: worst.sw,
+                     rows: g.rows.slice().sort((a, b) => (JD_BAND_SEVERITY[b.band]||0) - (JD_BAND_SEVERITY[a.band]||0) || b.aht - a.aht) };
+        });
+    }
+    let JD_WTT_EXPANDED = new Set(); // reviewer names currently expanded
+    window.jdToggleReviewerGroup = function(reviewer) {
+        if (JD_WTT_EXPANDED.has(reviewer)) JD_WTT_EXPANDED.delete(reviewer);
+        else JD_WTT_EXPANDED.add(reviewer);
+        renderJobDetail();
+    };
+
     function jdRenderReviewerPanel(reviewersRaw) {
         const tbody = document.getElementById('jd-reviewer-tbody');
         const emptyEl = document.getElementById('jd-reviewer-empty');
@@ -18993,19 +19397,50 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         emptyEl.style.display = 'none';
-        const reviewers = jdSortWTTRows(reviewersRaw);
 
-        tbody.innerHTML = reviewers.map(rv => {
-            const active = JD_FILTERS.reviewer === rv.reviewer && JD_FILTERS.sw === rv.sw;
-            const bandColor = rv.band ? (JD_BAND_COLOR[rv.band] || {}) : {};
-            return `<tr style="border-top:1px solid var(--divider);cursor:pointer;${active ? 'background:var(--sa)' : ''}" onclick="jdSelectReviewerSW('${rv.reviewer.replace(/'/g, "\\'")}','${rv.sw.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--sa)'" onmouseout="this.style.background='${active ? 'var(--sa)' : ''}'">
-                <td style="padding:7px 10px;font-weight:600;color:var(--blue);text-decoration:underline">${rv.name}</td>
-                <td style="padding:7px 10px;color:var(--ts)">${rv.sw}</td>
-                <td style="padding:7px 10px;text-align:right;font-family:var(--m)">${rv.decisions.toLocaleString()}</td>
-                <td style="padding:7px 10px;text-align:right;font-family:var(--m);font-weight:700;background:${bandColor.bg||'transparent'};color:${bandColor.fg||'var(--text)'}">${fmtSec(rv.aht)}</td>
-                <td style="padding:7px 10px">${jdStatusTag(rv.status, rv.band)}</td>
-                <td style="padding:7px 10px">${jdSparkline(rv.spark, rv.target)}</td>
+        // Group first, then sort the groups using the same column the person
+        // clicked — aggregated (summed decisions, worst-SW AHT/status) since
+        // there's one row per reviewer now instead of one per reviewer x SW.
+        const groups = jdGroupReviewerRows(reviewersRaw);
+        const { col, dir } = JD_WTT_SORT;
+        const mul = dir === 'asc' ? 1 : -1;
+        groups.sort((a, b) => {
+            let av, bv;
+            if (col === 'reviewer') { av = a.name || ''; bv = b.name || ''; if (av < bv) return -1*mul; if (av > bv) return 1*mul; return 0; }
+            if (col === 'sw') { av = a.swCount; bv = b.swCount; return (av - bv) * mul; }
+            if (col === 'decisions') { av = a.decisions; bv = b.decisions; return (av - bv) * mul; }
+            if (col === 'status') { av = JD_BAND_SEVERITY[a.worstBand]||0; bv = JD_BAND_SEVERITY[b.worstBand]||0; return (av - bv) * mul; }
+            // default / 'aht': sort by the worst child's AHT
+            av = a.worstAht; bv = b.worstAht; return (av - bv) * mul;
+        });
+
+        tbody.innerHTML = groups.map(g => {
+            const expanded = JD_WTT_EXPANDED.has(g.reviewer);
+            const bandColor = g.worstBand ? (JD_BAND_COLOR[g.worstBand] || {}) : {};
+            const caret = expanded ? '▾' : '▸';
+            const swLabel = g.swCount === 1 ? g.worstSw : g.swCount + ' SWs';
+            const parentRow = `<tr style="border-top:1px solid var(--divider);cursor:pointer;background:var(--sa)" onclick="jdToggleReviewerGroup('${g.reviewer.replace(/'/g, "\\'")}')">
+                <td style="padding:7px 10px;font-weight:700;color:var(--text)"><span style="display:inline-block;width:14px;color:var(--tm)">${caret}</span>${g.name}</td>
+                <td style="padding:7px 10px;color:var(--ts)">${swLabel}</td>
+                <td style="padding:7px 10px;text-align:right;font-family:var(--m)">${g.decisions.toLocaleString()}</td>
+                <td style="padding:7px 10px;text-align:right;font-family:var(--m);font-weight:700;background:${bandColor.bg||'transparent'};color:${bandColor.fg||'var(--text)'}">${fmtSec(g.worstAht)}</td>
+                <td style="padding:7px 10px">${jdStatusTag(g.worstStatus, g.worstBand)}</td>
+                <td style="padding:7px 10px;color:var(--tm);font-size:10px">${g.swCount > 1 ? 'worst of ' + g.swCount : ''}</td>
             </tr>`;
+            if (!expanded) return parentRow;
+            const childRows = g.rows.map(rv => {
+                const active = JD_FILTERS.reviewer === rv.reviewer && JD_FILTERS.sw === rv.sw;
+                const rBandColor = rv.band ? (JD_BAND_COLOR[rv.band] || {}) : {};
+                return `<tr style="border-top:1px solid var(--divider);cursor:pointer;${active ? 'background:var(--sa)' : ''}" onclick="event.stopPropagation();jdSelectReviewerSW('${rv.reviewer.replace(/'/g, "\\'")}','${rv.sw.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--sa)'" onmouseout="this.style.background='${active ? 'var(--sa)' : ''}'">
+                    <td style="padding:6px 10px 6px 30px;color:var(--blue);text-decoration:underline;font-size:11px">${rv.name}</td>
+                    <td style="padding:6px 10px;color:var(--ts);font-size:11px">${rv.sw}</td>
+                    <td style="padding:6px 10px;text-align:right;font-family:var(--m);font-size:11px">${rv.decisions.toLocaleString()}</td>
+                    <td style="padding:6px 10px;text-align:right;font-family:var(--m);font-weight:700;font-size:11px;background:${rBandColor.bg||'transparent'};color:${rBandColor.fg||'var(--text)'}">${fmtSec(rv.aht)}</td>
+                    <td style="padding:6px 10px">${jdStatusTag(rv.status, rv.band)}</td>
+                    <td style="padding:6px 10px">${jdSparkline(rv.spark, rv.target)}</td>
+                </tr>`;
+            }).join('');
+            return parentRow + childRows;
         }).join('');
     }
 
@@ -20433,43 +20868,45 @@ function nrtBadge(label) {
 
 function nrtPct(v) { return v===null?'—':(v*100).toFixed(2)+'%'; }
 
-// nrtColorCell: returns {color, bg} for a metric value, AR-gated
+// nrtColorCell: returns {color, bg, fw, op} for a metric value, AR-gated.
 // metric: 'Accuracy'|'Precision'|'Recall'|'Action Rate'
 // ar: action rate value (0-1) or null
+// When gated and this metric is non-primary for the current AR, it still
+// gets colored by its real pass/fail state — op is set to '0.5' so callers
+// can fade it, rather than this function forcing gray/uncolored.
 function nrtColorCell(v, tgt, metric, ar, gated=true) {
-    if(v===null) return {color:'var(--tm)', bg:'transparent', fw:'400'};
-    // AR-gating: only applies when gated=true (scorecard context)
-    // NRT QA tables pass gated=false to color all three metrics unconditionally
-    let shouldColor = true;
+    if(v===null) return {color:'var(--tm)', bg:'transparent', fw:'400', op:'1'};
+    let isSecondary = false;
     if(gated) {
         const highAR = ar !== null && ar >= 0.10;
-        shouldColor = metric==='Accuracy' ? !highAR
-                    : (metric==='Precision'||metric==='Recall') ? highAR
-                    : true;
+        isSecondary = metric==='Accuracy' ? highAR
+                    : (metric==='Precision'||metric==='Recall') ? !highAR
+                    : false;
     }
-    if(!shouldColor || !tgt) return {color:'var(--tm)', bg:'transparent', fw:'400'};
-    const t = tgt[metric]; if(!t) return {color:'var(--text)', bg:'transparent', fw:'400'};
-    if(v>=t.exc||v>=t.ach) return {color:'var(--green)', bg:'var(--gsec)', fw:'700'};
-    if(v>=t.app)            return {color:'var(--amber)', bg:'var(--asec)', fw:'700'};
-    return                         {color:'var(--coral)', bg:'var(--csec)', fw:'700'};
+    const op = isSecondary ? '0.5' : '1';
+    if(!tgt) return {color:'var(--tm)', bg:'transparent', fw:'400', op};
+    const t = tgt[metric]; if(!t) return {color:'var(--text)', bg:'transparent', fw:'400', op};
+    if(v>=t.exc||v>=t.ach) return {color:'var(--green)', bg:'var(--gsec)', fw:'700', op};
+    if(v>=t.app)            return {color:'var(--amber)', bg:'var(--asec)', fw:'700', op};
+    return                         {color:'var(--coral)', bg:'var(--csec)', fw:'700', op};
 }
 
 function nrtPctColored(v, tgt, metric, ar) {
     if(v===null) return '<span style="color:var(--tm)">—</span>';
-    const {color, bg, fw} = nrtColorCell(v, tgt, metric, ar ?? null, false);
-    if(bg==='transparent') return `<span style="color:${color}">${(v*100).toFixed(2)}%</span>`;
-    return `<span style="color:${color};font-weight:${fw};background:${bg};padding:1px 5px;border-radius:3px">${(v*100).toFixed(2)}%</span>`;
+    const {color, bg, fw, op} = nrtColorCell(v, tgt, metric, ar ?? null, false);
+    if(bg==='transparent') return `<span style="color:${color};opacity:${op}">${(v*100).toFixed(2)}%</span>`;
+    return `<span style="color:${color};font-weight:${fw};background:${bg};padding:1px 5px;border-radius:3px;opacity:${op}">${(v*100).toFixed(2)}%</span>`;
 }
 
 // nrtTdColored: returns a full <td> with background on the cell, not just a span
 // tdBaseStyle: the base inline style string for the td (alignment, padding etc.)
 function nrtTdColored(v, tgt, metric, ar, tdBaseStyle, gated=false) {
     if(v===null) return `<td style="${tdBaseStyle}"><span style="color:var(--tm)">—</span></td>`;
-    const {color, bg, fw} = nrtColorCell(v, tgt, metric, ar ?? null, gated);
+    const {color, bg, fw, op} = nrtColorCell(v, tgt, metric, ar ?? null, gated);
     const base = tdBaseStyle.trimEnd().endsWith(';') ? tdBaseStyle : tdBaseStyle + ';';
     // Use !important so the bg beats de-l2/l3/l4-row CSS class overrides on td
     const bgStyle = bg !== 'transparent' ? `background:${bg}!important;` : '';
-    return `<td style="${base}${bgStyle}"><span style="color:${color};font-weight:${fw}">${(v*100).toFixed(2)}%</span></td>`;
+    return `<td style="${base}${bgStyle}opacity:${op}"><span style="color:${color};font-weight:${fw}">${(v*100).toFixed(2)}%</span></td>`;
 }
 
 function nrtFmt(v) { return v===0?'0':Number.isInteger(v)?String(v):v.toFixed(1); }
@@ -21601,12 +22038,22 @@ function _nahtLFRebuildList(key) {
     list.innerHTML = cfg.values.map(v => {
         const chk = !noneMode && (cfg.sel.has('all') || cfg.sel.has(v));
         const safe = v.replace(/"/g, '&quot;');
-        return '<label class="nrt-lf-item" onclick="event.stopPropagation()">' +
+        // NOTE: no inline onclick/stopPropagation here — the delegated
+        // document click handler (below) is what actually reads the click,
+        // updates NAHT_LF[key].sel, and re-renders. Inline stopPropagation
+        // on these elements previously stopped every checkbox click from
+        // ever reaching that handler, so ticking a box toggled the box
+        // visually but never touched the filter state — the next render
+        // pass (triggered by something else, e.g. All/None) would then
+        // rebuild the list from the untouched state and the click appeared
+        // to do nothing, or worse, land on an empty selection.
+        return '<label class="nrt-lf-item">' +
             '<input type="checkbox"' + (chk ? ' checked' : '') +
-            ' data-lfkey="' + key + '" data-lfval="' + safe + '" class="naht-lf-chk" onclick="event.stopPropagation()">' +
+            ' data-lfkey="' + key + '" data-lfval="' + safe + '" class="naht-lf-chk">' +
             v + '</label>';
     }).join('');
 }
+
 
 function nahtLFGetSel(key) {
     const cfg = NAHT_LF[key];
@@ -24511,6 +24958,12 @@ function closeExpandChart() {
   document.getElementById('chart-expand-modal').classList.remove('open');
   document.body.style.overflow = '';
   if (_expandChart) { _expandChart.destroy(); _expandChart = null; }
+  // Undo the PSP histogram's swap of which wrap is visible, so a normal
+  // Chart.js expand works correctly the next time this modal is opened.
+  const canvasWrap = document.getElementById('chart-expand-wrap');
+  const histWrap = document.getElementById('psp-hist-expand-wrap');
+  if(canvasWrap) canvasWrap.style.display = '';
+  if(histWrap) histWrap.style.display = 'none';
 }
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChart(); });
 // ─── END chart expand modal ───────────────────────────────────────────────────
@@ -24520,6 +24973,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
     <div id="chart-expand-title"></div>
     <button id="chart-expand-close" onclick="closeExpandChart()">✕</button>
     <div id="chart-expand-wrap"><canvas id="chart-expand-canvas"></canvas></div>
+    <div id="psp-hist-expand-wrap" style="display:none;padding:8px 4px"></div>
   </div>
 </div>
 
