@@ -25773,10 +25773,12 @@ const TCM_OPPORTUNITIES = [
   { key:'none',    label:'No opportunities' },
   { key:'map',     label:'MAP Completion' },
   { key:'tops',    label:'TOPS Adoption',    metric:'tops' },
-  { key:'coach',   label:'Quality of Coaching', metric:'coach' },
+  { key:'prec',    label:'Precision',        metric:'prec' },
+  { key:'rec',     label:'Recall',           metric:'rec' },
+  { key:'aht',     label:'AHT',              metric:'aht' },
+  { key:'coach',   label:'Quality of Coaching' },
   { key:'bi',      label:'Lack of BI knowledge / expertise' },
-  { key:'product', label:'Product Training / Knowledge', metric:'product' },
-  { key:'client',  label:'Client Process Training / Knowledge' },
+  { key:'product', label:'Product & Client Process Training / Knowledge', metric:'product' },
   { key:'fin',     label:'Actions alignment with financial results', metric:'fin' },
   { key:'other',   label:'Other' }
 ];
@@ -25816,15 +25818,33 @@ function openTlCoachingModal(mode){
   _tcm.selected = new Set();
   _tcm.actions = {};
 
-  const ACC_TARGET = 0.96;
+  // ── Team Precision / Recall (team-pooled TPA/FPA/FNA, same target source as rest of app) ──
+  let tpa=0,fpa=0,fna=0,tna=0;
+  periodRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;});
+  const teamPrec = (tpa+fpa)>0 ? tpa/(tpa+fpa) : null;
+  const teamRec  = (tpa+fna)>0 ? tpa/(tpa+fna) : null;
+  const PREC_TARGET = (typeof T!=='undefined') ? T.prec.v : 0.95;
+  const REC_TARGET  = (typeof T!=='undefined') ? T.rec.v  : 0.95;
 
-  // ── Team quality + efficiency (same aggregation as generateTLCoachingDoc) ──
-  let tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0;
-  periodRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;});
-  const tot = tpa+fpa+fna+tna;
-  const teamAcc = tot>0 ? (tpa+tna)/tot : null;
-  const teamAHT = dec>0 ? Math.round((dht+nht)/dec) : null;
-  const ahtTgt = (sws.length===1 && SW_TARGETS[sws[0]]) ? SW_TARGETS[sws[0]].aht : (typeof T!=='undefined' ? T.aht.v : null);
+  // ── AHT — SW pass-rate based, not pooled team AHT ───────────────────────────
+  // Per SW: needs >=50 decisions to qualify. Passes if actual AHT <= SW target.
+  // Opportunity flags red if <80% of qualifying SWs pass.
+  const swListForAht = [...new Set(periodRows.map(r=>r.sw).filter(Boolean))];
+  const swAhtResults = [];
+  swListForAht.forEach(sw=>{
+    const swRows = periodRows.filter(r=>r.sw===sw);
+    let swDec=0, swDht=0, swNht=0;
+    swRows.forEach(r=>{ swDec+=r.decisions||0; swDht+=r.dht||0; swNht+=r.nht||0; });
+    if(swDec < 50) return; // excluded — not enough volume to judge
+    const swTgt = SW_TARGETS[sw] ? SW_TARGETS[sw].aht : null;
+    if(!swTgt) return;
+    const swActual = Math.round((swDht+swNht)/swDec);
+    swAhtResults.push({ sw, actual:swActual, target:swTgt, dec:swDec, pass: swActual<=swTgt });
+  });
+  const ahtQualifying = swAhtResults.length;
+  const ahtPassing = swAhtResults.filter(x=>x.pass).length;
+  const ahtPassRate = ahtQualifying>0 ? ahtPassing/ahtQualifying : null;
+  const AHT_PASSRATE_TARGET = 0.80;
 
   // ── TOPS (topsA/topsB summed across team, from quality rows) ───────────────
   let topsA=0, topsB=0;
@@ -25845,7 +25865,9 @@ function openTlCoachingModal(mode){
   const MSV_TARGET = (typeof T!=='undefined') ? T.msv.v : 0.98;
 
   _tcm.metrics = {
-    coach:  { acc:teamAcc, accTgt:ACC_TARGET, aht:teamAHT, ahtTgt:ahtTgt },
+    prec:   { val:teamPrec, tgt:PREC_TARGET },
+    rec:    { val:teamRec,  tgt:REC_TARGET },
+    aht:    { passRate:ahtPassRate, passRateTgt:AHT_PASSRATE_TARGET, passing:ahtPassing, qualifying:ahtQualifying, swResults:swAhtResults },
     tops:   { val:topsScore, tgt:TOPS_TARGET },
     fin:    { val:wfm.abs, tgt:ABS_TARGET },
     product:{ msv:wfm.msv, msvTgt:MSV_TARGET, aoa:wfm.aoa, aoaTgt:AOA_TARGET }
@@ -25944,6 +25966,42 @@ const TCM_ACTION_BANK = {
       'Escalate to OAM if TOPS adoption does not improve next period'
     ]
   },
+  prec: {
+    tl: [
+      'Review over-tagging (FP-driving) errors with team — pull recent flagged decisions',
+      'Run a calibration session focused on borderline cases being actioned too aggressively',
+      'Spot-check decisions on the SW driving the Precision gap before mid-period'
+    ],
+    sup: [
+      'Review Precision trend with TL at next 1:1',
+      'Confirm the top FP-driving policy with TL and align on the correct threshold',
+      'Escalate to OAM if Precision does not improve next period'
+    ]
+  },
+  rec: {
+    tl: [
+      'Review under-tagging (FN-driving) errors with team — pull recent missed decisions',
+      'Run a calibration session focused on borderline cases not being actioned',
+      'Spot-check decisions on the SW driving the Recall gap before mid-period'
+    ],
+    sup: [
+      'Review Recall trend with TL at next 1:1',
+      'Confirm the top FN-driving policy with TL and align on the correct threshold',
+      'Escalate to OAM if Recall does not improve next period'
+    ]
+  },
+  aht: {
+    tl: [
+      'Identify which SWs are failing the AHT pass-rate threshold and prioritize coaching there',
+      'Run a job listening or process-sharing session on the lowest-passing SW',
+      'Track SW-level AHT weekly and report pass-rate progress to Supervisor'
+    ],
+    sup: [
+      'Review SW-level AHT pass rate with TL at next 1:1',
+      'Confirm no process or tooling blockers are driving the AHT gap',
+      'Escalate to OAM if SW pass rate does not improve above 80% next period'
+    ]
+  },
   coach: {
     tl: [
       'Increase coaching session frequency for reviewers below target this period',
@@ -25955,7 +26013,7 @@ const TCM_ACTION_BANK = {
       'Sit in on one of TL\u2019s coaching sessions this period and give direct feedback',
       'Review TL\u2019s coaching log for completeness and outcome documentation',
       'Pair TL with a stronger-performing TL for peer calibration',
-      'Escalate to OAM if team quality/AHT does not improve next period'
+      'Escalate to OAM if coaching quality does not visibly improve next period'
     ]
   },
   bi: {
@@ -25974,24 +26032,16 @@ const TCM_ACTION_BANK = {
     tl: [
       'Review MSV and AOA gaps with team — identify which SWs are driving the gap',
       'Run a refresher session on product/process alignment for flagged SWs',
-      'Self-audit a sample of recent decisions against product guidance'
+      'Self-audit a sample of recent decisions against product guidance',
+      'Complete outstanding client process training modules',
+      'Request a walkthrough session with the client process owner'
     ],
     sup: [
       'Review MSV/AOA trend with TL at next 1:1',
       'Confirm TL has current product documentation and guidance updates',
-      'Escalate to OAM if MSV/AOA does not improve next period'
-    ]
-  },
-  client: {
-    tl: [
-      'Complete outstanding client process training modules',
-      'Request a walkthrough session with the client process owner',
-      'Document key client process updates and brief the team'
-    ],
-    sup: [
       'Confirm TL has access to the latest client process documentation',
       'Arrange a session with the client process owner if gaps persist',
-      'Review client process adherence with TL at next 1:1'
+      'Escalate to OAM if MSV/AOA does not improve next period'
     ]
   },
   fin: {
@@ -26029,13 +26079,15 @@ function tcmFlagLabel(off){ return off===null ? 'No data' : (off ? 'Off target' 
 function tcmDefaultCommit(key){
   const m = _tcm.metrics;
   switch(key){
-    case 'tops':    return { current: tcmPct(m.tops.val),  default: tcmPct(m.tops.tgt) };
+    case 'tops':     return { current: tcmPct(m.tops.val),  default: tcmPct(m.tops.tgt) };
+    case 'prec':     return { current: tcmPct(m.prec.val),  default: '≥'+tcmPct(m.prec.tgt) };
+    case 'rec':      return { current: tcmPct(m.rec.val),   default: '≥'+tcmPct(m.rec.tgt) };
+    case 'aht':      return { current: m.aht.qualifying>0 ? (m.aht.passing+' / '+m.aht.qualifying+' SWs ('+tcmPct(m.aht.passRate)+')') : 'No qualifying SWs', default: '≥'+tcmPct(m.aht.passRateTgt)+' of qualifying SWs passing' };
     case 'fin':      return { current: tcmPct(m.fin.val),   default: '≤'+tcmPct(m.fin.tgt) };
     case 'product':  return { current: `MSV ${tcmPct(m.product.msv)} / AOA ${tcmPct(m.product.aoa)}`, default: `MSV ≥${tcmPct(m.product.msvTgt)} / AOA ≥${tcmPct(m.product.aoaTgt)}` };
-    case 'coach':    return { current: `Acc ${tcmPct(m.coach.acc)} / AHT ${tcmSecs(m.coach.aht)}`, default: `Acc ≥${tcmPct(m.coach.accTgt)} / AHT ≤${tcmSecs(m.coach.ahtTgt)}` };
+    case 'coach':    return { current: null, default: 'Define specific coaching improvement with Supervisor' };
     case 'map':      return { current: null, default: 'Complete MAP by EOM' };
     case 'bi':       return { current: null, default: 'Close identified BI knowledge gap by EOM' };
-    case 'client':   return { current: null, default: 'Complete client process training by EOM' };
     case 'other':    return { current: null, default: 'Define target with Supervisor' };
     default:         return { current: null, default: '' };
   }
@@ -26065,18 +26117,36 @@ function tcmCommitBlock(key){
 
 function tcmMetricsBlock(key){
   const m = _tcm.metrics;
-  if(key === 'coach'){
-    const c = m.coach;
-    const accOff = c.acc!==null ? c.acc < c.accTgt : null;
-    const ahtOff = (c.aht!==null && c.ahtTgt) ? c.aht > c.ahtTgt : null;
-    const bothOff = accOff===true && ahtOff===true; // AND logic per spec
+  if(key === 'prec'){
+    const p = m.prec;
+    const off = p.val!==null ? p.val < p.tgt : null;
     return {
-      badgeClass: (accOff===null&&ahtOff===null) ? 'tcm-badge-n' : (bothOff ? 'tcm-badge-r' : 'tcm-badge-g'),
-      badgeLabel: (accOff===null&&ahtOff===null) ? 'No data' : (bothOff ? 'Off target' : 'On target'),
+      badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
       html: `<div class="tcm-metrics">
-        <div class="tcm-metric"><div class="tcm-metric-lbl">Team Adj Accuracy</div><div class="tcm-metric-val" style="color:${accOff?'var(--coral)':'var(--green)'}">${tcmPct(c.acc)}</div></div>
-        <div class="tcm-metric"><div class="tcm-metric-lbl">Team AHT</div><div class="tcm-metric-val" style="color:${ahtOff?'var(--coral)':'var(--green)'}">${tcmSecs(c.aht)}${c.ahtTgt?' / '+tcmSecs(c.ahtTgt)+' tgt':''}</div></div>
+        <div class="tcm-metric"><div class="tcm-metric-lbl">Team Precision</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(p.val)} <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(p.tgt)} tgt</span></div></div>
       </div>`
+    };
+  }
+  if(key === 'rec'){
+    const r = m.rec;
+    const off = r.val!==null ? r.val < r.tgt : null;
+    return {
+      badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
+      html: `<div class="tcm-metrics">
+        <div class="tcm-metric"><div class="tcm-metric-lbl">Team Recall</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(r.val)} <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(r.tgt)} tgt</span></div></div>
+      </div>`
+    };
+  }
+  if(key === 'aht'){
+    const a = m.aht;
+    const off = a.passRate!==null ? a.passRate < a.passRateTgt : null;
+    return {
+      badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
+      html: `<div class="tcm-metrics">
+        <div class="tcm-metric"><div class="tcm-metric-lbl">SW Pass Rate</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${a.qualifying>0?a.passing+' / '+a.qualifying+' SWs':'—'} <span style="color:var(--tm);font-weight:600;font-size:11px">(${tcmPct(a.passRate)})</span></div></div>
+        <div class="tcm-metric"><div class="tcm-metric-lbl">Threshold</div><div class="tcm-metric-val" style="color:var(--tm)">≥${tcmPct(a.passRateTgt)} of qualifying SWs</div></div>
+      </div>
+      ${a.qualifying===0 ? `<div class="tcm-commit-hint">No SWs with ≥50 decisions this period — AHT pass rate cannot be judged yet.</div>` : ''}`
     };
   }
   if(key === 'tops'){
@@ -26103,7 +26173,7 @@ function tcmMetricsBlock(key){
     const p = m.product;
     const msvOff = p.msv!==null ? p.msv < p.msvTgt : null;
     const aoaOff = p.aoa!==null ? p.aoa < p.aoaTgt : null;
-    const bothOff = msvOff===true && aoaOff===true; // AND logic, consistent with Quality of Coaching
+    const bothOff = msvOff===true && aoaOff===true; // AND logic
     return {
       badgeClass: (msvOff===null&&aoaOff===null) ? 'tcm-badge-n' : (bothOff ? 'tcm-badge-r' : 'tcm-badge-g'),
       badgeLabel: (msvOff===null&&aoaOff===null) ? 'No data' : (bothOff ? 'Off target' : 'On target'),
@@ -26113,7 +26183,7 @@ function tcmMetricsBlock(key){
       </div>`
     };
   }
-  return null; // qualitative-only opportunity
+  return null; // qualitative-only opportunity: coach, map, bi, other
 }
 
 function tcmRenderFocusAreas(){
