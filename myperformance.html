@@ -25656,7 +25656,7 @@ function mcdGenerate(){
 // ─── END MONTHLY COACHING MODAL ──────────────────────────────────────────────
 </script>
 
-<!-- ─── TL COACHING MODAL (Supervisor → TL) ──────────────────────────────── -->
+<!-- ─── TL COACHING MODAL (AOM → TL) ──────────────────────────────── -->
 <style>
 #tcm-overlay{display:none;position:fixed;inset:0;background:rgba(15,18,28,.55);z-index:9000;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto}
 #tcm-overlay.tcm-open{display:flex}
@@ -25740,20 +25740,19 @@ function mcdGenerate(){
   <div class="tcm-body">
 
     <div>
-      <div class="tcm-sec">Opportunities <span class="tcm-opp-cnt" id="tcm-opp-cnt">0 / 4</span></div>
+      <div class="tcm-sec">Additional opportunities (AOM-selected) <span class="tcm-opp-cnt" id="tcm-opp-cnt">0 selected</span></div>
       <div class="tcm-opp-grid" id="tcm-opp-grid"><!-- populated by JS --></div>
+      <div class="tcm-commit-hint">Precision, Recall, and AHT are always reviewed below. TOPS, Product/Client, and Financial are added automatically when off target. Tick any additional qualitative opportunities here.</div>
     </div>
 
-    <div id="tcm-fa-container" style="display:flex;flex-direction:column;gap:10px">
-      <div class="tcm-empty-note">Select at least one opportunity above to add coaching actions.</div>
-    </div>
+    <div id="tcm-fa-container" style="display:flex;flex-direction:column;gap:10px"></div>
 
     <div>
       <div class="tcm-sec">Notes (optional)</div>
       <textarea class="tcm-notes" id="tcm-notes" rows="2" placeholder="Prior coaching history, context, or anything relevant going into this conversation."></textarea>
     </div>
 
-    <div class="tcm-val-err" id="tcm-val-err">Each selected opportunity (except "No opportunities") needs at least 1 TL action and 1 Supervisor action before generating.</div>
+    <div class="tcm-val-err" id="tcm-val-err">Every card needs at least 1 TL action and 1 AOM action before generating.</div>
   </div>
 
   <div class="tcm-ftr">
@@ -25767,28 +25766,55 @@ function mcdGenerate(){
 // ─── TL COACHING MODAL ─────────────────────────────────────────────────────────
 // Namespace: tcm* / _tcm. Mirrors the mcd (Monthly Coaching Doc) mechanism —
 // checklist-driven focus areas instead of fixed Quality/Efficiency/Attendance,
-// matching the Supervisor's TL opportunity-assessment form.
+// matching the AOM's TL opportunity-assessment form.
 
-const TCM_OPPORTUNITIES = [
-  { key:'none',    label:'No opportunities' },
-  { key:'map',     label:'MAP Completion' },
-  { key:'tops',    label:'TOPS Adoption',    metric:'tops' },
-  { key:'prec',    label:'Precision',        metric:'prec' },
-  { key:'rec',     label:'Recall',           metric:'rec' },
-  { key:'aht',     label:'AHT',              metric:'aht' },
-  { key:'coach',   label:'Quality of Coaching' },
-  { key:'bi',      label:'Lack of BI knowledge / expertise' },
-  { key:'product', label:'Product & Client Process Training / Knowledge', metric:'product' },
-  { key:'fin',     label:'Actions alignment with financial results', metric:'fin' },
-  { key:'other',   label:'Other' }
+// Opportunities are split into three tiers:
+//  - ALWAYS: shown every time regardless of pass/fail (Precision, Recall, AHT). Require actions to generate.
+//  - AUTO:   only appear when failing their target (TOPS, Product/Client, Financial). No manual ticking — computed.
+//  - MANUAL: AOM ticks these by hand (MAP, Quality of Coaching, BI knowledge, Other). No cap on how many.
+const TCM_ALWAYS_OPPS = [
+  { key:'prec', label:'Precision', metric:'prec' },
+  { key:'rec',  label:'Recall',    metric:'rec' },
+  { key:'aht',  label:'AHT',       metric:'aht' }
 ];
+const TCM_AUTO_OPPS = [
+  { key:'tops',    label:'TOPS Adoption',    metric:'tops' },
+  { key:'product', label:'Product & Client Process Training / Knowledge', metric:'product' },
+  { key:'fin',     label:'Actions alignment with financial results', metric:'fin' }
+];
+const TCM_MANUAL_OPPS = [
+  { key:'map',   label:'MAP Completion' },
+  { key:'coach', label:'Quality of Coaching' },
+  { key:'bi',    label:'Lack of BI knowledge / expertise' },
+  { key:'other', label:'Other' }
+];
+const TCM_OPPORTUNITIES = [...TCM_ALWAYS_OPPS, ...TCM_AUTO_OPPS, ...TCM_MANUAL_OPPS];
 
 var _tcm = {
   tl:'', mode:'monthly', month:'', periodLabel:'',
-  selected:new Set(),
-  metrics:{},           // computed per metric key: {tops:{...}, coach:{...}, product:{...}, fin:{...}}
-  actions:{}            // per opp key: {tl:[...], sup:[...]}
+  selected:new Set(),   // manually-ticked MANUAL opportunities only
+  metrics:{},           // computed per metric key: {tops:{...}, prec:{...}, rec:{...}, aht:{...}, product:{...}, fin:{...}}
+  autoFlagged:new Set(),// AUTO opportunities currently failing target — computed fresh each open
+  actions:{}            // per opp key: {tl:[...], aom:[...]}
 };
+
+function tcmIsOffTarget(key, m){
+  // Returns true/false/null(no data) for whether a metric-backed opportunity is currently failing.
+  switch(key){
+    case 'prec':    return m.prec.val!==null ? m.prec.val < m.prec.tgt : null;
+    case 'rec':     return m.rec.val!==null ? m.rec.val < m.rec.tgt : null;
+    case 'aht':     return m.aht.passRate!==null ? m.aht.passRate < m.aht.passRateTgt : null;
+    case 'tops':    return m.tops.val!==null ? m.tops.val < m.tops.tgt : null;
+    case 'fin':     return m.fin.val!==null ? m.fin.val > m.fin.tgt : null;
+    case 'product': {
+      const msvOff = m.product.msv!==null ? m.product.msv < m.product.msvTgt : null;
+      const aoaOff = m.product.aoa!==null ? m.product.aoa < m.product.aoaTgt : null;
+      if(msvOff===null && aoaOff===null) return null;
+      return msvOff===true && aoaOff===true; // AND logic
+    }
+    default: return null;
+  }
+}
 
 function openTlCoachingModal(mode){
   const tls = typeof getSel==='function' ? getSel('g-tl') : [];
@@ -25873,6 +25899,12 @@ function openTlCoachingModal(mode){
     product:{ msv:wfm.msv, msvTgt:MSV_TARGET, aoa:wfm.aoa, aoaTgt:AOA_TARGET }
   };
 
+  // ── Auto-flag: AUTO-tier opportunities are selected automatically if failing ──
+  _tcm.autoFlagged = new Set();
+  TCM_AUTO_OPPS.forEach(o=>{
+    if(tcmIsOffTarget(o.key, _tcm.metrics) === true) _tcm.autoFlagged.add(o.key);
+  });
+
   document.getElementById('tcm-title').textContent =
     (mode==='midmonth' ? 'Mid month coaching — ' : 'Monthly TL doc — ') + sn(tl);
   document.getElementById('tcm-sub').textContent = periodLabel;
@@ -25894,9 +25926,11 @@ function tcmOverlayClick(e){ if(e.target===document.getElementById('tcm-overlay'
 
 function tcmEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// Only the MANUAL tier is rendered as a checklist — ALWAYS and AUTO tiers are handled
+// directly as cards in tcmRenderFocusAreas(), not as tickable items.
 function tcmRenderOpps(){
   const grid = document.getElementById('tcm-opp-grid');
-  grid.innerHTML = TCM_OPPORTUNITIES.map(o => {
+  grid.innerHTML = TCM_MANUAL_OPPS.map(o => {
     const checked = _tcm.selected.has(o.key);
     return `<div class="tcm-opp-item${checked?' tcm-opp-checked':''}" id="tcm-opp-${o.key}" onclick="tcmToggleOpp('${o.key}')">
       <div class="tcm-opp-cb">${checked?'✓':''}</div>
@@ -25907,19 +25941,12 @@ function tcmRenderOpps(){
 }
 
 function tcmToggleOpp(key){
-  if(key === 'none'){
-    if(_tcm.selected.has('none')){ _tcm.selected.clear(); }
-    else { _tcm.selected.clear(); _tcm.selected.add('none'); _tcm.actions = {}; }
+  if(_tcm.selected.has(key)){
+    _tcm.selected.delete(key);
+    delete _tcm.actions[key];
   } else {
-    _tcm.selected.delete('none');
-    if(_tcm.selected.has(key)){
-      _tcm.selected.delete(key);
-      delete _tcm.actions[key];
-    } else {
-      if(_tcm.selected.size >= 4){ return; } // max 4, silently ignore like mcd's max-3
-      _tcm.selected.add(key);
-      if(!_tcm.actions[key]) _tcm.actions[key] = { tl:[], sup:[] };
-    }
+    _tcm.selected.add(key);
+    if(!_tcm.actions[key]) _tcm.actions[key] = { tl:[], aom:[] };
   }
   tcmRenderOpps();
   tcmRenderFocusAreas();
@@ -25927,28 +25954,19 @@ function tcmToggleOpp(key){
 
 function tcmUpdateOppCount(){
   const el = document.getElementById('tcm-opp-cnt');
-  const n = _tcm.selected.has('none') ? 0 : _tcm.selected.size;
-  el.textContent = n + ' / 4';
-  el.className = 'tcm-opp-cnt' + (n>=4 ? ' tcm-max' : '');
-  // grey out unselected items once 4 are picked (excluding 'none')
-  const atMax = _tcm.selected.size >= 4 && !_tcm.selected.has('none');
-  TCM_OPPORTUNITIES.forEach(o=>{
-    const el2 = document.getElementById('tcm-opp-'+o.key);
-    if(!el2) return;
-    if(o.key!=='none' && atMax && !_tcm.selected.has(o.key)) el2.classList.add('tcm-opp-disabled');
-    else el2.classList.remove('tcm-opp-disabled');
-  });
+  el.textContent = _tcm.selected.size + ' selected';
+  el.className = 'tcm-opp-cnt';
 }
 
-// ── Action banks: TL-side and Supervisor-side, per opportunity key ─────────
+// ── Action banks: TL-side and AOM-side, per opportunity key ─────────
 const TCM_ACTION_BANK = {
   map: {
     tl: [
       'Complete outstanding MAP items and log completion date',
       'Block calendar time weekly until MAP is fully closed out',
-      'Review MAP checklist with Supervisor to confirm no items were missed'
+      'Review MAP checklist with AOM to confirm no items were missed'
     ],
-    sup: [
+    aom: [
       'Review MAP completion status with TL weekly until closed',
       'Remove blockers preventing MAP completion (access, time, tooling)',
       'Set a hard completion date and confirm at next 1:1'
@@ -25958,9 +25976,9 @@ const TCM_ACTION_BANK = {
     tl: [
       'Review TOPS adoption gap with team — identify which reviewers are under-using TOPS',
       'Run a TOPS refresher session with the team this period',
-      'Track TOPS usage weekly and share progress with Supervisor'
+      'Track TOPS usage weekly and share progress with AOM'
     ],
-    sup: [
+    aom: [
       'Review TOPS adoption trend with TL at next 1:1',
       'Confirm TL has the tooling/access needed to drive TOPS adoption',
       'Escalate to OAM if TOPS adoption does not improve next period'
@@ -25972,7 +25990,7 @@ const TCM_ACTION_BANK = {
       'Run a calibration session focused on borderline cases being actioned too aggressively',
       'Spot-check decisions on the SW driving the Precision gap before mid-period'
     ],
-    sup: [
+    aom: [
       'Review Precision trend with TL at next 1:1',
       'Confirm the top FP-driving policy with TL and align on the correct threshold',
       'Escalate to OAM if Precision does not improve next period'
@@ -25984,7 +26002,7 @@ const TCM_ACTION_BANK = {
       'Run a calibration session focused on borderline cases not being actioned',
       'Spot-check decisions on the SW driving the Recall gap before mid-period'
     ],
-    sup: [
+    aom: [
       'Review Recall trend with TL at next 1:1',
       'Confirm the top FN-driving policy with TL and align on the correct threshold',
       'Escalate to OAM if Recall does not improve next period'
@@ -25994,9 +26012,9 @@ const TCM_ACTION_BANK = {
     tl: [
       'Identify which SWs are failing the AHT pass-rate threshold and prioritize coaching there',
       'Run a job listening or process-sharing session on the lowest-passing SW',
-      'Track SW-level AHT weekly and report pass-rate progress to Supervisor'
+      'Track SW-level AHT weekly and report pass-rate progress to AOM'
     ],
-    sup: [
+    aom: [
       'Review SW-level AHT pass rate with TL at next 1:1',
       'Confirm no process or tooling blockers are driving the AHT gap',
       'Escalate to OAM if SW pass rate does not improve above 80% next period'
@@ -26009,7 +26027,7 @@ const TCM_ACTION_BANK = {
       'Pull team defect drivers and run a calibration session on the top policy',
       'Shadow a peer TL\u2019s coaching session for technique comparison'
     ],
-    sup: [
+    aom: [
       'Sit in on one of TL\u2019s coaching sessions this period and give direct feedback',
       'Review TL\u2019s coaching log for completeness and outcome documentation',
       'Pair TL with a stronger-performing TL for peer calibration',
@@ -26018,11 +26036,11 @@ const TCM_ACTION_BANK = {
   },
   bi: {
     tl: [
-      'Complete relevant BI training modules and share completion with Supervisor',
+      'Complete relevant BI training modules and share completion with AOM',
       'Shadow a peer TL or analyst on BI reporting this period',
       'Bring one BI question or use case to each 1:1 until confident'
     ],
-    sup: [
+    aom: [
       'Identify specific BI gaps with TL and assign targeted training',
       'Pair TL with an analyst or peer TL for hands-on BI practice',
       'Review a BI output together and walk through the logic step by step'
@@ -26036,7 +26054,7 @@ const TCM_ACTION_BANK = {
       'Complete outstanding client process training modules',
       'Request a walkthrough session with the client process owner'
     ],
-    sup: [
+    aom: [
       'Review MSV/AOA trend with TL at next 1:1',
       'Confirm TL has current product documentation and guidance updates',
       'Confirm TL has access to the latest client process documentation',
@@ -26048,9 +26066,9 @@ const TCM_ACTION_BANK = {
     tl: [
       'Review absenteeism drivers with team — flag any recurring patterns',
       'Discuss attendance expectations directly with affected reviewers',
-      'Track team absenteeism weekly and report trend to Supervisor'
+      'Track team absenteeism weekly and report trend to AOM'
     ],
-    sup: [
+    aom: [
       'Review absenteeism trend with TL at next 1:1',
       'Support TL in having direct attendance conversations where needed',
       'Escalate to OAM if team absenteeism exceeds target for 2 consecutive months'
@@ -26058,10 +26076,10 @@ const TCM_ACTION_BANK = {
   },
   other: {
     tl: [
-      'Define the specific gap and agree a concrete action with Supervisor',
+      'Define the specific gap and agree a concrete action with AOM',
       'Set a check-in date to review progress on this item'
     ],
-    sup: [
+    aom: [
       'Document the specific concern and agreed action clearly',
       'Follow up at next 1:1 to confirm progress'
     ]
@@ -26073,9 +26091,9 @@ function tcmSecs(v){ return v!==null && v!==undefined ? Math.round(v)+'s' : '—
 function tcmFlagClass(off){ return off===null ? 'tcm-badge-n' : (off ? 'tcm-badge-r' : 'tcm-badge-g'); }
 function tcmFlagLabel(off){ return off===null ? 'No data' : (off ? 'Off target' : 'On target'); }
 
-// ── Commit target defaults — pre-filled to the metric's target, editable by Supervisor ──
+// ── Commit target defaults — pre-filled to the metric's target, editable by AOM ──
 // Metric-backed opportunities pre-fill to the actual target value (e.g. "98%", "900s").
-// Qualitative opportunities pre-fill to a generic placeholder the Supervisor is expected to edit.
+// Qualitative opportunities pre-fill to a generic placeholder the AOM is expected to edit.
 function tcmDefaultCommit(key){
   const m = _tcm.metrics;
   switch(key){
@@ -26085,10 +26103,10 @@ function tcmDefaultCommit(key){
     case 'aht':      return { current: m.aht.qualifying>0 ? (m.aht.passing+' / '+m.aht.qualifying+' SWs ('+tcmPct(m.aht.passRate)+')') : 'No qualifying SWs', default: '≥'+tcmPct(m.aht.passRateTgt)+' of qualifying SWs passing' };
     case 'fin':      return { current: tcmPct(m.fin.val),   default: '≤'+tcmPct(m.fin.tgt) };
     case 'product':  return { current: `MSV ${tcmPct(m.product.msv)} / AOA ${tcmPct(m.product.aoa)}`, default: `MSV ≥${tcmPct(m.product.msvTgt)} / AOA ≥${tcmPct(m.product.aoaTgt)}` };
-    case 'coach':    return { current: null, default: 'Define specific coaching improvement with Supervisor' };
+    case 'coach':    return { current: null, default: 'Define specific coaching improvement with AOM' };
     case 'map':      return { current: null, default: 'Complete MAP by EOM' };
     case 'bi':       return { current: null, default: 'Close identified BI knowledge gap by EOM' };
-    case 'other':    return { current: null, default: 'Define target with Supervisor' };
+    case 'other':    return { current: null, default: 'Define target with AOM' };
     default:         return { current: null, default: '' };
   }
 }
@@ -26188,25 +26206,25 @@ function tcmMetricsBlock(key){
 
 function tcmRenderFocusAreas(){
   const container = document.getElementById('tcm-fa-container');
-  const keys = [...TCM_OPPORTUNITIES.map(o=>o.key)].filter(k => _tcm.selected.has(k) && k!=='none');
 
-  if(!keys.length){
-    container.innerHTML = _tcm.selected.has('none')
-      ? `<div class="tcm-empty-note">"No opportunities" selected — no coaching actions needed this period.</div>`
-      : `<div class="tcm-empty-note">Select at least one opportunity above to add coaching actions.</div>`;
-    return;
-  }
+  const alwaysKeys = TCM_ALWAYS_OPPS.map(o=>o.key);
+  const autoKeys = [...TCM_AUTO_OPPS.map(o=>o.key)].filter(k=>_tcm.autoFlagged.has(k));
+  const manualKeys = [...TCM_MANUAL_OPPS.map(o=>o.key)].filter(k=>_tcm.selected.has(k));
 
-  container.innerHTML = keys.map(key => {
+  // ensure action buckets exist for every active key
+  [...alwaysKeys, ...autoKeys, ...manualKeys].forEach(key=>{
+    if(!_tcm.actions[key]) _tcm.actions[key] = { tl:[], aom:[] };
+  });
+
+  const cardHtml = (key) => {
     const opp = TCM_OPPORTUNITIES.find(o=>o.key===key);
     const metricBlock = tcmMetricsBlock(key);
     const badgeClass = metricBlock ? metricBlock.badgeClass : 'tcm-badge-n';
     const badgeLabel = metricBlock ? metricBlock.badgeLabel : 'Manual';
-    const bank = TCM_ACTION_BANK[key] || {tl:[],sup:[]};
-    if(!_tcm.actions[key]) _tcm.actions[key] = {tl:[],sup:[]};
+    const bank = TCM_ACTION_BANK[key] || {tl:[],aom:[]};
 
     const tlOpts = bank.tl.map(a=>`<option value="${tcmEsc(a)}">${tcmEsc(a.length>70?a.slice(0,70)+'…':a)}</option>`).join('');
-    const supOpts = bank.sup.map(a=>`<option value="${tcmEsc(a)}">${tcmEsc(a.length>70?a.slice(0,70)+'…':a)}</option>`).join('');
+    const aomOpts = bank.aom.map(a=>`<option value="${tcmEsc(a)}">${tcmEsc(a.length>70?a.slice(0,70)+'…':a)}</option>`).join('');
 
     return `<div class="tcm-fa" id="tcm-fa-${key}">
       <div class="tcm-fa-hdr">
@@ -26227,20 +26245,41 @@ function tcmRenderFocusAreas(){
             <button class="tcm-add-btn" onclick="document.getElementById('tcm-pk-tl-${key}').focus()">+ Add TL action</button>
           </div>
           <div>
-            <div class="tcm-act-col-hdr">👥 Supervisor <span class="tcm-cnt" id="tcm-cnt-sup-${key}">0 / 3</span></div>
-            <select class="tcm-picker" id="tcm-pk-sup-${key}" onchange="tcmAddAction('${key}','sup',this)">
+            <div class="tcm-act-col-hdr">👥 AOM <span class="tcm-cnt" id="tcm-cnt-aom-${key}">0 / 3</span></div>
+            <select class="tcm-picker" id="tcm-pk-aom-${key}" onchange="tcmAddAction('${key}','aom',this)">
               <option value="">— select action —</option>
-              ${supOpts}
+              ${aomOpts}
             </select>
-            <div class="tcm-act-list" id="tcm-list-sup-${key}"></div>
-            <button class="tcm-add-btn" onclick="document.getElementById('tcm-pk-sup-${key}').focus()">+ Add Supervisor action</button>
+            <div class="tcm-act-list" id="tcm-list-aom-${key}"></div>
+            <button class="tcm-add-btn" onclick="document.getElementById('tcm-pk-aom-${key}').focus()">+ Add AOM action</button>
           </div>
         </div>
       </div>
     </div>`;
-  }).join('');
+  };
 
-  keys.forEach(key => { tcmRenderList(key,'tl'); tcmRenderList(key,'sup'); tcmUpdateCount(key,'tl'); tcmUpdateCount(key,'sup'); });
+  const groupHdr = (label) => `<div class="tcm-sec" style="margin-top:4px">${label}</div>`;
+
+  let html = '';
+  html += groupHdr('Always reviewed');
+  html += alwaysKeys.map(cardHtml).join('');
+
+  if(autoKeys.length){
+    html += groupHdr('Auto-flagged — off target this period');
+    html += autoKeys.map(cardHtml).join('');
+  }
+
+  if(manualKeys.length){
+    html += groupHdr('Selected by AOM');
+    html += manualKeys.map(cardHtml).join('');
+  }
+
+  container.innerHTML = html;
+
+  [...alwaysKeys, ...autoKeys, ...manualKeys].forEach(key => {
+    tcmRenderList(key,'tl'); tcmRenderList(key,'aom');
+    tcmUpdateCount(key,'tl'); tcmUpdateCount(key,'aom');
+  });
 }
 
 function tcmEomDate(){
@@ -26288,28 +26327,25 @@ function tcmUpdateCount(key, side){
 }
 
 function tcmGenerate(){
-  if(_tcm.selected.size === 0){
+  const alwaysKeys = TCM_ALWAYS_OPPS.map(o=>o.key);
+  const autoKeys = [...TCM_AUTO_OPPS.map(o=>o.key)].filter(k=>_tcm.autoFlagged.has(k));
+  const manualKeys = [...TCM_MANUAL_OPPS.map(o=>o.key)].filter(k=>_tcm.selected.has(k));
+  const activeKeys = [...alwaysKeys, ...autoKeys, ...manualKeys];
+
+  let err = false;
+  activeKeys.forEach(key=>{
+    const a = _tcm.actions[key];
+    if(!a || a.tl.length<1 || a.aom.length<1) err = true;
+  });
+  if(err){
+    document.getElementById('tcm-val-err').textContent = 'Every card (Precision, Recall, AHT, plus any auto-flagged or AOM-selected opportunity) needs at least 1 TL action and 1 AOM action before generating.';
     document.getElementById('tcm-val-err').classList.add('tcm-show');
-    document.getElementById('tcm-val-err').textContent = 'Select at least one opportunity before generating.';
     return;
-  }
-  if(!_tcm.selected.has('none')){
-    let err = false;
-    _tcm.selected.forEach(key=>{
-      const a = _tcm.actions[key];
-      if(!a || a.tl.length<1 || a.sup.length<1) err = true;
-    });
-    if(err){
-      document.getElementById('tcm-val-err').textContent = 'Each selected opportunity needs at least 1 TL action and 1 Supervisor action before generating.';
-      document.getElementById('tcm-val-err').classList.add('tcm-show');
-      return;
-    }
   }
   document.getElementById('tcm-val-err').classList.remove('tcm-show');
 
-  const oppKeysForCommit = [...TCM_OPPORTUNITIES.map(o=>o.key)].filter(k=>_tcm.selected.has(k) && k!=='none');
   const commits = {};
-  oppKeysForCommit.forEach(key=>{
+  activeKeys.forEach(key=>{
     const el = document.getElementById('tcm-commit-'+key);
     const d = tcmDefaultCommit(key);
     commits[key] = { current: d.current, target: el ? el.value.trim() : d.default };
@@ -26319,7 +26355,7 @@ function tcmGenerate(){
     tl: _tcm.tl,
     mode: _tcm.mode,
     periodLabel: _tcm.periodLabel,
-    opportunities: [...TCM_OPPORTUNITIES.map(o=>o.key)].filter(k=>_tcm.selected.has(k)),
+    opportunities: activeKeys,
     oppLabels: Object.fromEntries(TCM_OPPORTUNITIES.map(o=>[o.key,o.label])),
     actions: JSON.parse(JSON.stringify(_tcm.actions)),
     metrics: _tcm.metrics,
@@ -26327,12 +26363,126 @@ function tcmGenerate(){
     notes: document.getElementById('tcm-notes').value.trim()
   };
 
+  // Monthly TL doc gets the full performance history sections (6-month overview + 3-month SW table).
+  // Mid-month doc stays lean — commitments only.
+  if(_tcm.mode === 'monthly'){
+    try { config.history = tcmBuildHistory(_tcm.tl); }
+    catch(e){ console.warn('[tcm] history build failed', e); config.history = null; }
+  }
+
   closeTcmModal();
   try { _tcmGenerateDoc(config); }
   catch(err){
     const msg = 'TL Coaching Doc error:\n\n' + err.message + '\n\nStack:\n' + (err.stack||'').split('\n').slice(0,5).join('\n');
     alert(msg); console.error('[tcmGenerate]', err);
   }
+}
+
+// ── Build 6-month overview + 3-month SW table data for the Monthly TL doc ──────
+// Team-rolled-up equivalent of the reviewer doc's "Overall performance" and
+// "QA & AHT by sub-workflow" sections. Uses the same SW gatekeeper (>=50 decisions)
+// for every Pass Rate row, not just AHT.
+function tcmBuildHistory(tl){
+  const allMonths = [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort();
+  const currIdx = allMonths.length - 1;
+  const last6Months = allMonths.slice(Math.max(0, currIdx-5), currIdx+1);
+  const last3Months = allMonths.slice(Math.max(0, currIdx-2), currIdx+1);
+  const currMonth = allMonths[currIdx];
+
+  const teamRows = (typeof filterRows==='function' && typeof qaFilter==='function')
+    ? filterRows(qaFilter(RAW_ROWS), [tl], [], [], [], [], []).filter(r=>r.sw && r.sw!=='(blank)')
+    : RAW_ROWS.filter(r => r.sw && r.sw!=='(blank)' && r.supervisor === tl);
+
+  const ACC_TARGET = 0.96;
+  const PREC_TARGET = (typeof T!=='undefined') ? T.prec.v : 0.95;
+  const REC_TARGET  = (typeof T!=='undefined') ? T.rec.v  : 0.95;
+  const AOA_TARGET  = (typeof T!=='undefined') ? T.aoa.v  : 0.98;
+  const MSV_TARGET  = (typeof T!=='undefined') ? T.msv.v  : 0.98;
+  const ABS_TARGET  = (typeof T!=='undefined') ? T.abs.v  : 0.05;
+  const TOPS_TARGET = 0.98;
+  const SW_MIN_DEC = 50;
+
+  // Per-month team totals (accuracy/precision/recall/AR/AHT/decisions/tops)
+  const moStats = {};
+  last6Months.forEach(mo=>{
+    const rows = teamRows.filter(r=>r.month===mo);
+    let tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0,topsA=0,topsB=0;
+    rows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;topsA+=r.topsA||0;topsB+=r.topsB||0;});
+    const tot=tpa+fpa+fna+tna;
+    moStats[mo] = {
+      acc: tot>0?(tpa+tna)/tot:null,
+      prec:(tpa+fpa)>0?tpa/(tpa+fpa):null,
+      rec: (tpa+fna)>0?tpa/(tpa+fna):null,
+      ar:  tot>0?(tpa+fpa)/tot:null,
+      aht: dec>0?Math.round((dht+nht)/dec):null,
+      dec, tops: topsB>0?Math.min(topsA/topsB,1):null
+    };
+  });
+
+  // Per-month SW breakdown (for Pass Rate rows + the 3-month SW table) — team rollup
+  const swMoData = {}; // sw -> mo -> {tpa,fpa,fna,tna,dht,nht,dec}
+  teamRows.forEach(r=>{
+    if(!r.sw) return;
+    if(!swMoData[r.sw]) swMoData[r.sw] = {};
+    if(!swMoData[r.sw][r.month]) swMoData[r.sw][r.month] = {tpa:0,fpa:0,fna:0,tna:0,dht:0,nht:0,dec:0};
+    const s = swMoData[r.sw][r.month];
+    s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0; s.dht+=r.dht||0; s.nht+=r.nht||0; s.dec+=r.decisions||0;
+  });
+
+  const accKpi  = s => (s.tpa+s.fpa+s.fna+s.tna)>0 ? (s.tpa+s.tna)/(s.tpa+s.fpa+s.fna+s.tna) : null;
+  const precKpi = s => (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
+  const recKpi  = s => (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
+  const ahtKpi  = s => s.dec>0 ? Math.round((s.dht+s.nht)/s.dec) : null;
+
+  const accTgtFn  = sw => (SW_TARGETS[sw] && SW_TARGETS[sw].acc)  || ACC_TARGET;
+  const precTgtFn = sw => (SW_TARGETS[sw] && SW_TARGETS[sw].prec) || ACC_TARGET;
+  const recTgtFn  = sw => (SW_TARGETS[sw] && SW_TARGETS[sw].rec)  || ACC_TARGET;
+  const ahtTgtFn  = sw => (SW_TARGETS[sw] && SW_TARGETS[sw].aht)  || null;
+
+  const moAccPassRate  = {}, moPrecPassRate = {}, moRecPassRate = {}, moAhtPassRate = {};
+  last6Months.forEach(mo=>{
+    moAccPassRate[mo]  = tcmPassRateForMonth(swMoData, mo, accKpi,  accTgtFn,  false);
+    moPrecPassRate[mo] = tcmPassRateForMonth(swMoData, mo, precKpi, precTgtFn, false);
+    moRecPassRate[mo]  = tcmPassRateForMonth(swMoData, mo, recKpi,  recTgtFn,  false);
+    moAhtPassRate[mo]  = tcmPassRateForMonth(swMoData, mo, ahtKpi,  ahtTgtFn,  true);
+  });
+
+  // Per-month AOA/MSV/Absenteeism via aggWfm, scoped to this TL's team
+  const moAoa = {}, moMsv = {}, moAbs = {};
+  last6Months.forEach(mo=>{
+    const wkSet = new Set(teamRows.filter(r=>r.month===mo).map(r=>r.week).filter(Boolean));
+    let wfm = {aoa:null,msv:null,abs:null};
+    if(typeof aggWfm === 'function' && wkSet.size){
+      try { wfm = aggWfm(null, wkSet, new Set([tl])); } catch(e){}
+    }
+    moAoa[mo]=wfm.aoa; moMsv[mo]=wfm.msv; moAbs[mo]=wfm.abs;
+  });
+
+  return {
+    last6Months, last3Months, currMonth,
+    moStats, moAccPassRate, moPrecPassRate, moRecPassRate, moAhtPassRate,
+    moAoa, moMsv, moAbs,
+    swMoData,
+    targets: { ACC_TARGET, PREC_TARGET, REC_TARGET, AOA_TARGET, MSV_TARGET, ABS_TARGET, TOPS_TARGET, SW_MIN_DEC }
+  };
+}
+
+// Pass-rate helper usable outside tcmBuildHistory's closure (kept top-level to avoid
+// the fragile function-identity check in the inline version above).
+function tcmPassRateForMonth(swMoData, mo, kpiFn, tgtFn, lowerIsBetter){
+  let qualifying=0, passing=0;
+  Object.keys(swMoData).forEach(sw=>{
+    const s = swMoData[sw][mo];
+    if(!s || s.dec < 50) return;
+    const v = kpiFn(s);
+    if(v===null || v===undefined) return;
+    qualifying++;
+    const tgt = tgtFn(sw);
+    if(tgt===null || tgt===undefined) return;
+    const pass = lowerIsBetter ? v<=tgt : v>=tgt;
+    if(pass) passing++;
+  });
+  return qualifying>0 ? passing/qualifying : null;
 }
 
 // ── Final doc renderer — reuses the same visual language as the existing TL docs ──
@@ -26358,7 +26508,7 @@ function _tcmGenerateDoc(config){
 
   const oppBlock = (key) => {
     const label = config.oppLabels[key];
-    const a = config.actions[key] || {tl:[],sup:[]};
+    const a = config.actions[key] || {tl:[],aom:[]};
     const commit = (config.commits && config.commits[key]) ? config.commits[key] : null;
     const commitHtml = commit ? `<div style="padding:8px 14px;background:${purpleBg};border-bottom:1px solid ${divider};font-size:12px;color:${purple};display:flex;gap:10px;flex-wrap:wrap">
       ${commit.current!==null ? `<span><strong>Current:</strong> ${commit.current}</span>` : ''}
@@ -26373,15 +26523,142 @@ function _tcmGenerateDoc(config){
           ${a.tl.length ? actList(a.tl) : `<div style="font-size:12px;color:${textMuted}">None added</div>`}
         </div>
         <div>
-          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${textSec};margin-bottom:5px">Supervisor Actions</div>
-          ${a.sup.length ? actList(a.sup) : `<div style="font-size:12px;color:${textMuted}">None added</div>`}
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${textSec};margin-bottom:5px">AOM Actions</div>
+          ${a.aom.length ? actList(a.aom) : `<div style="font-size:12px;color:${textMuted}">None added</div>`}
         </div>
       </div>
     </div>`;
   };
 
-  const noOpp = config.opportunities.includes('none');
-  const oppKeys = config.opportunities.filter(k=>k!=='none');
+  const oppKeys = config.opportunities;
+
+  // ── Section: Overall performance — last 6 months (only for monthly mode with history) ──
+  const pctFmt = v => v!==null && v!==undefined ? (v*100).toFixed(2)+'%' : '—';
+  const secsFmt = v => v!==null && v!==undefined ? Math.round(v)+'s' : '—';
+  const cellColor = (v, tgt, higherBetter) => {
+    if(v===null || v===undefined || tgt===null || tgt===undefined) return textMuted;
+    const met = higherBetter ? v>=tgt : v<=tgt;
+    return met ? green : red;
+  };
+
+  let overviewHTML = '';
+  if(config.history){
+    const h = config.history;
+    const t = h.targets;
+    const overviewRows = [
+      { lbl:'Accuracy', gate:'low',  get:mo=>h.moStats[mo]?.acc,  fmt:pctFmt, tgt:t.ACC_TARGET, higher:true },
+      { lbl:'Accuracy Pass Rate', gate:'low',  get:mo=>h.moAccPassRate[mo], fmt:pctFmt, tgt:0.80, higher:true },
+      { lbl:'Precision', gate:'high', get:mo=>h.moStats[mo]?.prec, fmt:pctFmt, tgt:t.PREC_TARGET, higher:true },
+      { lbl:'Precision Pass Rate', gate:'high', get:mo=>h.moPrecPassRate[mo], fmt:pctFmt, tgt:0.80, higher:true },
+      { lbl:'Recall', gate:'high', get:mo=>h.moStats[mo]?.rec, fmt:pctFmt, tgt:t.REC_TARGET, higher:true },
+      { lbl:'Recall Pass Rate', gate:'high', get:mo=>h.moRecPassRate[mo], fmt:pctFmt, tgt:0.80, higher:true },
+      { lbl:'Action Rate', gate:null, get:mo=>h.moStats[mo]?.ar, fmt:pctFmt, tgt:null, higher:null },
+      { lbl:'AHT', gate:null, get:mo=>h.moStats[mo]?.aht, fmt:secsFmt, tgt:null, higher:false },
+      { lbl:'AHT Pass Rate', gate:null, get:mo=>h.moAhtPassRate[mo], fmt:pctFmt, tgt:0.80, higher:true },
+      { lbl:'AOA', gate:null, get:mo=>h.moAoa[mo], fmt:pctFmt, tgt:t.AOA_TARGET, higher:true },
+      { lbl:'MSV', gate:null, get:mo=>h.moMsv[mo], fmt:pctFmt, tgt:t.MSV_TARGET, higher:true },
+      { lbl:'Absenteeism', gate:null, get:mo=>h.moAbs[mo], fmt:pctFmt, tgt:t.ABS_TARGET, higher:false },
+      { lbl:'TOPS Adoption', gate:null, get:mo=>h.moStats[mo]?.tops, fmt:pctFmt, tgt:t.TOPS_TARGET, higher:true }
+    ];
+    const colW = `${Math.round(78/h.last6Months.length)}%`;
+    overviewHTML = `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
+        <colgroup>
+          <col style="width:22%">
+          ${h.last6Months.map((_,i)=>`<col style="width:${colW}${i===h.last6Months.length-1?';border-left:0.5px solid '+borderColor:''}">`).join('')}
+        </colgroup>
+        <thead>
+          <tr style="background:${lightGray}">
+            <th style="padding:5px 9px;text-align:left;font-size:9px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em">KPI</th>
+            ${h.last6Months.map(mo=>{
+              const isCurr = mo===h.currMonth;
+              return `<th style="padding:5px 8px;text-align:right;font-size:9px;font-weight:700;color:${isCurr?textPri:textSec};${isCurr?'background:#EEF2FF;':''}">${fmtMonth(mo)}</th>`;
+            }).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${overviewRows.map(row=>{
+            const moAR = mo => h.moStats[mo]?.ar;
+            return `<tr style="border-bottom:0.5px solid ${divider}">
+              <td style="padding:5px 9px;font-size:10px;font-weight:600;color:${textMuted};background:${lightGray};white-space:nowrap">${row.lbl}</td>
+              ${h.last6Months.map(mo=>{
+                const isCurr = mo===h.currMonth;
+                const v = row.get(mo);
+                let active = true;
+                if(row.gate==='low')  active = moAR(mo)===null || moAR(mo)===undefined ? true : moAR(mo) < 0.10;
+                if(row.gate==='high') active = moAR(mo)===null || moAR(mo)===undefined ? true : moAR(mo) >= 0.10;
+                const c = active && row.tgt!==null ? cellColor(v, row.tgt, row.higher) : (active ? textSec : textMuted);
+                const bg = isCurr ? '#EEF2FF' : 'transparent';
+                const disp = (v===null || v===undefined || !active) ? (active ? '—' : '—') : row.fmt(v);
+                return `<td style="padding:5px 8px;text-align:right;font-family:${mono};font-size:11px;font-weight:${c===green||c===red?'700':'400'};color:${c};background:${bg}">${disp}</td>`;
+              }).join('')}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  // ── Section: QA & AHT — last 3 months by sub-workflow (team rollup) ──────────
+  let swTableHTML = '';
+  if(config.history){
+    const h = config.history;
+    const sws = Object.keys(h.swMoData).filter(sw =>
+      h.last3Months.some(mo => { const s=h.swMoData[sw][mo]; return s && (s.tpa+s.fpa+s.fna+s.tna+s.dec)>0; })
+    ).sort();
+
+    const cellFor = (sw, mo) => {
+      const s = h.swMoData[sw]?.[mo];
+      if(!s) return { acc:'—', prec:'—', rec:'—', aht:'—', hasData:false };
+      const tot = s.tpa+s.fpa+s.fna+s.tna;
+      const acc = tot>0 ? (s.tpa+s.tna)/tot : null;
+      const prec = (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
+      const rec = (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
+      const swTgt = SW_TARGETS[sw] || {};
+      const accTgt = swTgt.acc || h.targets.ACC_TARGET;
+      const precTgt = swTgt.prec || accTgt;
+      const recTgt = swTgt.rec || accTgt;
+      const ahtQualifies = s.dec >= h.targets.SW_MIN_DEC;
+      const aht = ahtQualifies && s.dec>0 ? Math.round((s.dht+s.nht)/s.dec) : null;
+      const ahtTgt = swTgt.aht || null;
+      return {
+        acc: acc!==null?pctFmt(acc):'—', accC: acc!==null?(acc>=accTgt?green:red):textMuted,
+        prec: prec!==null?pctFmt(prec):'—', precC: prec!==null?(prec>=precTgt?green:red):textMuted,
+        rec: rec!==null?pctFmt(rec):'—', recC: rec!==null?(rec>=recTgt?green:red):textMuted,
+        aht: aht!==null?aht+'s':(ahtQualifies?'—':'n/a <50'), ahtC: aht!==null&&ahtTgt?(aht<=ahtTgt?green:red):textMuted,
+        hasData:true
+      };
+    };
+
+    swTableHTML = sws.length===0
+      ? `<div style="padding:14px 12px;font-size:11px;color:${textMuted};font-style:italic;text-align:center;border:1px solid ${borderColor};border-radius:8px">No QA data found for this team in the last 3 months.</div>`
+      : `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
+        <table style="width:100%;min-width:520px;border-collapse:collapse;font-size:10px">
+          <thead>
+            <tr style="background:${lightGray}">
+              <th rowspan="2" style="padding:5px 8px;text-align:left;font-size:9px;font-weight:700;color:${textMuted};text-transform:uppercase;vertical-align:bottom">Sub-workflow</th>
+              ${h.last3Months.map(mo=>`<th colspan="4" style="padding:4px 6px;text-align:center;font-size:9px;font-weight:700;color:${textSec};border-left:1px solid ${borderColor}">${fmtMonth(mo)}</th>`).join('')}
+            </tr>
+            <tr style="background:${lightGray}">
+              ${h.last3Months.map(()=>['Acc','P','R','AHT'].map((l,i)=>`<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${i===0?'border-left:1px solid '+borderColor:''}">${l}</th>`).join('')).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${sws.map((sw,idx)=>`<tr style="border-bottom:${idx===sws.length-1?'none':'0.5px solid '+divider}">
+              <td style="padding:5px 8px;font-size:10px;font-weight:600;color:${textPri};white-space:nowrap">${sw}</td>
+              ${h.last3Months.map(mo=>{
+                const c = cellFor(sw,mo);
+                const bl = 'border-left:1px solid '+borderColor+';';
+                return `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;color:${c.accC};${bl}">${c.acc}</td>`+
+                       `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;color:${c.precC}">${c.prec}</td>`+
+                       `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;color:${c.recC}">${c.rec}</td>`+
+                       `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;color:${c.ahtC}">${c.aht}</td>`;
+              }).join('')}
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
 
   const docHTML = `<div style="max-width:700px;font-family:${sans};color:${textPri}">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
@@ -26391,16 +26668,16 @@ function _tcmGenerateDoc(config){
       </div>
     </div>
 
-    ${secHead('Opportunities', purple)}
-    ${noOpp
-      ? `<div style="padding:12px 14px;background:${purpleBg};border:1px solid ${purpleBd};border-radius:10px;font-size:13px;color:${purple};font-weight:600">No opportunities identified this period.</div>`
-      : oppKeys.map(oppBlock).join('')
-    }
+    ${config.history ? secHead('Overall performance — last 6 months', blue) + overviewHTML : ''}
+    ${config.history ? secHead('QA & AHT — last 3 months by sub-workflow', red) + swTableHTML : ''}
+
+    ${secHead('Monthly Coaching Commitments', purple)}
+    ${oppKeys.map(oppBlock).join('')}
 
     ${config.notes ? secHead('Notes', blue) + `<div style="padding:12px 14px;background:${lightGray};border-radius:10px;font-size:13px;color:${textSec};line-height:1.6;white-space:pre-wrap">${config.notes}</div>` : ''}
 
     <div style="margin-top:24px;padding-top:14px;border-top:1px solid ${divider};font-size:11px;color:${textMuted}">
-      This document reflects a Supervisor-led review of ${sn(config.tl)}'s ${config.mode==='midmonth'?'mid-month':'monthly'} performance and development areas, discussed and agreed collaboratively.
+      This document reflects a AOM-led review of ${sn(config.tl)}'s ${config.mode==='midmonth'?'mid-month':'monthly'} performance and development areas, discussed and agreed collaboratively.
     </div>
   </div>`;
 
