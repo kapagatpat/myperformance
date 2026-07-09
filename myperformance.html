@@ -2050,7 +2050,7 @@ tr:hover td{background:#F8F9FB}
     <section id="tab-incentive" class="section">
       <div class="ph">
         <h1>🏄 Incentive</h1>
-        <p>23 May – 26 June 2026 · 5 Weeks · Quality = Enforcement + Labeling combined · AHT = Overall blended</p>
+        <p>June: 23 May – 26 June 2026 · Enforcement + Labeling combined &nbsp;|&nbsp; July: Enforcement only · AHT = Overall blended</p>
       </div>
 
       <!-- Month filter -->
@@ -24024,9 +24024,9 @@ function gpDecReqExpand(open) {
 // ─── INCENTIVE SCORECARD ───────────────────────────────────────────────────────
 (function() {
 
-  // Scheme coverage: May–June 2026
+  // Scheme coverage: June–July 2026
   // r.month uses 'YYYY-MM' format from parseMonth()
-  const INC_MONTHS_ALLOWED = ['2026-06'];
+  const INC_MONTHS_ALLOWED = ['2026-06', '2026-07'];
 
   // State
   let _incView  = 'reviewer'; // 'reviewer' | 'tl'
@@ -24046,6 +24046,19 @@ function gpDecReqExpand(open) {
     if (ratio >= 0.92) return 'var(--green)';
     if (ratio >= 0.80) return 'var(--amber)';
     return 'var(--coral)';
+  }
+
+  // July+ scheme uses Enforcement-only quality rows (no Labeling blend), and drops NHT entirely.
+  function isJulyScheme(month) { return month >= '2026-07'; }
+
+  // Enforcement-only filter — WFM-only rows (no reviewType) still pass through.
+  function enfOnlyFilter(rows) {
+    return rows.filter(r => !r.reviewType || r.reviewType.trim() === 'Enforcement');
+  }
+
+  // Picks the correct quality filter for the active incentive month.
+  function incQualityFilter(rows, month) {
+    return isJulyScheme(month) ? enfOnlyFilter(rows) : qaFilter(rows);
   }
 
   function bonusBadge(earned, label, pts) {
@@ -24097,7 +24110,7 @@ function gpDecReqExpand(open) {
     }
 
     wrap.innerHTML = monthSet.map(m => {
-      const label = m === '2026-05' ? 'May 2026' : m === '2026-06' ? 'June 2026' : m;
+      const label = m === '2026-05' ? 'May 2026' : m === '2026-06' ? 'June 2026' : m === '2026-07' ? 'July 2026' : m;
       const active = m === _incMonth;
       return `<button onclick="window._incSelectMonth('${m}')" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid ${active?'var(--abd)':'var(--border)'};background:${active?'var(--asec)':'var(--sa)'};color:${active?'var(--amber)':'var(--ts)'};cursor:pointer;font-family:var(--f)">${label}</button>`;
     }).join('');
@@ -24146,22 +24159,23 @@ function gpDecReqExpand(open) {
         </table>
       </div>`;
 
+    const julyActive = isJulyScheme(_incMonth);
+    const qBasis = julyActive ? 'Enforcement only · direct' : 'Enf + Label combined · direct';
+
     el.innerHTML =
       card('🏄 Reviewer Scheme', [
-        ['Base — Accuracy',  'Enf + Label combined · direct', '100%'],
-        ['Precision',        'Enf + Label combined · direct', '+1%'],
-        ['Recall',           'Enf + Label combined · direct', '+1%'],
+        ['Base — Accuracy',  qBasis, '100%'],
+        ['Precision',        qBasis, '+1%'],
+        ['Recall',           qBasis, '+1%'],
         ['AHT',              'SWs hit / eligible (≥5 jobs)',  '+1%'],
         ['Absenteeism',      'Flat · ≤5% → full point',       '+1%'],
-        ['NHT',              'Flat · <5% → full point',        '+1%'],
       ], 'var(--amber)', 'var(--abg)', 'var(--abd)') +
 
       card('🏄 TL Scheme', [
-        ['Base — Precision',  'Team Enf+Label ÷ 0.96 target · direct', '~1.04'],
-        ['Base — Recall',     'Team Enf+Label ÷ 0.96 target · direct', '~1.04'],
+        ['Base — Precision',  `Team ${julyActive ? 'Enforcement' : 'Enf+Label'} ÷ 0.96 target · direct`, '~1.04'],
+        ['Base — Recall',     `Team ${julyActive ? 'Enforcement' : 'Enf+Label'} ÷ 0.96 target · direct`, '~1.04'],
         ['# SW with AHT Met', 'Team SWs hit / eligible (≥10) · info only', '—'],
         ['Absenteeism',       'Flat · team ≤5% → +0.01',                '+0.01'],
-        ['NHT',               'Flat · team <5% → +0.01',                '+0.01'],
         ['Job Count',         'Flat · actual ≥ required → +0.01',       '+0.01'],
         ['AOA',               'Flat · aoaN / aoaD ≥ target → +0.01',    '+0.01'],
         ['TOPS',              'Flat · TOPS A / TOPS B → +0.01',         '+0.01'],
@@ -24196,7 +24210,9 @@ function gpDecReqExpand(open) {
 
   // ── Reviewer table ────────────────────────────────────────────────────────────
 
-  function renderReviewerTable(monthRows) {
+  function renderReviewerTable(monthRows, month) {
+    const julyScheme = isJulyScheme(month);
+
     // Group by reviewer
     const rvMap = {};
     monthRows.forEach(r => {
@@ -24204,14 +24220,14 @@ function gpDecReqExpand(open) {
       rvMap[r.reviewer].rows.push(r);
     });
 
-    // WFM (absenteeism, NHT) from WFM_LOOKUP for selected month weeks
+    // WFM (absenteeism) from WFM_LOOKUP for selected month weeks
     const monthWeeks = [...new Set(monthRows.map(r => r.week))];
 
     // Pre-compute totals for sorting — mirrors the main calculation
     const _rvTotals = {};
     Object.keys(rvMap).forEach(rv => {
       const rows = rvMap[rv].rows;
-      const qRows = qaFilter(rows.filter(r => r.sw));
+      const qRows = incQualityFilter(rows.filter(r => r.sw), month);
       let tpa=0,fpa=0,fna=0,tna=0;
       qRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;});
       const tot=tpa+fpa+fna+tna;
@@ -24219,18 +24235,15 @@ function gpDecReqExpand(open) {
       const _prec=(tpa+fpa)>0?tpa/(tpa+fpa):null;
       const _rec=(tpa+fna)>0?tpa/(tpa+fna):null;
       const _ahtB=calcAHTBonus(rows.filter(r=>r.sw),5);
-      let _s=0,_a=0,_dht=0,_nht=0;
+      let _s=0,_a=0;
       monthWeeks.forEach(wk=>{const w=WFM_LOOKUP[(rv.trim())+'|'+wk];if(w){_s+=w.sched||0;_a+=w.actual||0;}});
-      rows.forEach(r=>{if(r.sw){_dht+=r.dht||0;_nht+=r.nht||0;}});
       const _abs=_s>0?Math.max(0,(_s-_a)/_s):null;
-      const _nhtR=(_dht+_nht)>0?_nht/(_dht+_nht):null;
       const _absB=_abs!==null?(_abs<=0.05?0.01:0):null;
-      const _nhtB=_nhtR!==null?(_nhtR<0.05?0.01:0):null;
       const _pb=_prec!==null?Math.min(_prec,1)*0.01:null;
       const _rb=_rec!==null?Math.min(_rec,1)*0.01:null;
       const _ab=_ahtB.bonus!==null?Math.min(_ahtB.bonus,1)*0.01:null;
-      const comps=[_acc,_pb,_rb,_ab,_absB,_nhtB];
-      _rvTotals[rv]=comps.every(v=>v!==null)?_acc+_pb+_rb+_ab+_absB+_nhtB:null;
+      const comps=[_acc,_pb,_rb,_ab,_absB];
+      _rvTotals[rv]=comps.every(v=>v!==null)?_acc+_pb+_rb+_ab+_absB:null;
     });
     const reviewers = Object.keys(rvMap).sort((a,b)=>{
       const ta=_rvTotals[a], tb=_rvTotals[b];
@@ -24249,7 +24262,41 @@ function gpDecReqExpand(open) {
     let rvRowIdx = 0;
     const _thPurple = (txt, right=true) => `<th style="padding:7px 8px;text-align:${right?'right':'left'};font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);background:#F3F0FF;border-bottom:1px solid var(--border);white-space:nowrap">${txt}</th>`;
     const _thYellow = (txt, right=true) => `<th style="padding:7px 8px;text-align:${right?'right':'left'};font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--amber);background:#FFFBEB;border-bottom:1px solid var(--border);white-space:nowrap">${txt}</th>`;
-    let html = `
+    const _thGreen  = (txt, right=true) => `<th style="padding:7px 8px;text-align:${right?'right':'left'};font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--green);background:var(--gbg);border-bottom:1px solid var(--border);white-space:nowrap">${txt}</th>`;
+
+    let html;
+    if (julyScheme) {
+      // July column order: Total | Base Score | Base Accuracy | Bonus Points | Precision | Recall | # SW AHT Met | Absenteeism
+      // Base cols (green): Base Score, Base Accuracy. Bonus cols (yellow): Bonus Points, Precision, Recall, # SW AHT Met, Absenteeism.
+      html = `
+      <colgroup>
+        <col style="width:20px">
+        <col style="width:200px">
+        <col style="width:200px">
+        <col style="width:110px">
+        <col style="width:100px">
+        <col style="width:100px">
+        <col style="width:100px">
+        <col style="width:100px">
+        <col style="width:100px">
+        <col style="width:160px">
+        <col style="width:110px">
+      </colgroup>
+      <thead><tr style="background:var(--sa)">
+        <th style="padding:7px 4px;border-bottom:1px solid var(--border)"></th>
+        <th style="padding:7px 8px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--tm);border-bottom:1px solid var(--border)">Reviewer</th>
+        <th style="padding:7px 8px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--tm);border-bottom:1px solid var(--border)">TL</th>
+        ${_thPurple('Total Score')}
+        ${_thGreen('Base Score')}
+        ${_thGreen('Base Accuracy')}
+        ${_thYellow('Bonus Points')}
+        ${_thYellow('Precision')}
+        ${_thYellow('Recall')}
+        ${_thYellow('# SW with AHT Met')}
+        ${_thYellow('Absent ≤5%')}
+      </tr></thead><tbody>`;
+    } else {
+      html = `
       <colgroup>
         <col style="width:20px">
         <col style="width:200px">
@@ -24260,7 +24307,6 @@ function gpDecReqExpand(open) {
         <col style="width:100px">
         <col style="width:160px">
         <col style="width:110px">
-        <col style="width:100px">
       </colgroup>
       <thead><tr style="background:var(--sa)">
         <th style="padding:7px 4px;border-bottom:1px solid var(--border)"></th>
@@ -24272,14 +24318,14 @@ function gpDecReqExpand(open) {
         ${_thYellow('Recall')}
         ${_thYellow('# SW with AHT Met')}
         ${_thYellow('Absent ≤5%')}
-        ${_thYellow('NHT <5%')}
       </tr></thead><tbody>`;
+    }
 
     reviewers_.forEach(rv => {
       const { rows, supervisor } = rvMap[rv];
 
-      // Quality rows through qaFilter
-      const qRows = qaFilter(rows.filter(r => r.sw));
+      // Quality rows — Enforcement-only for July, Enf+Label blend for June
+      const qRows = incQualityFilter(rows.filter(r => r.sw), month);
 
       // Accuracy base
       let tpa=0, fpa=0, fna=0, tna=0;
@@ -24294,33 +24340,29 @@ function gpDecReqExpand(open) {
       const ahtB = calcAHTBonus(swRows, 5);
 
       // WFM: sum across weeks in this month
-      let wSched=0, wActual=0, wDHT=0, wNHT=0;
+      let wSched=0, wActual=0;
       monthWeeks.forEach(wk => {
         const w = WFM_LOOKUP[(rv.trim())+'|'+wk];
         if (w) { wSched += w.sched||0; wActual += w.actual||0; }
       });
-      // NHT from sw rows
-      rows.forEach(r => { if(r.sw){ wDHT += r.dht||0; wNHT += r.nht||0; } });
 
       const absRate = wSched > 0 ? Math.max(0, (wSched - wActual) / wSched) : null;
-      const nhtRate = (wDHT + wNHT) > 0 ? wNHT / (wDHT + wNHT) : null;
-
       const absBonus = absRate !== null ? (absRate <= 0.05 ? 0.01 : 0) : null;
-      const nhtBonus = nhtRate !== null ? (nhtRate < 0.05  ? 0.01 : 0) : null;
 
       // Total — base acc is fraction (0–1), each bonus converts: fraction * 0.01 = max +1%
-      // prec/rec: 0.9412 → +0.009412 (+0.9412%)
-      // ahtB.bonus: 0.80 → +0.0080 (+0.80%)
-      // absBonus / nhtBonus: already 0.01 or 0 ✓
       const precBonus = prec !== null ? Math.min(prec, 1) * 0.01 : null;
       const recBonus  = rec  !== null ? Math.min(rec,  1) * 0.01 : null;
       const ahtBonus  = ahtB.bonus !== null ? Math.min(ahtB.bonus, 1) * 0.01 : null;
-      const components = [acc, precBonus, recBonus, ahtBonus, absBonus, nhtBonus];
+      const components = [acc, precBonus, recBonus, ahtBonus, absBonus];
       const total = components.every(v => v !== null)
-        ? acc + precBonus + recBonus + ahtBonus + absBonus + nhtBonus
+        ? acc + precBonus + recBonus + ahtBonus + absBonus
+        : null;
+      // Bonus Points = sum of the 4 bonus components (July view)
+      const bonusPoints = components.slice(1).every(v => v !== null)
+        ? precBonus + recBonus + ahtBonus + absBonus
         : null;
 
-      const maxScore = 1.05;
+      const maxScore = 1.04;
       const totalColor = total !== null ? scoreColor(total, maxScore) : 'var(--tm)';
 
       // AHT cell label
@@ -24336,7 +24378,6 @@ function gpDecReqExpand(open) {
         { label: 'Recall',   pts: recBonus,  raw: rec      !== null ? pct2(rec)       : '—' },
         { label: 'AHT',      pts: ahtBonus,  raw: ahtLabel },
         { label: 'Absent',   pts: absBonus,  raw: absRate  !== null ? pct2(absRate)   : '—' },
-        { label: 'NHT',      pts: nhtBonus,  raw: nhtRate  !== null ? pct2(nhtRate)   : '—' },
       ];
       const _ptsHtml = _ptsBreakdown.map(p => {
         const pts = p.pts !== null ? (p.pts*100).toFixed(4)+'%' : '—';
@@ -24345,7 +24386,26 @@ function gpDecReqExpand(open) {
       }).join('');
       const _totalPtsEarned = total !== null ? (total*100).toFixed(4)+'%' : '—';
 
-      html += `<tr style="cursor:pointer" onclick="window._incToggleRV('${_rid}')">
+      if (julyScheme) {
+        html += `<tr style="cursor:pointer" onclick="window._incToggleRV('${_rid}')">
+        <td style="padding:7px 4px;text-align:center;width:20px;border-bottom:1px solid var(--divider);color:var(--tm);font-size:10px"><span id="inc-toggle-${_rid}">▸</span></td>
+        <td style="padding:7px 8px;font-size:13px;font-weight:700;color:var(--text);border-bottom:1px solid var(--divider);white-space:nowrap;cursor:pointer" onclick="event.stopPropagation();window._incShowPhoto('${rv.replace(/'/g,"'")}','${(supervisor||'').replace(/'/g,"'")}',this)" title="Click for profile">${rv}</td>
+        ${tdPlain(supervisor||'—')}
+        ${tdBg(total !== null ? `<strong>${pct2(total)}</strong>` : '—', true, true, totalColor, '#F3F0FF')}
+        ${tdBg(acc !== null ? `<strong>${pct2(acc)}</strong>` : '—', true, true, acc !== null ? scoreColor(acc, 1) : 'var(--tm)', 'var(--gbg)')}
+        ${tdBg(pct2(acc),  true, false, acc  !== null ? scoreColor(acc,  1) : 'var(--tm)', 'var(--gbg)')}
+        ${tdBg(bonusPoints !== null ? `<strong>${(bonusPoints*100).toFixed(2)}%</strong>` : '—', true, true, bonusPoints !== null ? 'var(--amber)' : 'var(--tm)', '#FFFBEB')}
+        ${tdBg(pct2(prec), true, false, prec !== null ? scoreColor(prec, 1) : 'var(--tm)', '#FFFBEB')}
+        ${tdBg(pct2(rec),  true, false, rec  !== null ? scoreColor(rec,  1) : 'var(--tm)', '#FFFBEB')}
+        ${tdBg(ahtLabel,   true,  false, ahtB.bonus !== null ? scoreColor(ahtB.bonus, 1) : 'var(--tm)', '#FFFBEB')}
+        ${tdBg(absRate !== null ? pct2(absRate) + (absBonus===0.01 ? ' ✓' : ' ✗') : '—', true, false, absBonus===0.01 ? 'var(--green)' : 'var(--coral)', '#FFFBEB')}
+      </tr>
+      <tr id="inc-expand-${_rid}" style="display:none;background:var(--sa)">
+        <td colspan="4" style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--ts);border-bottom:1px solid var(--divider)">pts breakdown</td>
+        ${_ptsHtml}
+      </tr>`;
+      } else {
+        html += `<tr style="cursor:pointer" onclick="window._incToggleRV('${_rid}')">
         <td style="padding:7px 4px;text-align:center;width:20px;border-bottom:1px solid var(--divider);color:var(--tm);font-size:10px"><span id="inc-toggle-${_rid}">▸</span></td>
         <td style="padding:7px 8px;font-size:13px;font-weight:700;color:var(--text);border-bottom:1px solid var(--divider);white-space:nowrap;cursor:pointer" onclick="event.stopPropagation();window._incShowPhoto('${rv.replace(/'/g,"'")}','${(supervisor||'').replace(/'/g,"'")}',this)" title="Click for profile">${rv}</td>
         ${tdPlain(supervisor||'—')}
@@ -24355,12 +24415,12 @@ function gpDecReqExpand(open) {
         ${tdBg(pct2(rec),  true, false, rec  !== null ? scoreColor(rec,  1) : 'var(--tm)', '#FFFBEB')}
         ${tdBg(ahtLabel,   true,  false, ahtB.bonus !== null ? scoreColor(ahtB.bonus, 1) : 'var(--tm)', '#FFFBEB')}
         ${tdBg(absRate !== null ? pct2(absRate) + (absBonus===0.01 ? ' ✓' : ' ✗') : '—', true, false, absBonus===0.01 ? 'var(--green)' : 'var(--coral)', '#FFFBEB')}
-        ${tdBg(nhtRate !== null ? pct2(nhtRate) + (nhtBonus===0.01 ? ' ✓' : ' ✗') : '—', true, false, nhtBonus===0.01 ? 'var(--green)' : 'var(--coral)', '#FFFBEB')}
       </tr>
       <tr id="inc-expand-${_rid}" style="display:none;background:var(--sa)">
         <td colspan="4" style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--ts);border-bottom:1px solid var(--divider)">pts breakdown</td>
         ${_ptsHtml}
       </tr>`;
+      }
     });
 
     html += '</tbody>';
@@ -24369,7 +24429,7 @@ function gpDecReqExpand(open) {
 
   // ── TL table ──────────────────────────────────────────────────────────────────
 
-  function renderTLTable(monthRows) {
+  function renderTLTable(monthRows, month) {
     // Group by supervisor
     const tlMap = {};
     monthRows.forEach(r => {
@@ -24402,7 +24462,6 @@ function gpDecReqExpand(open) {
         <col style="width:110px">
         <col style="width:100px">
         <col style="width:100px">
-        <col style="width:100px">
         <col style="width:120px">
       </colgroup>
       <thead><tr>
@@ -24415,7 +24474,6 @@ function gpDecReqExpand(open) {
         ${_tlThBase('Recall')}
         ${_tlThBase('# SW with AHT Met')}
         ${_tlThBonus('Absent ≤5%')}
-        ${_tlThBonus('NHT <5%')}
         ${_tlThBonus('Job Count')}
         ${_tlThBonus('AOA')}
         ${_tlThBonus('TOPS')}
@@ -24425,8 +24483,8 @@ function gpDecReqExpand(open) {
     tls.forEach(tl => {
       const rows = tlMap[tl];
 
-      // Quality rows through qaFilter (SW rows only)
-      const qRows = qaFilter(rows.filter(r => r.sw));
+      // Quality rows — Enforcement-only for July, Enf+Label blend for June (SW rows only)
+      const qRows = incQualityFilter(rows.filter(r => r.sw), month);
       let tpa=0, fpa=0, fna=0, tna=0;
       qRows.forEach(r => { tpa+=r.tpa||0; fpa+=r.fpa||0; fna+=r.fna||0; tna+=r.tna||0; });
       const prec = (tpa+fpa) > 0 ? tpa/(tpa+fpa) : null;
@@ -24438,7 +24496,7 @@ function gpDecReqExpand(open) {
 
       // WFM aggregation across all reviewers in team
       const teamRevs = [...new Set(rows.map(r => r.reviewer))];
-      let wSched=0, wActual=0, wDHT=0, wNHT=0;
+      let wSched=0, wActual=0;
       teamRevs.forEach(rv => {
         monthWeeks.forEach(wk => {
           const w = WFM_LOOKUP[(rv.trim())+'|'+wk];
@@ -24448,12 +24506,9 @@ function gpDecReqExpand(open) {
           }
         });
       });
-      rows.forEach(r => { if(r.sw){ wDHT += r.dht||0; wNHT += r.nht||0; } });
 
       const absRate = wSched > 0 ? Math.max(0, (wSched - wActual) / wSched) : null;
-      const nhtRate = (wDHT + wNHT) > 0 ? wNHT / (wDHT + wNHT) : null;
       const absBonus = absRate !== null ? (absRate <= 0.05 ? 0.01 : 0) : null;
-      const nhtBonus = nhtRate !== null ? (nhtRate < 0.05  ? 0.01 : 0) : null;
 
       // AOA — from TL's own reviewer row in WFM_LOOKUP (not team aggregate)
       let tlAoaN = 0, tlAoaD = 0;
@@ -24476,7 +24531,7 @@ function gpDecReqExpand(open) {
       const topsScore = tlTopsB > 0 ? Math.min(tlTopsA / tlTopsB, 1) : null;
 
       // BASE = (prec ÷ 0.96) + (rec ÷ 0.96) + ahtRatio (proportional, max 1.0)
-      // BONUS = flat 0.01 each: abs, nht, job count, aoa, tops (max 0.05)
+      // BONUS = flat 0.01 each: abs, job count, aoa, tops (max 0.04)
       const TL_ACC_TGT = 0.96;
       const tlPrecBonus  = prec           !== null ? prec / TL_ACC_TGT : null;
       const tlRecBonus   = rec            !== null ? rec  / TL_ACC_TGT : null;
@@ -24486,19 +24541,18 @@ function gpDecReqExpand(open) {
 
       // Flat bonus components — 0.01 each if condition met, 0 if not, null if data missing
       const tlAbsBonus  = absBonus;   // already 0.01/0/null
-      const tlNhtBonus  = nhtBonus;   // already 0.01/0/null
       const tlJobBonus  = jobScore  !== null ? (jobScore  >= 1 ? 0.01 : 0) : null;
       const tlAoaBonus  = aoaScore  !== null ? (aoaScore  >= 1 ? 0.01 : 0) : null;
       const tlTopsBonus = topsScore !== null ? (topsScore >= 1 ? 0.01 : 0) : null;
 
-      const bonusComponents = [tlAbsBonus, tlNhtBonus, tlJobBonus, tlAoaBonus];
+      const bonusComponents = [tlAbsBonus, tlJobBonus, tlAoaBonus];
       const allBonusCore    = bonusComponents.every(v => v !== null);
       const bonusSum        = allBonusCore
-        ? (tlAbsBonus||0) + (tlNhtBonus||0) + (tlJobBonus||0) + (tlAoaBonus||0) + (tlTopsBonus||0)
+        ? (tlAbsBonus||0) + (tlJobBonus||0) + (tlAoaBonus||0) + (tlTopsBonus||0)
         : null;
 
       const total    = (tlBase !== null && bonusSum !== null) ? tlBase + bonusSum : null;
-      const totalMax = (1/TL_ACC_TGT)*2 + 1.0 + 0.05; // ~3.0833
+      const totalMax = (1/TL_ACC_TGT)*2 + 1.0 + 0.04; // ~3.0733
       const totalColor = total !== null ? scoreColor(total, totalMax) : 'var(--tm)';
 
       const ahtLabel = ahtB.eligible > 0
@@ -24510,9 +24564,9 @@ function gpDecReqExpand(open) {
       const topsDisplayColor = topsScore !== null ? scoreColor(topsScore, 1) : 'var(--tm)';
 
       const _tlRid = `tl-${tlRowIdx++}`;
-      tlRows.push({ tl, prec, rec, ahtB, ahtLabel, absRate, absBonus, nhtRate, nhtBonus,
+      tlRows.push({ tl, prec, rec, ahtB, ahtLabel, absRate, absBonus,
         jobScore, aoaScore, topsDisplay, topsDisplayColor, topsScore, total, totalMax,
-        tlPrecBonus, tlRecBonus, tlAhtBonus, tlBase, tlAbsBonus, tlNhtBonus, tlJobBonus, tlAoaBonus, tlTopsBonus,
+        tlPrecBonus, tlRecBonus, tlAhtBonus, tlBase, tlAbsBonus, tlJobBonus, tlAoaBonus, tlTopsBonus,
         bonusSum, totalColor, _tlRid });
     });
 
@@ -24524,9 +24578,9 @@ function gpDecReqExpand(open) {
       return b.total - a.total;
     });
 
-    tlRows.forEach(({ tl, prec, rec, ahtB, ahtLabel, absRate, absBonus, nhtRate, nhtBonus,
+    tlRows.forEach(({ tl, prec, rec, ahtB, ahtLabel, absRate, absBonus,
       jobScore, aoaScore, topsDisplay, topsDisplayColor, topsScore, total, totalMax,
-      tlPrecBonus, tlRecBonus, tlAhtBonus, tlBase, tlAbsBonus, tlNhtBonus, tlJobBonus, tlAoaBonus, tlTopsBonus,
+      tlPrecBonus, tlRecBonus, tlAhtBonus, tlBase, tlAbsBonus, tlJobBonus, tlAoaBonus, tlTopsBonus,
       bonusSum, totalColor, _tlRid }) => {
 
       // pts breakdown cell style helpers
@@ -24538,7 +24592,7 @@ function gpDecReqExpand(open) {
         ? `<strong>${(total*100).toFixed(2)}%</strong>`
         : (tlBase !== null ? '(bonus pending)' : '—');
 
-      // Columns: toggle | TL | Total Score | Base | Bonus | Precision | Recall | # SW AHT | Absent | NHT | Job Count | AOA | TOPS
+      // Columns: toggle | TL | Total Score | Base | Bonus | Precision | Recall | # SW AHT | Absent | Job Count | AOA | TOPS
       // Pts row: one value per column, aligned exactly under each header
       html += `<tr style="cursor:pointer" onclick="window._incToggleRV('${_tlRid}')">
         <td style="padding:7px 4px;text-align:center;width:20px;border-bottom:1px solid var(--divider);color:var(--tm);font-size:10px"><span id="inc-toggle-${_tlRid}">▸</span></td>
@@ -24550,7 +24604,6 @@ function gpDecReqExpand(open) {
         ${tdBg(pct2(rec),  true, false, rec  !== null ? scoreColor(rec,  1) : 'var(--tm)', 'var(--gbg)')}
         ${tdBg(ahtLabel,   true, false, ahtB.bonus !== null ? scoreColor(ahtB.bonus, 1) : 'var(--tm)', 'var(--gbg)')}
         ${tdBg(absRate !== null ? pct2(absRate) + (tlAbsBonus===0.01 ? ' ✓' : ' ✗') : '—', true, false, tlAbsBonus===0.01 ? 'var(--green)' : 'var(--coral)', '#FFFBEB')}
-        ${tdBg(nhtRate !== null ? pct2(nhtRate) + (tlNhtBonus===0.01 ? ' ✓' : ' ✗') : '—', true, false, tlNhtBonus===0.01 ? 'var(--green)' : 'var(--coral)', '#FFFBEB')}
         ${tdBg(jobScore !== null ? pct2(jobScore) + (tlJobBonus===0.01 ? ' ✓' : ' ✗') : '—', true, false, tlJobBonus===0.01 ? 'var(--green)' : 'var(--coral)', '#FFFBEB')}
         ${tdBg(aoaScore !== null ? pct2(aoaScore) + (tlAoaBonus===0.01 ? ' ✓' : ' ✗') : '—', true, false, tlAoaBonus===0.01 ? 'var(--green)' : 'var(--coral)', '#FFFBEB')}
         ${tdBg(topsDisplay + (tlTopsBonus===0.01 ? ' ✓' : tlTopsBonus===0 ? ' ✗' : ''), true, false, topsDisplayColor, '#FFFBEB')}
@@ -24565,7 +24618,6 @@ function gpDecReqExpand(open) {
         ${_ptsCell(tlRecBonus, _ptsColB(tlRecBonus))}
         ${_ptsCell(tlAhtBonus, _ptsColB(tlAhtBonus))}
         ${_ptsCell(tlAbsBonus, _ptsColBn(tlAbsBonus))}
-        ${_ptsCell(tlNhtBonus, _ptsColBn(tlNhtBonus))}
         ${_ptsCell(tlJobBonus, _ptsColBn(tlJobBonus))}
         ${_ptsCell(tlAoaBonus, _ptsColBn(tlAoaBonus))}
         ${_ptsCell(tlTopsBonus,_ptsColBn(tlTopsBonus))}
@@ -24618,7 +24670,7 @@ function gpDecReqExpand(open) {
       alert('Load a dataset and select a month first.'); return;
     }
     const monthRows = RAW_ROWS.filter(r => r.month === _incMonth);
-    const monthLabel = _incMonth === '2026-05' ? 'May 2026' : _incMonth === '2026-06' ? 'June 2026' : _incMonth;
+    const monthLabel = _incMonth === '2026-05' ? 'May 2026' : _incMonth === '2026-06' ? 'June 2026' : _incMonth === '2026-07' ? 'July 2026' : _incMonth;
 
     if (_incView === 'reviewer') {
       const rvMap = {};
@@ -24627,10 +24679,10 @@ function gpDecReqExpand(open) {
         rvMap[r.reviewer].rows.push(r);
       });
       const monthWeeks = [...new Set(monthRows.map(r => r.week))];
-      const sheetData = [['Reviewer','TL','Total Score','Pts Earned','Base Acc','Precision Pts','Recall Pts','AHT Pts','Absent Pts','NHT Pts','Base Acc %','Precision %','Recall %','AHT Hit Ratio','Absenteeism %','NHT %']];
+      const sheetData = [['Reviewer','TL','Total Score','Pts Earned','Base Acc','Precision Pts','Recall Pts','AHT Pts','Absent Pts','Base Acc %','Precision %','Recall %','AHT Hit Ratio','Absenteeism %']];
       Object.keys(rvMap).forEach(rv => {
         const { rows, supervisor } = rvMap[rv];
-        const qRows = qaFilter(rows.filter(r => r.sw));
+        const qRows = incQualityFilter(rows.filter(r => r.sw), _incMonth);
         let tpa=0,fpa=0,fna=0,tna=0;
         qRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;});
         const tot=tpa+fpa+fna+tna;
@@ -24638,48 +24690,42 @@ function gpDecReqExpand(open) {
         const prec=(tpa+fpa)>0?tpa/(tpa+fpa):null;
         const rec=(tpa+fna)>0?tpa/(tpa+fna):null;
         const ahtB=calcAHTBonus(rows.filter(r=>r.sw),5);
-        let wS=0,wA=0,wD=0,wN=0;
+        let wS=0,wA=0;
         monthWeeks.forEach(wk=>{const w=WFM_LOOKUP[(rv.trim())+'|'+wk];if(w){wS+=w.sched||0;wA+=w.actual||0;}});
-        rows.forEach(r=>{if(r.sw){wD+=r.dht||0;wN+=r.nht||0;}});
         const absRate=wS>0?Math.max(0,(wS-wA)/wS):null;
-        const nhtRate=(wD+wN)>0?wN/(wD+wN):null;
         const absBonus=absRate!==null?(absRate<=0.05?0.01:0):null;
-        const nhtBonus=nhtRate!==null?(nhtRate<0.05?0.01:0):null;
         const pb=prec!==null?Math.min(prec,1)*0.01:null;
         const rb=rec!==null?Math.min(rec,1)*0.01:null;
         const ab=ahtB.bonus!==null?Math.min(ahtB.bonus,1)*0.01:null;
-        const comps=[acc,pb,rb,ab,absBonus,nhtBonus];
-        const total=comps.every(v=>v!==null)?acc+pb+rb+ab+absBonus+nhtBonus:null;
+        const comps=[acc,pb,rb,ab,absBonus];
+        const total=comps.every(v=>v!==null)?acc+pb+rb+ab+absBonus:null;
         const fmt=v=>v!==null?(v*100).toFixed(4)+'%':'';
-        sheetData.push([rv,supervisor||'',fmt(total),fmt(total),fmt(acc),fmt(pb),fmt(rb),fmt(ab),absBonus!==null?fmt(absBonus):'',nhtBonus!==null?fmt(nhtBonus):'',fmt(acc),fmt(prec),fmt(rec),ahtB.eligible>0?((ahtB.hit/ahtB.eligible)*100).toFixed(2)+'%':'',fmt(absRate),fmt(nhtRate)]);
+        sheetData.push([rv,supervisor||'',fmt(total),fmt(total),fmt(acc),fmt(pb),fmt(rb),fmt(ab),absBonus!==null?fmt(absBonus):'',fmt(acc),fmt(prec),fmt(rec),ahtB.eligible>0?((ahtB.hit/ahtB.eligible)*100).toFixed(2)+'%':'',fmt(absRate)]);
       });
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Reviewer Incentive');
       XLSX.writeFile(wb, `MVIO_Incentive_Reviewer_${monthLabel.replace(' ','_')}.xlsx`);
     } else {
-      // TL export — BASE = prec/0.96 + rec/0.96 · BONUS = flat 0.01 each (abs, nht, job, aoa, tops)
+      // TL export — BASE = prec/0.96 + rec/0.96 · BONUS = flat 0.01 each (abs, job, aoa, tops)
       const tlMap = {};
       monthRows.forEach(r => { const tl=r.supervisor||'—'; if(!tlMap[tl]) tlMap[tl]=[]; tlMap[tl].push(r); });
       const monthWeeks = [...new Set(monthRows.map(r => r.week))];
-      const sheetData = [['TL','Total Score','Base Score','Bonus Points','Precision Pts (÷0.96)','Recall Pts (÷0.96)','AHT Pts (ratio)','Absent Bonus','NHT Bonus','Job Count Bonus','AOA Bonus','TOPS Bonus','Precision %','Recall %','# SW with AHT Met','Absenteeism %','NHT %','Job Count Ratio','AOA %','TOPS %']];
+      const sheetData = [['TL','Total Score','Base Score','Bonus Points','Precision Pts (÷0.96)','Recall Pts (÷0.96)','AHT Pts (ratio)','Absent Bonus','Job Count Bonus','AOA Bonus','TOPS Bonus','Precision %','Recall %','# SW with AHT Met','Absenteeism %','Job Count Ratio','AOA %','TOPS %']];
       Object.keys(tlMap).forEach(tl => {
         const rows = tlMap[tl];
-        const qRows = qaFilter(rows.filter(r=>r.sw));
+        const qRows = incQualityFilter(rows.filter(r=>r.sw), _incMonth);
         let tpa=0,fpa=0,fna=0,tna=0;
         qRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;});
         const prec=(tpa+fpa)>0?tpa/(tpa+fpa):null;
         const rec=(tpa+fna)>0?tpa/(tpa+fna):null;
         const ahtB=calcAHTBonus(rows.filter(r=>r.sw),10);
         const teamRevs=[...new Set(rows.map(r=>r.reviewer))];
-        let wS=0,wA=0,wD=0,wN=0;
+        let wS=0,wA=0;
         teamRevs.forEach(rv=>{monthWeeks.forEach(wk=>{const w=WFM_LOOKUP[(rv.trim())+'|'+wk];if(w){wS+=w.sched||0;wA+=w.actual||0;}});});
         let _exAoaN=0,_exAoaD=0; monthWeeks.forEach(wk=>{const w=WFM_LOOKUP[(tl.trim())+'|'+wk];if(w){_exAoaN+=w.aoaN||0;_exAoaD+=w.aoaD||0;}});
-        rows.forEach(r=>{if(r.sw){wD+=r.dht||0;wN+=r.nht||0;}});
         const absRate=wS>0?Math.max(0,(wS-wA)/wS):null;
-        const nhtRate=(wD+wN)>0?wN/(wD+wN):null;
         const absBonus=absRate!==null?(absRate<=0.05?0.01:0):null;
-        const nhtBonus=nhtRate!==null?(nhtRate<0.05?0.01:0):null;
         const aoaScore=_exAoaD>0?_exAoaN/_exAoaD:null;
         const jt=calcJobTarget(rows.filter(r=>r.sw));
         const jobScore=(jt.expected!==null&&jt.expected>0)?Math.min(jt.actual/jt.expected,1):null;
@@ -24695,12 +24741,12 @@ function gpDecReqExpand(open) {
         const ahb=ahtB.bonus!==null?ahtB.bonus:null; // raw ratio e.g. 0.5
         const base=pb!==null&&rb!==null&&ahb!==null?pb+rb+ahb:null;
         // BONUS = flat 0.01 each if condition met
-        const abB=absBonus; const nhB=nhtBonus;
+        const abB=absBonus;
         const jb=jobScore!==null?(jobScore>=1?0.01:0):null;
         const aob=aoaScore!==null?(aoaScore>=1?0.01:0):null;
         const tb2=topsScore!==null?(topsScore>=1?0.01:0):null;
-        const bonusComps=[abB,nhB,jb,aob];
-        const bonus=bonusComps.every(v=>v!==null)?(abB||0)+(nhB||0)+(jb||0)+(aob||0)+(tb2||0):null;
+        const bonusComps=[abB,jb,aob];
+        const bonus=bonusComps.every(v=>v!==null)?(abB||0)+(jb||0)+(aob||0)+(tb2||0):null;
         const total=base!==null&&bonus!==null?base+bonus:null;
         const fmt4=v=>v!==null?v.toFixed(4):'';
         const fmtPct=v=>v!==null?(v*100).toFixed(4)+'%':'';
@@ -24708,10 +24754,10 @@ function gpDecReqExpand(open) {
         sheetData.push([
           tl, fmt4(total), fmt4(base), fmt4(bonus),
           fmt4(pb), fmt4(rb), fmt4(ahb),
-          fmtFlat(abB), fmtFlat(nhB), fmtFlat(jb), fmtFlat(aob), fmtFlat(tb2),
+          fmtFlat(abB), fmtFlat(jb), fmtFlat(aob), fmtFlat(tb2),
           fmtPct(prec), fmtPct(rec),
           ahtB.eligible>0?((ahtB.hit/ahtB.eligible)*100).toFixed(2)+'% ('+ahtB.hit+'/'+ahtB.eligible+')':'',
-          fmtPct(absRate), fmtPct(nhtRate), fmtPct(jobScore), fmtPct(aoaScore), fmtPct(topsScore)
+          fmtPct(absRate), fmtPct(jobScore), fmtPct(aoaScore), fmtPct(topsScore)
         ]);
       });
       const ws=XLSX.utils.aoa_to_sheet(sheetData);
@@ -24819,26 +24865,27 @@ function gpDecReqExpand(open) {
     // Render heading
     const _headEl = document.getElementById('inc-table-heading');
     if (_headEl) {
-      const _monthLabels = { '2026-06': 'June 2026' };
-      const _coverageMap = { '2026-06': '23 May – 26 June 2026' };
+      const _monthLabels = { '2026-06': 'June 2026', '2026-07': 'July 2026' };
+      const _coverageMap = { '2026-06': '23 May – 26 June 2026', '2026-07': 'Enforcement quality data' };
       const _mLabel    = _monthLabels[_incMonth]  || _incMonth;
       const _coverage  = _coverageMap[_incMonth]  || '';
       const _viewLabel = _incView === 'tl' ? 'TL Incentive' : 'Reviewer Incentive';
 
       // Max dates per data type — using r.date (YYYY-MM-DD) for precision
       const _fmtD  = d => { if(!d) return '—'; const p=d.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; };
-      const _qualRows  = qaFilter(monthRows.filter(r => r.sw));
+      const _qualRows  = incQualityFilter(monthRows.filter(r => r.sw), _incMonth);
       const _ahtRows   = monthRows.filter(r => r.sw && r.dht > 0);
       const _maxQual   = _qualRows.reduce((mx,r) => (r.date||'') > mx ? (r.date||'') : mx, '');
       const _maxAHT    = _ahtRows.reduce((mx,r)  => (r.date||'') > mx ? (r.date||'') : mx, '');
       // Absenteeism: max date from WFM rows (blank-SW rows)
       const _maxAbs    = monthRows.filter(r => !r.sw && (r.sched||0) > 0)
                            .reduce((mx,r) => (r.date||'') > mx ? (r.date||'') : mx, '');
+      const _weeksLabel = isJulyScheme(_incMonth) ? '' : ' &nbsp;·&nbsp; 5 Weeks';
 
       _headEl.style.display = 'block';
       _headEl.innerHTML = `
         <div style="font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--text);line-height:1.2">${_viewLabel} — ${_mLabel}</div>
-        ${_coverage ? `<div style="font-size:12px;color:var(--ts);margin-top:3px;font-weight:500">${_coverage} &nbsp;·&nbsp; 5 Weeks</div>` : ''}
+        ${_coverage ? `<div style="font-size:12px;color:var(--ts);margin-top:3px;font-weight:500">${_coverage}${_weeksLabel}</div>` : ''}
         <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
           <span style="font-size:11px;color:var(--tm)">Quality data up to <strong style="color:var(--text)">${_fmtD(_maxQual)}</strong></span>
           <span style="font-size:11px;color:var(--tm)">AHT data up to <strong style="color:var(--text)">${_fmtD(_maxAHT)}</strong></span>
@@ -24847,8 +24894,8 @@ function gpDecReqExpand(open) {
     }
 
     const content = _incView === 'tl'
-      ? renderTLTable(monthRows)
-      : renderReviewerTable(monthRows);
+      ? renderTLTable(monthRows, _incMonth)
+      : renderReviewerTable(monthRows, _incMonth);
 
     tableEl.innerHTML = content;
   }
