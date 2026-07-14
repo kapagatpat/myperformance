@@ -26577,17 +26577,6 @@ function mcdGenerate(){
     <div id="scm-warn" class="scm-warn" style="display:none"></div>
 
     <div class="scm-card">
-      <div class="scm-card-hdr"><div class="scm-card-title" id="scm-team-title">Team QA</div></div>
-      <div class="scm-card-body">
-        <div class="scm-metrics">
-          <div class="scm-metric"><div class="scm-metric-lbl">Adj Accuracy</div><div class="scm-metric-val" id="scm-team-acc">—</div></div>
-          <div class="scm-metric"><div class="scm-metric-lbl">Precision</div><div class="scm-metric-val" id="scm-team-prec">—</div></div>
-          <div class="scm-metric"><div class="scm-metric-lbl">Recall</div><div class="scm-metric-val" id="scm-team-rec">—</div></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="scm-card">
       <div class="scm-card-hdr"><div class="scm-card-title">Personal Quality by Sub-Workflow</div></div>
       <div class="scm-card-body">
         <div class="twrap"><table><thead><tr><th>Sub-Workflow</th><th>Decisions</th><th>Adj Acc</th><th>Precision</th><th>Recall</th><th>Errors</th></tr></thead><tbody id="scm-q-rows"></tbody></table></div>
@@ -26601,21 +26590,14 @@ function mcdGenerate(){
       </div>
     </div>
 
-    <div class="scm-card">
-      <div class="scm-card-hdr"><div class="scm-card-title">AOA / MSV / Attendance</div></div>
-      <div class="scm-card-body">
-        <div class="scm-metrics">
-          <div class="scm-metric"><div class="scm-metric-lbl">AOA</div><div class="scm-metric-val" id="scm-aoa">—</div></div>
-          <div class="scm-metric"><div class="scm-metric-lbl">MSV</div><div class="scm-metric-val" id="scm-msv">—</div></div>
-          <div class="scm-metric"><div class="scm-metric-lbl">Absenteeism</div><div class="scm-metric-val" id="scm-abs">—</div></div>
-        </div>
-      </div>
-    </div>
+    <div id="scm-fa-container" style="display:flex;flex-direction:column;gap:10px"></div>
 
     <div>
       <div class="scm-sec">Notes (optional)</div>
       <textarea class="scm-notes" id="scm-notes" rows="2" placeholder="Prior coaching history, context, or anything relevant going into this conversation."></textarea>
     </div>
+
+    <div class="tcm-val-err" id="scm-val-err">Every card needs at least 1 action on each side before generating.</div>
 
   </div>
 
@@ -27883,12 +27865,179 @@ function _tcmGenerateDoc(config){
 // ─── END TL COACHING MODAL ──────────────────────────────────────────────────
 
 // ─── SME COACHING MODAL ─────────────────────────────────────────────────────
-// Namespace: scm* / _scm. Lean by design (per spec): no opportunity checklist,
-// no TL/AOM action banks — just Team QA (the supported TL's team, Adj Acc/Prec/
-// Rec only, no AHT) + Personal Performance (Quality, AHT, AOA, MSV, Absenteeism)
-// + free-text notes. Pattern-matches openTlCoachingModal/renderSmeTab for data,
-// but keeps its own state object and DOM ids to avoid any collision with mcd/tcm.
-var _scm = { sme:'', tl:null, mode:'monthly', periodLabel:'' };
+// Namespace: scm* / _scm. Mirrors the tcm (TL coaching modal) mechanism:
+//  - ALWAYS tier: Team Precision, Team Recall, Team Accuracy — informational
+//    (the team the SME supports), always shown, always need actions.
+//  - AUTO tier: Personal Adj Accuracy/Precision/Recall (AR-gated, same rule as
+//    reviewers), Personal AHT, Personal AOA, Personal MSV — only appear as
+//    cards when the SME is failing that metric, computed fresh each open.
+//  - No manual/qualitative tier (per spec) — SME coaching is metric-driven only.
+// Each card gets a two-column action picker: SME-side (supportive actions —
+// asking questions, raising flags, providing guidance for team cards; reviewer-
+// style self-actions for personal cards) and AOM-side.
+const SCM_ALWAYS_OPPS = [
+  { key:'tprec', label:'Team Precision', metric:'tprec' },
+  { key:'trec',  label:'Team Recall',    metric:'trec' },
+  { key:'tacc',  label:'Team Accuracy',  metric:'tacc' }
+];
+const SCM_AUTO_OPPS = [
+  { key:'pacc',  label:'Personal Accuracy',  metric:'pacc' },
+  { key:'pprec', label:'Personal Precision', metric:'pprec' },
+  { key:'prec_r',label:'Personal Recall',    metric:'prec_r' },
+  { key:'paht',  label:'Personal AHT',       metric:'paht' },
+  { key:'paoa',  label:'Personal AOA',       metric:'paoa' },
+  { key:'pmsv',  label:'Personal MSV',       metric:'pmsv' }
+];
+const SCM_OPPORTUNITIES = [...SCM_ALWAYS_OPPS, ...SCM_AUTO_OPPS];
+
+// ── Action banks ─────────────────────────────────────────────────────────────
+// Team cards (tprec/trec/tacc): SME is supporting, not coaching — actions are
+// framed as raising questions, flagging patterns, and providing guidance to the
+// TL, not running interventions themselves.
+// Personal cards (pacc/pprec/prec_r/paht): identical wording to the reviewer
+// coaching modal's Quality/Efficiency action banks, since the SME is being
+// coached on these exactly like a reviewer would be.
+// Personal AOA/MSV: new SME-appropriate wording, same register as the rest.
+const SCM_ACTION_BANK = {
+  tprec: {
+    sme: [
+      'Flag the specific policy or SW driving the team\u2019s Precision gap to the TL',
+      'Raise borderline over-tagging patterns noticed while supporting jobs',
+      'Ask the TL what calibration or coaching has already been tried on this gap',
+      'Offer to sit in on the TL\u2019s next calibration session as a policy resource'
+    ],
+    aom: [
+      'Review the SME\u2019s observations on team Precision with the TL at next 1:1',
+      'Confirm the SME and TL are aligned on the threshold driving the gap',
+      'Escalate to OAM if team Precision does not improve next period'
+    ]
+  },
+  trec: {
+    sme: [
+      'Flag the specific policy or SW driving the team\u2019s Recall gap to the TL',
+      'Raise borderline under-tagging patterns noticed while supporting jobs',
+      'Ask the TL what calibration or coaching has already been tried on this gap',
+      'Offer to sit in on the TL\u2019s next calibration session as a policy resource'
+    ],
+    aom: [
+      'Review the SME\u2019s observations on team Recall with the TL at next 1:1',
+      'Confirm the SME and TL are aligned on the threshold driving the gap',
+      'Escalate to OAM if team Recall does not improve next period'
+    ]
+  },
+  tacc: {
+    sme: [
+      'Flag the specific policy or SW driving the team\u2019s Accuracy gap to the TL',
+      'Review recent team error patterns and raise recurring themes with the TL',
+      'Ask the TL what calibration or coaching has already been tried on this gap',
+      'Offer guidance to reviewers on the flagged policy if the TL requests it'
+    ],
+    aom: [
+      'Review the SME\u2019s observations on team Accuracy with the TL at next 1:1',
+      'Confirm the SME and TL are aligned on the threshold driving the gap',
+      'Escalate to OAM if team Accuracy does not improve next period'
+    ]
+  },
+  pacc: {
+    sme: [
+      'Re-read CCVE clause for flagged policy — come to session ready to explain the threshold in your own words',
+      'Zero solo calls on flagged policy borderlines — flag to AOM before deciding',
+      'Self-check last 10 decisions on flagged SW before next session',
+      'Bring 2 borderline cases from last month to next 1:1 for discussion',
+      'Review IPB and CCVE for flagged policy — check for recent updates before session'
+    ],
+    aom: [
+      'Knowledge Transfer — re-teach the policy clause directly; SME to explain threshold in their own words before next session',
+      'Pull 3 error jobs and run a side-by-side walkthrough before mid-month',
+      'Schedule calibration session on flagged policy this month',
+      'Spot-check 5 decisions on flagged SW at mid-month — document outcomes',
+      'Escalate to supervisor by end of month if no measurable improvement'
+    ]
+  },
+  pprec: {
+    sme: [
+      'Review over-tagging (FP-driving) errors — pull recent flagged decisions',
+      'Zero solo calls on flagged policy borderlines — flag to AOM before deciding',
+      'Self-check last 10 decisions on flagged SW before next session',
+      'Bring 2 borderline cases from last month to next 1:1 for discussion'
+    ],
+    aom: [
+      'Review Precision trend with SME at next 1:1',
+      'Confirm the top FP-driving policy with SME and align on the correct threshold',
+      'Schedule calibration session on flagged policy this month',
+      'Escalate to OAM if Precision does not improve next period'
+    ]
+  },
+  prec_r: {
+    sme: [
+      'Review under-tagging (FN-driving) errors — pull recent missed decisions',
+      'Zero solo calls on flagged policy borderlines — flag to AOM before deciding',
+      'Self-check last 10 decisions on flagged SW before next session',
+      'Bring 2 borderline cases from last month to next 1:1 for discussion'
+    ],
+    aom: [
+      'Review Recall trend with SME at next 1:1',
+      'Confirm the top FN-driving policy with SME and align on the correct threshold',
+      'Schedule calibration session on flagged policy this month',
+      'Escalate to OAM if Recall does not improve next period'
+    ]
+  },
+  paht: {
+    sme: [
+      'Once a decision is formed, submit — no re-checking unless new information appears in the job',
+      'Track your own pacing on the flagged SW for 1 week — note where time goes and bring to 1:1',
+      'Review your last 10 jobs on the flagged SW — identify where time is going',
+      'Flag any tooling or process friction points in the queue during next 1:1'
+    ],
+    aom: [
+      'Side-by-side on flagged SW — observe and count re-checks after initial decision is formed',
+      'Check AHT at 2 weeks — confirm stabilizing toward target without a quality trade-off',
+      'Identify top-pacing reviewer on the flagged SW and schedule a process-sharing session',
+      'No AHT targets this period if it would trade off against quality — flag to OAM'
+    ]
+  },
+  paoa: {
+    sme: [
+      'Review own schedule adherence gaps for the period and identify the recurring driver',
+      'Flag any recurring scheduling or tooling conflicts affecting availability to AOM',
+      'Confirm shift/break timing understanding with AOM if gaps are process-related'
+    ],
+    aom: [
+      'Review AOA trend with SME at next 1:1 and identify whether the driver is process or personal',
+      'Confirm no scheduling or system issue is causing the AOA gap',
+      'Monitor AOA weekly for the next 4 weeks — flag if trend worsens'
+    ]
+  },
+  pmsv: {
+    sme: [
+      'Review own queue/status transitions for the period and identify where time is lost outside decisions',
+      'Flag any tooling issues affecting status accuracy to AOM',
+      'Confirm correct status usage understanding with AOM if gaps are process-related'
+    ],
+    aom: [
+      'Review MSV trend with SME at next 1:1 and identify whether the driver is process or personal',
+      'Confirm no tooling or status-logging issue is causing the MSV gap',
+      'Monitor MSV weekly for the next 4 weeks — flag if trend worsens'
+    ]
+  }
+};
+
+var _scm = { sme:'', tl:null, mode:'monthly', periodLabel:'', metrics:{}, autoFlagged:new Set(), actions:{} };
+
+function scmIsOffTarget(key, m){
+  switch(key){
+    case 'tprec':  return m.tprec.val!==null ? m.tprec.val < m.tprec.tgt : null;
+    case 'trec':   return m.trec.val!==null  ? m.trec.val  < m.trec.tgt  : null;
+    case 'tacc':   return m.tacc.val!==null  ? m.tacc.val  < m.tacc.tgt  : null;
+    case 'pacc':   return m.pacc.val!==null  ? m.pacc.val  < m.pacc.tgt  : null;
+    case 'pprec':  return m.pprec.val!==null ? m.pprec.val < m.pprec.tgt : null;
+    case 'prec_r': return m.prec_r.val!==null? m.prec_r.val< m.prec_r.tgt: null;
+    case 'paht':   return m.paht.val!==null  ? m.paht.val  > m.paht.tgt  : null; // higher AHT = worse
+    case 'paoa':   return m.paoa.val!==null  ? m.paoa.val  < m.paoa.tgt  : null;
+    case 'pmsv':   return m.pmsv.val!==null  ? m.pmsv.val  < m.pmsv.tgt  : null;
+    default: return null;
+  }
+}
 
 function openSmeCoachingModal(mode){
   const sme = document.getElementById('g-sme') ? document.getElementById('g-sme').value : '';
@@ -27916,6 +28065,10 @@ function openSmeCoachingModal(mode){
   _scm.mode = mode || 'monthly';
   _scm.periodLabel = periodLabel;
   _scm.tl = getSmeTl(sme);
+  _scm.actions = {};
+
+  const PR_TARGET = 0.96; // Team QA target is always 96%, per spec
+  const ACC_TARGET = (typeof T!=='undefined' && T.adj_acc) ? T.adj_acc.v : 0.95;
 
   // ── Team QA (Adj Acc/Prec/Rec only, no AHT — per spec) ──────────────────
   let teamAcc=null, teamPrec=null, teamRec=null;
@@ -27961,6 +28114,26 @@ function openSmeCoachingModal(mode){
   }).filter(Boolean);
   _scm.swAht = swAht;
 
+  // ── Personal Adj Acc / Prec / Rec — AR-gated, same rule as reviewers ────
+  let tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0;
+  periodRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;});
+  const tot = tpa+fpa+fna+tna;
+  const pAcc  = tot>0 ? (tpa+tna)/tot : null;
+  const pPrec = (tpa+fpa)>0 ? tpa/(tpa+fpa) : null;
+  const pRec  = (tpa+fna)>0 ? tpa/(tpa+fna) : null;
+  const pAr   = tot>0 ? (tpa+fpa)/tot : null;
+  const pAht  = dec>0 ? Math.round((dht+nht)/dec) : null;
+  const pHighAR = pAr!==null && pAr>=0.10;
+  // AHT target: SW-weighted average of SW_TARGETS across periodRows' SWs, falling back to null
+  let pAhtTgtNum=0, pAhtTgtDen=0;
+  swList.forEach(sw=>{
+    const tgt = (SW_TARGETS[sw] && SW_TARGETS[sw].aht) ? SW_TARGETS[sw].aht : null;
+    if(tgt===null) return;
+    const swDec = periodRows.filter(r=>r.sw===sw).reduce((s,r)=>s+(r.decisions||0),0);
+    pAhtTgtNum += tgt*swDec; pAhtTgtDen += swDec;
+  });
+  const pAhtTgt = pAhtTgtDen>0 ? Math.round(pAhtTgtNum/pAhtTgtDen) : null;
+
   // ── AOA/MSV/Absenteeism — personal only, via aggWfm scoped to this SME ────
   const wkSet = new Set(periodRows.map(r=>r.week).filter(Boolean));
   let wfm = { aoa:null, msv:null, abs:null };
@@ -27968,6 +28141,28 @@ function openSmeCoachingModal(mode){
     try { wfm = aggWfm(new Set([sme]), wkSet.size ? wkSet : null, null); } catch(e){ console.warn('[scm] aggWfm failed', e); }
   }
   _scm.wfm = wfm;
+  const AOA_TARGET = (typeof T!=='undefined') ? T.aoa.v : 0.98;
+  const MSV_TARGET = (typeof T!=='undefined') ? T.msv.v : 0.98;
+
+  _scm.metrics = {
+    tprec:  { val: teamPrec, tgt: PR_TARGET },
+    trec:   { val: teamRec,  tgt: PR_TARGET },
+    tacc:   { val: teamAcc,  tgt: PR_TARGET },
+    pacc:   { val: pAcc,  tgt: ACC_TARGET, gate: !pHighAR },   // Accuracy applies when AR < 10%
+    pprec:  { val: pPrec, tgt: PR_TARGET,  gate: pHighAR },    // Precision/Recall apply when AR >= 10%
+    prec_r: { val: pRec,  tgt: PR_TARGET,  gate: pHighAR },
+    paht:   { val: pAht,  tgt: pAhtTgt },
+    paoa:   { val: wfm.aoa, tgt: AOA_TARGET },
+    pmsv:   { val: wfm.msv, tgt: MSV_TARGET }
+  };
+
+  // ── Auto-flag: personal metrics only flag if gated-in AND failing ───────
+  _scm.autoFlagged = new Set();
+  SCM_AUTO_OPPS.forEach(o=>{
+    const m = _scm.metrics[o.key];
+    if(m && m.gate === false) return; // AR-gated out this period — muted, don't flag
+    if(scmIsOffTarget(o.key, _scm.metrics) === true) _scm.autoFlagged.add(o.key);
+  });
 
   // ── Populate modal DOM ────────────────────────────────────────────────────
   const docLabel = _scm.mode==='weekly' ? 'Weekly SME coaching doc' : 'Monthly SME coaching doc';
@@ -27977,17 +28172,12 @@ function openSmeCoachingModal(mode){
   const warnEl = document.getElementById('scm-warn');
   if(_scm.tl){
     warnEl.style.display = 'none';
-    document.getElementById('scm-team-title').textContent = 'Team QA — Supporting ' + sn(_scm.tl);
   } else {
     warnEl.style.display = '';
-    warnEl.textContent = '⚠ No TL assignment found for ' + sn(sme) + ' in SME_TL_MAP — team QA cannot be shown until the map is updated.';
-    document.getElementById('scm-team-title').textContent = 'Team QA — No TL assigned';
+    warnEl.textContent = '⚠ No TL assignment found for ' + sn(sme) + ' in SME_TL_MAP — team QA cards cannot be shown until the map is updated.';
   }
 
   const pctStr = v => v!==null && v!==undefined ? (v*100).toFixed(2)+'%' : '—';
-  document.getElementById('scm-team-acc').textContent = pctStr(teamAcc);
-  document.getElementById('scm-team-prec').textContent = pctStr(teamPrec);
-  document.getElementById('scm-team-rec').textContent = pctStr(teamRec);
 
   const qBody = document.getElementById('scm-q-rows');
   qBody.innerHTML = swQuality.length ? swQuality.map(sq=>
@@ -28000,13 +28190,198 @@ function openSmeCoachingModal(mode){
     return `<tr><td>${x.sw}</td><td>${x.dec}</td><td>${x.actual}s</td><td>${x.target?x.target+'s':'—'}</td><td>${statusTxt}</td></tr>`;
   }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--tm)">No SW meets the 10-decision minimum for this period.</td></tr>';
 
-  document.getElementById('scm-aoa').textContent = pctStr(wfm.aoa);
-  document.getElementById('scm-msv').textContent = pctStr(wfm.msv);
-  document.getElementById('scm-abs').textContent = pctStr(wfm.abs);
   document.getElementById('scm-notes').value = '';
+  document.getElementById('scm-val-err').classList.remove('tcm-show');
+
+  scmRenderFocusAreas();
 
   document.getElementById('scm-overlay').classList.add('scm-open');
   document.body.style.overflow = 'hidden';
+}
+
+function scmEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function scmPct(v){ return v!==null && v!==undefined ? (v*100).toFixed(2)+'%' : '—'; }
+function scmSecs(v){ return v!==null && v!==undefined ? Math.round(v)+'s' : '—'; }
+function scmFlagClass(off){ return off===null ? 'tcm-badge-n' : (off ? 'tcm-badge-r' : 'tcm-badge-g'); }
+function scmFlagLabel(off){ return off===null ? 'No data' : (off ? 'Off target' : 'On target'); }
+
+function scmDefaultCommit(key){
+  const m = _scm.metrics;
+  switch(key){
+    case 'tprec':  return { current: scmPct(m.tprec.val),  default: '≥'+scmPct(m.tprec.tgt) };
+    case 'trec':   return { current: scmPct(m.trec.val),   default: '≥'+scmPct(m.trec.tgt) };
+    case 'tacc':   return { current: scmPct(m.tacc.val),   default: '≥'+scmPct(m.tacc.tgt) };
+    case 'pacc':   return { current: scmPct(m.pacc.val),   default: '≥'+scmPct(m.pacc.tgt) };
+    case 'pprec':  return { current: scmPct(m.pprec.val),  default: '≥'+scmPct(m.pprec.tgt) };
+    case 'prec_r': return { current: scmPct(m.prec_r.val), default: '≥'+scmPct(m.prec_r.tgt) };
+    case 'paht':   return { current: scmSecs(m.paht.val),  default: m.paht.tgt!==null ? '≤'+scmSecs(m.paht.tgt) : 'Define with AOM' };
+    case 'paoa':   return { current: scmPct(m.paoa.val),   default: '≥'+scmPct(m.paoa.tgt) };
+    case 'pmsv':   return { current: scmPct(m.pmsv.val),   default: '≥'+scmPct(m.pmsv.tgt) };
+    default: return { current: null, default: '' };
+  }
+}
+
+function scmMetricCommitRow(metricLbl, metricValHtml, key, extraNote){
+  const c = scmDefaultCommit(key);
+  return `<div class="tcm-mc-row">
+      <div class="tcm-mc-metric">
+        <div class="tcm-mc-lbl">${metricLbl}</div>
+        <div class="tcm-mc-val">${metricValHtml}</div>
+      </div>
+      <span class="tcm-mc-arr">→</span>
+      <div class="tcm-mc-commit">
+        <div class="tcm-mc-commit-lbl">Commit target</div>
+        <input class="tcm-commit-inp" type="text" id="scm-commit-${key}" value="${scmEsc(c.default)}" />
+      </div>
+    </div>
+    ${extraNote ? `<div class="tcm-commit-hint">${extraNote}</div>` : ''}`;
+}
+
+function scmMetricsBlock(key){
+  const m = _scm.metrics;
+  const simple = (lbl, mm, higherIsBetter) => {
+    const off = mm.val!==null ? (higherIsBetter ? mm.val < mm.tgt : mm.val > mm.tgt) : null;
+    const tgtStr = mm.tgt!==null ? (key==='paht' ? scmSecs(mm.tgt) : scmPct(mm.tgt)) : '—';
+    const valStr = key==='paht' ? scmSecs(mm.val) : scmPct(mm.val);
+    return {
+      badgeClass: scmFlagClass(off), badgeLabel: scmFlagLabel(off),
+      html: scmMetricCommitRow(lbl,
+        `<span style="color:${off?'var(--coral)':'var(--green)'}">${valStr}</span> <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tgtStr} tgt</span>`,
+        key,
+        (key==='pacc'||key==='pprec'||key==='prec_r') && mm.gate===false ? 'Currently muted by Action Rate gating — this metric is not the applicable one this period.' : null)
+    };
+  };
+  switch(key){
+    case 'tprec':  return simple('Team Precision', m.tprec, true);
+    case 'trec':   return simple('Team Recall', m.trec, true);
+    case 'tacc':   return simple('Team Accuracy', m.tacc, true);
+    case 'pacc':   return simple('Personal Accuracy', m.pacc, true);
+    case 'pprec':  return simple('Personal Precision', m.pprec, true);
+    case 'prec_r': return simple('Personal Recall', m.prec_r, true);
+    case 'paht':   return simple('Personal AHT', m.paht, false);
+    case 'paoa':   return simple('Personal AOA', m.paoa, true);
+    case 'pmsv':   return simple('Personal MSV', m.pmsv, true);
+    default: return null;
+  }
+}
+
+function scmRenderFocusAreas(){
+  const container = document.getElementById('scm-fa-container');
+  if(!container) return;
+
+  const alwaysKeys = _scm.tl ? SCM_ALWAYS_OPPS.map(o=>o.key) : []; // no TL assigned -> no team cards
+  const autoKeys = [...SCM_AUTO_OPPS.map(o=>o.key)].filter(k=>_scm.autoFlagged.has(k));
+
+  [...alwaysKeys, ...autoKeys].forEach(key=>{
+    if(!_scm.actions[key]) _scm.actions[key] = { sme:[], aom:[] };
+  });
+
+  const cardHtml = (key) => {
+    const opp = SCM_OPPORTUNITIES.find(o=>o.key===key);
+    const metricBlock = scmMetricsBlock(key);
+    const badgeClass = metricBlock ? metricBlock.badgeClass : 'tcm-badge-n';
+    const badgeLabel = metricBlock ? metricBlock.badgeLabel : 'Manual';
+    const bank = SCM_ACTION_BANK[key] || {sme:[],aom:[]};
+
+    const smeOpts = bank.sme.map(a=>`<option value="${scmEsc(a)}">${scmEsc(a.length>70?a.slice(0,70)+'…':a)}</option>`).join('');
+    const aomOpts = bank.aom.map(a=>`<option value="${scmEsc(a)}">${scmEsc(a.length>70?a.slice(0,70)+'…':a)}</option>`).join('');
+
+    return `<div class="tcm-fa" id="scm-fa-${key}">
+      <div class="tcm-fa-hdr">
+        <span class="tcm-badge ${badgeClass}">${badgeLabel}</span>
+        <span class="tcm-fa-title">${scmEsc(opp.label)}</span>
+      </div>
+      <div class="tcm-fa-body">
+        ${metricBlock ? metricBlock.html : ''}
+        <div class="tcm-act-cols">
+          <div>
+            <div class="tcm-act-col-hdr">🧭 SME <span class="tcm-cnt" id="scm-cnt-sme-${key}">0 / 3</span></div>
+            <select class="tcm-picker" id="scm-pk-sme-${key}" onchange="scmAddAction('${key}','sme',this)">
+              <option value="">— select action —</option>
+              ${smeOpts}
+            </select>
+            <div class="tcm-act-list" id="scm-list-sme-${key}"></div>
+            <button class="tcm-add-btn" onclick="document.getElementById('scm-pk-sme-${key}').focus()">+ Add SME action</button>
+          </div>
+          <div>
+            <div class="tcm-act-col-hdr">👥 AOM <span class="tcm-cnt" id="scm-cnt-aom-${key}">0 / 3</span></div>
+            <select class="tcm-picker" id="scm-pk-aom-${key}" onchange="scmAddAction('${key}','aom',this)">
+              <option value="">— select action —</option>
+              ${aomOpts}
+            </select>
+            <div class="tcm-act-list" id="scm-list-aom-${key}"></div>
+            <button class="tcm-add-btn" onclick="document.getElementById('scm-pk-aom-${key}').focus()">+ Add AOM action</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  const groupHdr = (label) => `<div class="tcm-sec" style="margin-top:4px">${label}</div>`;
+
+  let html = '';
+  if(alwaysKeys.length){
+    html += groupHdr('Team performance — always reviewed');
+    html += alwaysKeys.map(cardHtml).join('');
+  }
+  if(autoKeys.length){
+    html += groupHdr('Personal performance — off target this period');
+    html += autoKeys.map(cardHtml).join('');
+  }
+  if(!alwaysKeys.length && !autoKeys.length){
+    html = '<div class="tcm-empty-note">No team assignment and no personal metrics off target this period — nothing to coach on right now.</div>';
+  }
+
+  container.innerHTML = html;
+
+  [...alwaysKeys, ...autoKeys].forEach(key => {
+    scmRenderList(key,'sme'); scmRenderList(key,'aom');
+    scmUpdateCount(key,'sme'); scmUpdateCount(key,'aom');
+  });
+}
+
+function scmEomDate(){
+  const d = new Date();
+  const end = new Date(d.getFullYear(), d.getMonth()+1, 0);
+  return end.toISOString().slice(0,10);
+}
+
+function scmAddAction(key, side, sel){
+  if(!sel.value) return;
+  const list = _scm.actions[key][side];
+  if(list.length >= 3){ sel.value=''; alert('Maximum 3 actions per side.'); return; }
+  if(list.findIndex(x=>x.text===sel.value) >= 0){ sel.value=''; return; }
+  list.push({ text: sel.value, date: scmEomDate() });
+  scmRenderList(key, side);
+  scmUpdateCount(key, side);
+  sel.value = '';
+}
+
+function scmRemoveAction(key, side, idx){
+  _scm.actions[key][side].splice(idx,1);
+  scmRenderList(key, side);
+  scmUpdateCount(key, side);
+}
+
+function scmUpdateActionDate(key, side, idx, val){
+  if(_scm.actions[key][side][idx]) _scm.actions[key][side][idx].date = val;
+}
+
+function scmRenderList(key, side){
+  const el = document.getElementById(`scm-list-${side}-${key}`);
+  if(!el) return;
+  el.innerHTML = _scm.actions[key][side].map((a,i)=>{
+    const dateEl = a.date ? `<input type="date" class="tcm-act-date" value="${scmEsc(a.date)}" onchange="scmUpdateActionDate('${key}','${side}',${i},this.value)" />` : '';
+    return `<div class="tcm-act-item"><span class="tcm-act-txt">${scmEsc(a.text)}</span>${dateEl}<span class="tcm-act-rm" onclick="scmRemoveAction('${key}','${side}',${i})">×</span></div>`;
+  }).join('');
+}
+
+function scmUpdateCount(key, side){
+  const el = document.getElementById(`scm-cnt-${side}-${key}`);
+  if(!el) return;
+  const n = _scm.actions[key][side].length;
+  el.textContent = n + ' / 3';
+  el.className = 'tcm-cnt' + (n>=3 ? ' tcm-max' : '');
 }
 
 function closeScmModal(){
@@ -28016,6 +28391,29 @@ function closeScmModal(){
 function scmOverlayClick(e){ if(e.target===document.getElementById('scm-overlay')) closeScmModal(); }
 
 function scmGenerate(){
+  const alwaysKeys = _scm.tl ? SCM_ALWAYS_OPPS.map(o=>o.key) : [];
+  const autoKeys = [...SCM_AUTO_OPPS.map(o=>o.key)].filter(k=>_scm.autoFlagged.has(k));
+  const activeKeys = [...alwaysKeys, ...autoKeys];
+
+  let err = false;
+  activeKeys.forEach(key=>{
+    const a = _scm.actions[key];
+    if(!a || a.sme.length<1 || a.aom.length<1) err = true;
+  });
+  if(err){
+    document.getElementById('scm-val-err').textContent = 'Every card needs at least 1 SME action and 1 AOM action before generating.';
+    document.getElementById('scm-val-err').classList.add('tcm-show');
+    return;
+  }
+  document.getElementById('scm-val-err').classList.remove('tcm-show');
+
+  const commits = {};
+  activeKeys.forEach(key=>{
+    const el = document.getElementById('scm-commit-'+key);
+    const d = scmDefaultCommit(key);
+    commits[key] = { current: d.current, target: el ? el.value.trim() : d.default };
+  });
+
   const config = {
     sme: _scm.sme,
     tl: _scm.tl,
@@ -28025,6 +28423,11 @@ function scmGenerate(){
     swQuality: _scm.swQuality,
     swAht: _scm.swAht,
     wfm: _scm.wfm,
+    opportunities: activeKeys,
+    oppLabels: Object.fromEntries(SCM_OPPORTUNITIES.map(o=>[o.key,o.label])),
+    actions: JSON.parse(JSON.stringify(_scm.actions)),
+    metrics: _scm.metrics,
+    commits: commits,
     notes: document.getElementById('scm-notes').value.trim()
   };
   closeScmModal();
@@ -28034,6 +28437,7 @@ function scmGenerate(){
     alert(msg); console.error('[scmGenerate]', err);
   }
 }
+
 
 function _scmGenerateDoc(config){
   const lightGray='#F4F6F9', borderColor='#DDE1E9', divider='#E8EBF0';
