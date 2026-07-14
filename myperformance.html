@@ -26715,6 +26715,30 @@ function openTlCoachingModal(mode){
   const PREC_TARGET = 0.96; // Precision & Recall target is always >=96%, per spec — not the general 0.95 QA target
   const REC_TARGET  = 0.96;
 
+  // ── SW-level Precision/Recall breakdown — informational context under the team
+  // rollup card so coaching actions can be pointed at the SW actually driving the
+  // gap. Same >=50-decision volume gate as the AHT pass-rate logic below, applied
+  // per-SW so a low-volume SW doesn't swing the "failing SW" list on noise.
+  const swPrecFails = [], swRecFails = [];
+  {
+    const swBreakMap = {};
+    periodRows.forEach(r=>{
+      const key = r.sw||'Unknown';
+      if(!swBreakMap[key]) swBreakMap[key] = {sw:key, tpa:0,fpa:0,fna:0,tna:0,dec:0};
+      const s = swBreakMap[key];
+      s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0; s.dec+=r.decisions||0;
+    });
+    Object.values(swBreakMap).forEach(s=>{
+      if(s.dec < 50) return; // insufficient volume to judge at SW level
+      const swPrec = (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
+      const swRec  = (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
+      if(swPrec!==null && swPrec < PREC_TARGET) swPrecFails.push({ sw:s.sw, val:swPrec, errors:s.fpa });
+      if(swRec!==null && swRec < REC_TARGET) swRecFails.push({ sw:s.sw, val:swRec, errors:s.fna });
+    });
+    swPrecFails.sort((a,b)=>a.val-b.val);
+    swRecFails.sort((a,b)=>a.val-b.val);
+  }
+
   // ── AHT — SW pass-rate based, not pooled team AHT ───────────────────────────
   // Per SW: needs >=50 decisions to qualify. Passes if actual AHT <= SW target.
   // Opportunity flags red if <80% of qualifying SWs pass.
@@ -26754,8 +26778,8 @@ function openTlCoachingModal(mode){
   const MSV_TARGET = (typeof T!=='undefined') ? T.msv.v : 0.98;
 
   _tcm.metrics = {
-    prec:   { val:teamPrec, tgt:PREC_TARGET },
-    rec:    { val:teamRec,  tgt:REC_TARGET },
+    prec:   { val:teamPrec, tgt:PREC_TARGET, swFails:swPrecFails },
+    rec:    { val:teamRec,  tgt:REC_TARGET,  swFails:swRecFails },
     aht:    { passRate:ahtPassRate, passRateTgt:AHT_PASSRATE_TARGET, passing:ahtPassing, qualifying:ahtQualifying, swResults:swAhtResults },
     tops:   { val:topsScore, tgt:TOPS_TARGET },
     fin:    { val:wfm.abs, tgt:ABS_TARGET },
@@ -27005,6 +27029,23 @@ function tcmMetricCommitRow(metricLbl, metricValHtml, key, extraNote){
     ${extraNote ? `<div class="tcm-commit-hint">${extraNote}</div>` : ''}`;
 }
 
+// Renders the failing-SW breakdown list (informational context only — no per-SW
+// action pickers) under a team-level Precision/Recall/Accuracy metric row.
+// errLabel is 'FP' for Precision, 'FN' for Recall, 'Errors' for Accuracy.
+function tcmSwFailNote(swFails, errLabel){
+  if(!swFails || !swFails.length) return null;
+  const rows = swFails.map(f =>
+    `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0">
+       <span>${tcmEsc(f.sw)}</span>
+       <span style="font-family:var(--m);white-space:nowrap">${tcmPct(f.val)} · ${f.errors} ${errLabel}</span>
+     </div>`
+  ).join('');
+  return `<div style="margin-top:2px">
+      <div style="font-weight:700;color:var(--tm);margin-bottom:2px">SW(s) below target:</div>
+      ${rows}
+    </div>`;
+}
+
 function tcmMetricsBlock(key){
   const m = _tcm.metrics;
   if(key === 'prec'){
@@ -27014,7 +27055,8 @@ function tcmMetricsBlock(key){
       badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
       html: tcmMetricCommitRow('Team Precision',
         `<span style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(p.val)}</span> <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(p.tgt)} tgt</span>`,
-        key)
+        key,
+        tcmSwFailNote(p.swFails, 'FP'))
     };
   }
   if(key === 'rec'){
@@ -27024,7 +27066,8 @@ function tcmMetricsBlock(key){
       badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
       html: tcmMetricCommitRow('Team Recall',
         `<span style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(r.val)}</span> <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(r.tgt)} tgt</span>`,
-        key)
+        key,
+        tcmSwFailNote(r.swFails, 'FN'))
     };
   }
   if(key === 'aht'){
@@ -27481,6 +27524,23 @@ function _tcmGenerateDoc(config){
     return `<div style="padding:5px 0;border-bottom:0.5px solid ${borderColor};font-size:13px;color:${textSec};line-height:1.5">→ ${a.text}${dt}</div>`;
   }).join('');
 
+  // SW-level fail breakdown — informational context row for Precision/Recall
+  // (and Accuracy on the SME doc) cards. errLabel: 'FP' for Precision, 'FN' for
+  // Recall, 'Errors' for Accuracy.
+  const swFailHtml = (swFails, errLabel) => {
+    if(!swFails || !swFails.length) return '';
+    const rows = swFails.map(f =>
+      `<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:12px;color:${textSec}">
+         <span>${f.sw}</span>
+         <span style="font-family:${mono};white-space:nowrap">${pctFmt(f.val)} · ${f.errors} ${errLabel}</span>
+       </div>`
+    ).join('');
+    return `<div style="padding:8px 14px;background:${lightGray};border-bottom:1px solid ${divider}">
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${textMuted};margin-bottom:3px">SW(s) below target</div>
+      ${rows}
+    </div>`;
+  };
+
   const oppBlock = (key) => {
     const label = config.oppLabels[key];
     const a = config.actions[key] || {tl:[],aom:[]};
@@ -27489,9 +27549,13 @@ function _tcmGenerateDoc(config){
       ${commit.current!==null ? `<span><strong>Current:</strong> ${commit.current}</span>` : ''}
       <span><strong>Committed target for next period:</strong> ${commit.target}</span>
     </div>` : '';
+    const m = config.metrics ? config.metrics[key] : null;
+    const errLabel = key==='prec' ? 'FP' : (key==='rec' ? 'FN' : (key==='pacc'||key==='tacc' ? 'Errors' : null));
+    const swBreakHtml = (m && m.swFails && errLabel) ? swFailHtml(m.swFails, errLabel) : '';
     return `<div style="border:1px solid ${borderColor};border-radius:10px;overflow:hidden;margin-bottom:12px">
       <div style="padding:9px 14px;background:${lightGray};border-bottom:1px solid ${divider};font-size:12px;font-weight:700;color:${textPri}">${label}</div>
       ${commitHtml}
+      ${swBreakHtml}
       <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div>
           <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${textSec};margin-bottom:5px">TL Actions</div>
@@ -28089,6 +28153,7 @@ function openSmeCoachingModal(mode){
 
   // ── Team QA (Adj Acc/Prec/Rec only, no AHT — per spec) ──────────────────
   let teamAcc=null, teamPrec=null, teamRec=null;
+  let teamPrecFails=[], teamRecFails=[], teamAccFails=[];
   if(_scm.tl){
     const teamBaseRows = RAW_ROWS.filter(r => r.sw && r.sw!=='(blank)');
     const teamRows = (typeof filterRows==='function' && typeof qaFilter==='function')
@@ -28101,6 +28166,30 @@ function openSmeCoachingModal(mode){
     teamAcc  = tTot>0 ? (ttpa+ttna)/tTot : null;
     teamPrec = (ttpa+tfpa)>0 ? ttpa/(ttpa+tfpa) : null;
     teamRec  = (ttpa+tfna)>0 ? ttpa/(ttpa+tfna) : null;
+
+    // SW-level breakdown — informational context under each team card so action
+    // plans can point at the specific SW driving the gap. Same >=50-decision
+    // volume gate used elsewhere for team-level SW judgments.
+    const teamSwMap = {};
+    teamPeriodRows.forEach(r=>{
+      const key = r.sw||'Unknown';
+      if(!teamSwMap[key]) teamSwMap[key] = {sw:key, tpa:0,fpa:0,fna:0,tna:0,dec:0};
+      const s = teamSwMap[key];
+      s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0; s.dec+=r.decisions||0;
+    });
+    Object.values(teamSwMap).forEach(s=>{
+      if(s.dec < 50) return;
+      const tot = s.tpa+s.fpa+s.fna+s.tna;
+      const sAcc  = tot>0 ? (s.tpa+s.tna)/tot : null;
+      const sPrec = (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
+      const sRec  = (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
+      if(sAcc!==null && sAcc < PR_TARGET) teamAccFails.push({ sw:s.sw, val:sAcc, errors:(s.fpa+s.fna) });
+      if(sPrec!==null && sPrec < PR_TARGET) teamPrecFails.push({ sw:s.sw, val:sPrec, errors:s.fpa });
+      if(sRec!==null && sRec < PR_TARGET) teamRecFails.push({ sw:s.sw, val:sRec, errors:s.fna });
+    });
+    teamAccFails.sort((a,b)=>a.val-b.val);
+    teamPrecFails.sort((a,b)=>a.val-b.val);
+    teamRecFails.sort((a,b)=>a.val-b.val);
   }
   _scm.teamAcc = teamAcc; _scm.teamPrec = teamPrec; _scm.teamRec = teamRec;
 
@@ -28162,9 +28251,9 @@ function openSmeCoachingModal(mode){
   const MSV_TARGET = (typeof T!=='undefined') ? T.msv.v : 0.98;
 
   _scm.metrics = {
-    tprec:  { val: teamPrec, tgt: PR_TARGET },
-    trec:   { val: teamRec,  tgt: PR_TARGET },
-    tacc:   { val: teamAcc,  tgt: PR_TARGET },
+    tprec:  { val: teamPrec, tgt: PR_TARGET, swFails: teamPrecFails },
+    trec:   { val: teamRec,  tgt: PR_TARGET, swFails: teamRecFails },
+    tacc:   { val: teamAcc,  tgt: PR_TARGET, swFails: teamAccFails },
     pacc:   { val: pAcc,  tgt: ACC_TARGET, gate: !pHighAR },   // Accuracy applies when AR < 10%
     pprec:  { val: pPrec, tgt: PR_TARGET,  gate: pHighAR },    // Precision/Recall apply when AR >= 10%
     prec_r: { val: pRec,  tgt: PR_TARGET,  gate: pHighAR },
@@ -28254,18 +28343,40 @@ function scmMetricCommitRow(metricLbl, metricValHtml, key, extraNote){
     ${extraNote ? `<div class="tcm-commit-hint">${extraNote}</div>` : ''}`;
 }
 
+// Renders the failing-SW breakdown list (informational context only — no per-SW
+// action pickers) under a team-level Precision/Recall/Accuracy metric row.
+// errLabel is 'FP' for Precision, 'FN' for Recall, 'Errors' for Accuracy.
+function scmSwFailNote(swFails, errLabel){
+  if(!swFails || !swFails.length) return null;
+  const rows = swFails.map(f =>
+    `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0">
+       <span>${scmEsc(f.sw)}</span>
+       <span style="font-family:var(--m);white-space:nowrap">${scmPct(f.val)} · ${f.errors} ${errLabel}</span>
+     </div>`
+  ).join('');
+  return `<div style="margin-top:2px">
+      <div style="font-weight:700;color:var(--tm);margin-bottom:2px">SW(s) below target:</div>
+      ${rows}
+    </div>`;
+}
+
 function scmMetricsBlock(key){
   const m = _scm.metrics;
   const simple = (lbl, mm, higherIsBetter) => {
     const off = mm.val!==null ? (higherIsBetter ? mm.val < mm.tgt : mm.val > mm.tgt) : null;
     const tgtStr = mm.tgt!==null ? (key==='paht' ? scmSecs(mm.tgt) : scmPct(mm.tgt)) : '—';
     const valStr = key==='paht' ? scmSecs(mm.val) : scmPct(mm.val);
+    const gateNote = (key==='pacc'||key==='pprec'||key==='prec_r') && mm.gate===false
+      ? 'Currently muted by Action Rate gating — this metric is not the applicable one this period.' : null;
+    const errLabel = key==='tprec' ? 'FP' : (key==='trec' ? 'FN' : (key==='tacc' ? 'Errors' : null));
+    const swFailNote = errLabel ? scmSwFailNote(mm.swFails, errLabel) : null;
+    const extraNote = gateNote || swFailNote || null;
     return {
       badgeClass: scmFlagClass(off), badgeLabel: scmFlagLabel(off),
       html: scmMetricCommitRow(lbl,
         `<span style="color:${off?'var(--coral)':'var(--green)'}">${valStr}</span> <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tgtStr} tgt</span>`,
         key,
-        (key==='pacc'||key==='pprec'||key==='prec_r') && mm.gate===false ? 'Currently muted by Action Rate gating — this metric is not the applicable one this period.' : null)
+        extraNote)
     };
   };
   switch(key){
@@ -28471,6 +28582,19 @@ function _scmGenerateDoc(config){
       <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${textPri}">${label}</div>
     </div>`;
 
+  // SW-level fail breakdown — informational context under each Team QA metric,
+  // pointing at the specific SW(s) driving the gap. errLabel: 'FP' for Precision,
+  // 'FN' for Recall, 'Errors' for Accuracy.
+  const swFailRows = (swFails, errLabel) => {
+    if(!swFails || !swFails.length) return `<div style="font-size:10px;color:${textMuted};margin-top:4px">No SW below target</div>`;
+    return `<div style="margin-top:5px;padding-top:5px;border-top:1px solid ${divider}">
+      ${swFails.map(f => `<div style="display:flex;justify-content:space-between;gap:6px;font-size:10px;color:${textSec};padding:1px 0">
+        <span>${f.sw}</span><span style="white-space:nowrap">${pctFmt(f.val)} · ${f.errors} ${errLabel}</span>
+      </div>`).join('')}
+    </div>`;
+  };
+  const m = config.metrics || {};
+
   const teamHTML = `
     <div style="border:1px solid ${borderColor};border-radius:10px;overflow:hidden;margin-bottom:12px">
       <div style="padding:9px 14px;background:${lightGray};border-bottom:1px solid ${divider};font-size:12px;font-weight:700;color:${textPri}">
@@ -28480,14 +28604,17 @@ function _scmGenerateDoc(config){
         <div style="background:${lightGray};border-radius:8px;padding:8px 10px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Adj Accuracy</div>
           <div style="font-size:15px;font-weight:800;color:${cellColor(config.teamAcc,PR_TARGET)}">${pctFmt(config.teamAcc)}</div>
+          ${swFailRows(m.tacc && m.tacc.swFails, 'Errors')}
         </div>
         <div style="background:${lightGray};border-radius:8px;padding:8px 10px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Precision</div>
           <div style="font-size:15px;font-weight:800;color:${cellColor(config.teamPrec,PR_TARGET)}">${pctFmt(config.teamPrec)}</div>
+          ${swFailRows(m.tprec && m.tprec.swFails, 'FP')}
         </div>
         <div style="background:${lightGray};border-radius:8px;padding:8px 10px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Recall</div>
           <div style="font-size:15px;font-weight:800;color:${cellColor(config.teamRec,PR_TARGET)}">${pctFmt(config.teamRec)}</div>
+          ${swFailRows(m.trec && m.trec.swFails, 'FN')}
         </div>
       </div>
     </div>`;
