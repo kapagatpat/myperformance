@@ -412,7 +412,7 @@ tr:hover td{background:#F8F9FB}
     <div class="sb-label" style="margin-top:1rem">Measure and Analyze</div>
     <button class="tab t-ti" onclick="showTab('team',this)"><div class="tab-icon">🔎</div>Team Insights</button>
     <button class="tab t-dr" onclick="showTab('drill',this)"><div class="tab-icon">🔬</div>Reviewer Deep-Dive</button>
-    <button class="tab t-sme" onclick="showTab('sme',this)"><div class="tab-icon">🧭</div>SME</button>
+    <button class="tab t-sme" onclick="showTab('sme',this)"><div class="tab-icon">🧭</div>SME Deep Drive</button>
     <button class="tab t-rca" onclick="showTab('rca-explorer',this)"><div class="tab-icon">🧩</div>RCA Explorer</button>
     <button class="tab t-jd" onclick="showTab('jobdetail',this)"><div class="tab-icon">📋</div>Job Detail Explorer</button>
 
@@ -1111,7 +1111,7 @@ tr:hover td{background:#F8F9FB}
     <!-- ── SME ───────────────────────────────────────────────────────────── -->
     <section id="tab-sme" class="section">
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div><h1>SME</h1><p>Personal performance and supported-team QA for Subject Matter Experts.</p></div>
+        <div><h1>SME Deep Drive</h1><p>Personal performance and supported-team QA for Subject Matter Experts.</p></div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap">
           <button onclick="openSmeCoachingModal('weekly')" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--purple);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📄 Weekly Coaching Doc</button>
           <button onclick="openSmeCoachingModal('monthly')" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📅 Monthly Coaching Doc</button>
@@ -2875,7 +2875,8 @@ function goalsHandleUpload(input) {
 const SME_TL_MAP = {
     'Lim, Hoi Hung': 'Kwon',
     'See, Jason Khye Xuan': 'Wen Jie',
-    'Yudhi': 'Apple'
+    'Yudhi': 'Apple',
+    'Farrelis': 'Apple'
 };
 function getSmeTl(sme){
     if(!sme) return null;
@@ -3183,6 +3184,87 @@ function initReviewerDropdown() {
     sel._msList = list;
 }
 
+function initSmeDropdown() {
+    const sel = document.getElementById('g-sme');
+    if(!sel) return;
+    if(sel._msWrap) { sel._msWrap.remove(); sel._msWrap = null; }
+    if(sel._msList) { sel._msList.remove(); sel._msList = null; }
+    const wrap = document.createElement('div');
+    wrap.className = 'ms-wrap dyn-item dyn-sme';
+    const btn = document.createElement('div');
+    btn.className = 'ms-btn';
+    btn.innerHTML = '<span>Select SME</span> <span style="font-size:9px;opacity:.6">\u25be</span>';
+    const list = document.createElement('div');
+    list.className = 'ms-list';
+    const search = document.createElement('input');
+    search.className = 'ms-search';
+    search.placeholder = 'Search SMEs...';
+    search.onclick = e => e.stopPropagation();
+    search.onkeyup = () => {
+        const f = search.value.toLowerCase();
+        list.querySelectorAll('label').forEach(l => {
+            l.style.display = l.textContent.toLowerCase().includes(f) ? 'flex' : 'none';
+        });
+    };
+    list.appendChild(search);
+    const updateBtn = () => {
+        const s2 = document.getElementById('g-sme');
+        btn.children[0].textContent = (s2 && s2.value) ? s2.value : 'Select SME';
+    };
+    const rebuildOptions = () => {
+        Array.from(list.querySelectorAll('label')).forEach(l => l.remove());
+        const allLbl = document.createElement('label');
+        allLbl.style.cssText = 'font-style:italic;color:var(--tm)';
+        allLbl.textContent = '\u2014 clear selection \u2014';
+        allLbl.onclick = () => {
+            sel.value = '';
+            updateBtn();
+            list.classList.remove('show');
+            sel.dispatchEvent(new Event('change', {bubbles: true}));
+            if(typeof sel.onchange === 'function') sel.onchange();
+        };
+        list.appendChild(allLbl);
+        Array.from(sel.options).forEach(opt => {
+            if(!opt.value) return;
+            const lbl = document.createElement('label');
+            lbl.textContent = opt.text;
+            lbl.onclick = () => {
+                sel.value = opt.value;
+                updateBtn();
+                list.classList.remove('show');
+                sel.dispatchEvent(new Event('change', {bubbles: true}));
+                if(typeof sel.onchange === 'function') sel.onchange();
+            };
+            list.appendChild(lbl);
+        });
+        updateBtn();
+    };
+    rebuildOptions();
+    sel._rebuildOptions = rebuildOptions;
+    btn.onclick = e => {
+        e.stopPropagation();
+        document.querySelectorAll('.ms-list.show').forEach(l => { if(l !== list) l.classList.remove('show'); });
+        const wasHidden = !list.classList.contains('show');
+        if(wasHidden) {
+            const rect = btn.getBoundingClientRect();
+            list.style.left = rect.left + 'px';
+            const spaceBelow = window.innerHeight - rect.bottom;
+            if(spaceBelow < 260) {
+                list.style.top = (rect.top - 4 - Math.min(250, 260)) + 'px';
+            } else {
+                list.style.top = (rect.bottom + 4) + 'px';
+            }
+        }
+        list.classList.toggle('show');
+    };
+    wrap.appendChild(btn);
+    document.body.appendChild(list);
+    sel.parentNode.insertBefore(wrap, sel);
+    sel.classList.add('ms-hidden');
+    sel._msWrap = wrap;
+    sel._msList = list;
+}
+
 function initMultiSelects() {
     document.querySelectorAll('select[multiple]').forEach(sel => {
         // Teardown any existing wrapper before rebuilding (prevents duplicates on reinit)
@@ -3323,6 +3405,7 @@ function initDropdowns(){
   // Init or rebuild multiselect wrappers
   initMultiSelects();
   initReviewerDropdown();
+  initSmeDropdown();
   // Rebuild option lists for selects that already have wrappers
   document.querySelectorAll('select[multiple]').forEach(sel => {
     if(sel._rebuildOptions) sel._rebuildOptions();
