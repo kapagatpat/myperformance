@@ -121,6 +121,7 @@ select,input{font-family:var(--f);font-size:11px;padding:4px 7px;border:1px soli
 .fbar.tab-rca-explorer .dyn-reviewer,
 .fbar.tab-jobdetail .dyn-reviewer { display: block !important; }
 .fbar.tab-sme .dyn-sme { display: block !important; }
+.fbar.tab-sme .dyn-month { display: flex !important; }
 
 /* Quality Type only on exec */
 .fbar.tab-exec .dyn-exec { display: block !important; }
@@ -2875,8 +2876,7 @@ function goalsHandleUpload(input) {
 const SME_TL_MAP = {
     'Lim, Hoi Hung': 'Kwon',
     'See, Jason Khye Xuan': 'Wen Jie',
-    'Yudhi': 'Apple',
-    'Farrelis': 'Apple'
+    'Yudhi, Farrelis': 'Apple'
 };
 function getSmeTl(sme){
     if(!sme) return null;
