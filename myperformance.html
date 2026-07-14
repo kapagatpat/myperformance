@@ -65,7 +65,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--f);min-height:100v
 .tab-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:var(--sa);filter:grayscale(0%)}
 .tab.active{font-weight:700}
 .tab.t-ex.active{background:var(--tsec);color:var(--teal)}.tab.t-ex.active .tab-icon{background:var(--teal)}
-.tab.t-sc.active{background:var(--bsec);color:var(--blue)}.tab.t-sc.active .tab-icon{background:var(--blue)}
+.tab.t-pidx.active{background:var(--bsec);color:var(--blue)}.tab.t-pidx.active .tab-icon{background:var(--blue)}
 .tab.t-ti.active{background:var(--asec);color:var(--amber)}.tab.t-ti.active .tab-icon{background:var(--amber)}
 .tab.t-dr.active{background:var(--csec);color:var(--coral)}.tab.t-dr.active .tab-icon{background:var(--coral)}
 .tab.t-rca.active{background:var(--psec);color:var(--purple)}.tab.t-rca.active .tab-icon{background:var(--purple)}
@@ -76,7 +76,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--f);min-height:100v
 .rca-padjust-btn:hover{background:var(--tbg);color:var(--teal);border-color:var(--tbd)}
 .rca-padjust-btn.rca-padjust-active{background:var(--teal);color:#fff;border-color:var(--teal)}
 .tab.t-ctrl.active{background:var(--gbg);color:var(--green)}.tab.t-ctrl.active .tab-icon{background:var(--green)}
-.tab.t-sv.active{background:var(--pksec);color:var(--pink)}.tab.t-sv.active .tab-icon{background:var(--pink)}
 .tab.t-psp.active{background:var(--asec);color:var(--amber)}.tab.t-psp.active .tab-icon{background:var(--amber)}
 .tab.t-guide.active{background:var(--tsec);color:var(--teal)}.tab.t-guide.active .tab-icon{background:var(--teal)}
 .tab.t-up.active{background:#F5F3FF;color:#5B21B6}.tab.t-up.active .tab-icon{background:#5B21B6}
@@ -108,22 +107,20 @@ select,input{font-family:var(--f);font-size:11px;padding:4px 7px;border:1px soli
 /* Tabs that show the full standard filter bar (month + TL + reviewer + tenure + workflow + sw) */
 .fbar.tab-psp .dyn-month { display: none !important; }
 .fbar.tab-exec .dyn-month,
-.fbar.tab-scorecard .dyn-month,
-.fbar.tab-supervisor .dyn-month,
+.fbar.tab-pidx .dyn-month,
 .fbar.tab-team .dyn-month,
 .fbar.tab-drill .dyn-month,
 .fbar.tab-cp .dyn-month,
 .fbar.tab-jobdetail .dyn-month { display: flex !important; }
 
 /* Reviewer visible on all standard tabs except exec */
-.fbar.tab-scorecard .dyn-reviewer,
-.fbar.tab-supervisor .dyn-reviewer,
 .fbar.tab-psp .dyn-reviewer,
 .fbar.tab-team .dyn-reviewer,
 .fbar.tab-drill .dyn-reviewer,
 .fbar.tab-cp .dyn-reviewer,
 .fbar.tab-rca-explorer .dyn-reviewer,
 .fbar.tab-jobdetail .dyn-reviewer { display: block !important; }
+.fbar.tab-sme .dyn-sme { display: block !important; }
 
 /* Quality Type only on exec */
 .fbar.tab-exec .dyn-exec { display: block !important; }
@@ -408,14 +405,14 @@ tr:hover td{background:#F8F9FB}
     <div class="sb-label">Macro Level</div>
     <button class="tab t-ex" onclick="showTab('exec',this)"><div class="tab-icon">🏥</div>Site Health</button>
     <button class="tab t-de" onclick="showTab('dataexplorer',this)"><div class="tab-icon">🗃</div>Data Explorer</button>
-    <button class="tab t-sc" onclick="showTab('scorecard',this)"><div class="tab-icon">📋</div>Reviewer Scorecard</button>
-    <button class="tab t-sv" onclick="showTab('supervisor',this)"><div class="tab-icon">👥</div>Supervisor Scorecard</button>
+    <button class="tab t-pidx" onclick="showTab('pidx',this)"><div class="tab-icon">📈</div>Performance Index</button>
     <button class="tab t-sr" onclick="showTab('stackrank',this)"><div class="tab-icon">🏅</div>Stack Ranking</button>
     <button class="tab t-inc" onclick="showTab('incentive',this)"><div class="tab-icon">🏄</div>Incentive</button>
 
     <div class="sb-label" style="margin-top:1rem">Measure and Analyze</div>
     <button class="tab t-ti" onclick="showTab('team',this)"><div class="tab-icon">🔎</div>Team Insights</button>
     <button class="tab t-dr" onclick="showTab('drill',this)"><div class="tab-icon">🔬</div>Reviewer Deep-Dive</button>
+    <button class="tab t-sme" onclick="showTab('sme',this)"><div class="tab-icon">🧭</div>SME</button>
     <button class="tab t-rca" onclick="showTab('rca-explorer',this)"><div class="tab-icon">🧩</div>RCA Explorer</button>
     <button class="tab t-jd" onclick="showTab('jobdetail',this)"><div class="tab-icon">📋</div>Job Detail Explorer</button>
 
@@ -465,6 +462,10 @@ tr:hover td{background:#F8F9FB}
         <span class="flbl dyn-item dyn-reviewer">Reviewer</span>
         <select id="g-reviewer" class="ms-hidden" onchange="renderActiveTab()"></select>
 
+        <div class="fdiv dyn-item dyn-sme"></div>
+        <span class="flbl dyn-item dyn-sme">SME</span>
+        <select id="g-sme" class="ms-hidden" onchange="renderActiveTab()"></select>
+
         <div class="fdiv"></div>
         <span class="flbl">Tenure</span>
         <select id="g-tenure" multiple data-label="Tenures" onchange="handleSWChange()"></select>
@@ -491,7 +492,7 @@ tr:hover td{background:#F8F9FB}
         <select id="g-qual-type" class="dyn-item dyn-exec" onchange="renderActiveTab()" style="border-color:var(--blue); color:var(--blue); font-weight:600;">
             <option value="adj">Adjusted</option>
             <option value="act">Actual</option>
-            <option value="meta">Meta Adjusted</option>
+            <option value="meta" selected>Meta Adjusted</option>
         </select>
 
         <!-- Control tab month -->
@@ -524,7 +525,7 @@ tr:hover td{background:#F8F9FB}
       <div id="e-nht-note" style="font-size:11px; color:var(--tm); margin-top:-6px; margin-bottom:1rem;"></div>
 
       <div class="kpi-section-label" style="display:flex;align-items:center;margin-top:1rem">Alignment Metrics <span id="e-align-legend"></span></div>
-      <div class="kpi-row" id="e-alignment-cards" style="grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:2rem"></div>
+      <div class="kpi-row" id="e-alignment-cards" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:2rem"></div>
       <!-- End Tier 1 -->
 
       <div class="kpi-section-label" style="margin-top:2rem;display:flex;align-items:center;gap:8px">Quality Trends <span id="e-trend-legend"></span>
@@ -669,6 +670,7 @@ tr:hover td{background:#F8F9FB}
               <button class="de-toggle-btn de-col-on" data-colgrp="wfm" onclick="deToggleCol('wfm',this)">Workforce</button>
               <button class="de-toggle-btn" data-colgrp="timestamps" onclick="deToggleCol('timestamps',this)">Timestamps</button>
               <button class="de-toggle-btn" data-colgrp="aligngrp" onclick="deToggleCol('aligngrp',this)">AOA / MSV / Q Aln</button>
+              <button class="de-toggle-btn" data-colgrp="tops" onclick="deToggleCol('tops',this)">TOPS</button>
               <button class="de-toggle-btn" data-colgrp="vsf" onclick="deToggleCol('vsf',this)" title="Variation Signal Factor — (StDev×6)/Mean per metric, plus upper/lower control limits">📐 VSF / UCL / LCL</button>
             </div>
           </div>
@@ -685,6 +687,7 @@ tr:hover td{background:#F8F9FB}
           <div style="display:flex;align-items:center;gap:6px">
             <span id="de-sort-label" style="font-size:11px;color:var(--purple);font-weight:700"></span>
             <button onclick="deCopyHTML()" style="padding:3px 10px;font-size:11px;font-weight:700;border:1px solid var(--border);border-radius:var(--pill);background:transparent;cursor:pointer;font-family:var(--f);color:var(--ts)" onmouseover="this.style.borderColor='var(--blue)';this.style.color='var(--blue)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--ts)'">📋 Copy HTML</button>
+            <button onclick="copyElementAsImage('de-table',this)" style="padding:3px 10px;font-size:11px;font-weight:700;border:1px solid var(--border);border-radius:var(--pill);background:transparent;cursor:pointer;font-family:var(--f);color:var(--ts)" onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--ts)'">🖼 Copy as Photo</button>
             <button onclick="deExportXLSX()" style="padding:3px 10px;font-size:11px;font-weight:700;border:1px solid var(--border);border-radius:var(--pill);background:transparent;cursor:pointer;font-family:var(--f);color:var(--ts)" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--ts)'">⬇ Export XLSX</button>
           </div>
         </div>
@@ -697,29 +700,70 @@ tr:hover td{background:#F8F9FB}
       </div>
     </section>
 
-    <section id="tab-scorecard" class="section">
+    <section id="tab-pidx" class="section">
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div><h1>Reviewer Scorecard</h1><p>Monthly performance breakdown by sub-workflow and KPI. Select a reviewer from the filter bar.</p></div>
+        <div><h1>Performance Index</h1><p>Attainment distribution across the cohort — AHT and Quality combined per person, per month.</p></div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span id="sc-legend"></span>
+          <span id="pidx-legend"></span>
         </div>
       </div>
-      <div id="s-enf-note" style="display:none;background:var(--sa);border-radius:var(--r);padding:9px 14px;font-size:11px;color:var(--tm);margin-bottom:1rem;">Action Rate shows <strong>—</strong> for all reviewers — Enforcement Jobs column is absent or zero in this export.</div>
-      <div id="sc-content"></div>
+
+      <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap;align-items:center;justify-content:center">
+        <div style="display:flex;gap:4px;background:var(--sa);border:1px solid var(--border);border-radius:var(--pill);padding:3px">
+          <button id="pidx-view-rv" onclick="pidxSetView('reviewer')" style="font-size:11px;font-weight:700;padding:5px 16px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1.5px solid var(--pbd);background:var(--purple);color:#fff">👤 Reviewer</button>
+          <button id="pidx-view-tl" onclick="pidxSetView('tl')" style="font-size:11px;font-weight:700;padding:5px 16px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1.5px solid var(--border);background:transparent;color:var(--ts)">👥 Team Lead</button>
+        </div>
+        <div style="display:flex;gap:4px;margin-left:12px;background:var(--sa);border:1px solid var(--border);border-radius:var(--pill);padding:3px">
+          <button id="pidx-kpi-overall" onclick="pidxSetKpi('overall')" style="font-size:11px;font-weight:700;padding:5px 14px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1.5px solid var(--pbd);background:var(--purple);color:#fff">Overall</button>
+          <button id="pidx-kpi-aht" onclick="pidxSetKpi('aht')" style="font-size:11px;font-weight:700;padding:5px 14px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1.5px solid var(--border);background:transparent;color:var(--ts)">AHT</button>
+          <button id="pidx-kpi-quality" onclick="pidxSetKpi('quality')" style="font-size:11px;font-weight:700;padding:5px 14px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1.5px solid var(--border);background:transparent;color:var(--ts)">Quality</button>
+        </div>
+      </div>
+      <div style="text-align:center;margin-bottom:0.75rem"><span id="pidx-meta-label" style="font-size:11px;color:var(--tm);font-weight:600"></span></div>
+
+      <div class="chart-card" style="margin-bottom:1.25rem">
+        <div class="chart-wrap large"><canvas id="chart-pidx-hist"></canvas></div>
+      </div>
+      <div id="pidx-hist-stats" style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:1.5rem;padding:10px 14px;background:var(--sa);border-radius:var(--r)"></div>
+
+      <div class="kpi-section-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Attainment Detail</span>
+        <button onclick="copyElementAsImage('pidx-table-wrap',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--border);background:transparent;color:var(--ts)" onmouseover="this.style.borderColor='var(--purple)';this.style.color='var(--purple)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--ts)'">🖼 Copy as Photo</button>
+      </div>
+      <div class="twrap" id="pidx-table-wrap">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr>
+              <th rowspan="2" style="min-width:16px"></th>
+              <th rowspan="2" style="text-align:left">Name</th>
+              <th rowspan="2" style="text-align:left">TL</th>
+              <th colspan="1" style="background:var(--psec);color:var(--purple);border-bottom-color:var(--pbd);text-transform:uppercase;font-size:10px;letter-spacing:.05em">Total</th>
+              <th colspan="7" style="background:var(--tbg);color:var(--teal);border-bottom-color:var(--tbd);text-transform:uppercase;font-size:10px;letter-spacing:.05em">Quality</th>
+              <th colspan="5" style="background:var(--asec);color:var(--amber);border-bottom-color:var(--abd);text-transform:uppercase;font-size:10px;letter-spacing:.05em">AHT</th>
+            </tr>
+            <tr>
+              <th style="background:var(--psec);color:var(--purple)">Attainment %</th>
+              <th style="background:var(--tbg);color:var(--teal)">Quality %</th>
+              <th style="background:var(--tbg);color:var(--teal)">Total SW Met</th>
+              <th style="background:var(--tbg);color:var(--teal)">Total SW</th>
+              <th style="background:var(--tbg);color:var(--teal)">Action Rate</th>
+              <th style="background:var(--tbg);color:var(--teal)">Accuracy</th>
+              <th style="background:var(--tbg);color:var(--teal)">Precision</th>
+              <th style="background:var(--tbg);color:var(--teal)">Recall</th>
+              <th style="background:var(--asec);color:var(--amber)">AHT %</th>
+              <th style="background:var(--asec);color:var(--amber)">Total SW Met</th>
+              <th style="background:var(--asec);color:var(--amber)">Total SW</th>
+              <th style="background:var(--asec);color:var(--amber)">AHT</th>
+              <th style="background:var(--asec);color:var(--amber)">Decisions</th>
+            </tr>
+          </thead>
+          <tbody id="pidx-table-body"></tbody>
+        </table>
+      </div>
     </section>
 
-    <section id="tab-supervisor" class="section">
-      <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div><h1>Supervisor Scorecard</h1><p>Monthly team performance breakdown aggregated by TL. Select a TL from the filter bar.</p></div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span id="sv-legend"></span>
-          <button id="sv-latest-sup-btn" onclick="toggleLatestSupervisor()" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--border);background:var(--surface);color:var(--ts);white-space:nowrap">
-            Latest Supervisor
-          </button>
-        </div>
-      </div>
-      <div id="sv-content"></div>
-    </section>
+
+
 
     <section id="tab-team" class="section">
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
@@ -1060,6 +1104,53 @@ tr:hover td{background:#F8F9FB}
             <div id="dr-proj-aht-note" style="font-size:11px;color:var(--ts);background:var(--asec);border-left:3px solid var(--amber);border-radius:0 var(--r) var(--r) 0;padding:6px 10px;line-height:1.5">Select a scenario to see projected AHT.</div>
           </div>
 
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SME ───────────────────────────────────────────────────────────── -->
+    <section id="tab-sme" class="section">
+      <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div><h1>SME</h1><p>Personal performance and supported-team QA for Subject Matter Experts.</p></div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap">
+          <button onclick="openSmeCoachingModal('weekly')" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--purple);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📄 Weekly Coaching Doc</button>
+          <button onclick="openSmeCoachingModal('monthly')" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📅 Monthly Coaching Doc</button>
+        </div>
+      </div>
+
+      <div id="sme-empty-state" style="display:none;padding:40px 20px;text-align:center;color:var(--tm);font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl)">Select an SME in the filter bar to view their performance.</div>
+
+      <div id="sme-body" style="display:none">
+        <div id="sme-warn-banner" style="display:none;margin-bottom:1rem;background:var(--csec);border-left:3px solid var(--coral);border-radius:0 var(--r) var(--r) 0;padding:10px 14px;font-size:12px;color:var(--coral);font-weight:700"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.25rem" class="sme-snap-grid">
+          <div class="kcard" style="padding:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="font-size:12px;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.05em">Team Performance</div>
+              <div id="sme-team-sub" style="font-size:11px;font-weight:700;color:var(--tm)"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="sme-team-metrics"></div>
+          </div>
+          <div class="kcard" style="padding:16px">
+            <div style="font-size:12px;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Personal Stats</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px" id="sme-personal-metrics"></div>
+          </div>
+        </div>
+
+        <div class="kpi-section-label">Personal Quality by Sub-Workflow</div>
+        <div class="twrap" style="margin-bottom:1.5rem">
+          <table>
+            <thead><tr><th>Sub-Workflow</th><th>Decisions</th><th>Adj Accuracy</th><th>Precision</th><th>Recall</th><th>Errors</th></tr></thead>
+            <tbody id="sme-sw-quality-table"></tbody>
+          </table>
+        </div>
+
+        <div class="kpi-section-label">Personal AHT by Sub-Workflow</div>
+        <div class="twrap" style="margin-bottom:1.5rem">
+          <table>
+            <thead><tr><th>Sub-Workflow</th><th>Decisions</th><th>Actual AHT</th><th>Target AHT</th><th>Status</th></tr></thead>
+            <tbody id="sme-sw-aht-table"></tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -2774,6 +2865,24 @@ function goalsHandleUpload(input) {
 }
 // ─── END GOALS CSV ────────────────────────────────────────────────────────────
 
+// ─── SME → TL ASSIGNMENT MAP ─────────────────────────────────────────────────
+// SMEs are not identified as belonging to a TL's team anywhere in the CSV data,
+// so this manual map is the sole source of truth for "which TL's team does this
+// SME support." Keys MUST exactly match the reviewer string as it appears in
+// RAW_ROWS (i.e. the "Last, First" format used everywhere else in the app —
+// see r.reviewer). Case, comma, and spacing all matter for the lookup to hit.
+// Update this object directly whenever SME assignments change.
+const SME_TL_MAP = {
+    'Lim, Hoi Hung': 'Kwon',
+    'See, Jason Khye Xuan': 'Wen Jie',
+    'Yudhi': 'Apple'
+};
+function getSmeTl(sme){
+    if(!sme) return null;
+    return SME_TL_MAP[sme.trim()] || null;
+}
+// ─── END SME → TL ASSIGNMENT MAP ─────────────────────────────────────────────
+
 // Keep SW_TARGETS as a thin shim so existing code that reads SW_TARGETS[sw].acc/aht still works
 // Lookup order: overrides → band table → Overall fallback
 const SW_TARGETS = new Proxy({}, {
@@ -2792,7 +2901,8 @@ const SW_TARGETS = new Proxy({}, {
 const T={
   adj_acc:{v:0.95,dir:'up'}, prec:{v:0.95,dir:'up'}, rec:{v:0.95,dir:'up'}, 
   aht:{v:900,dir:'dn'}, util:{v:0.88,dir:'up'}, occ:{v:0.95,dir:'up'}, abs:{v:0.05,dir:'dn'},
-  ar:{v:0.10,dir:'up'}, wfSla:{v:0.98,dir:'up'}, aoa:{v:0.98,dir:'up'}, msv:{v:0.98,dir:'up'}, qaln:{v:0.98,dir:'up'}
+  ar:{v:0.10,dir:'up'}, wfSla:{v:0.98,dir:'up'}, aoa:{v:0.98,dir:'up'}, msv:{v:0.98,dir:'up'}, qaln:{v:0.98,dir:'up'},
+  tops:{v:1.0,dir:'up'}
 };
 
 let RAW_ROWS=[], WEEKS=[], MONTHS=[], charts={};
@@ -3193,6 +3303,12 @@ function initDropdowns(){
   const revs = [...new Set(RAW_ROWS.map(r => r.reviewer).filter(Boolean))].sort();
   const rvEl = document.getElementById('g-reviewer'); rvEl.innerHTML = '<option value="">-- Select Reviewer --</option>'+revs.map(rv=>`<option value="${rv}">${rv}</option>`).join(''); if(rvEl._rebuildOptions) rvEl._rebuildOptions();
 
+  // SME picker — scoped to role==='SME' only, dedicated to the SME tab (kept
+  // separate from g-reviewer so filtering it doesn't affect any other tab).
+  const smes = [...new Set(RAW_ROWS.filter(r => r.role === 'SME').map(r => r.reviewer).filter(Boolean))].sort();
+  const smeEl = document.getElementById('g-sme');
+  if(smeEl) { smeEl.innerHTML = '<option value="">-- Select SME --</option>'+smes.map(rv=>`<option value="${rv}">${rv}</option>`).join(''); if(smeEl._rebuildOptions) smeEl._rebuildOptions(); }
+
   // Populate unified month pill dropdown
   const allMonths = [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort();
   const optContainer = document.getElementById('month-pill-options');
@@ -3323,7 +3439,7 @@ function resetFilters() {
 
     // Reset single selects
     document.querySelectorAll('select:not([multiple])').forEach(s => {
-        if(s.id === 'g-qual-type') s.value = 'adj';
+        if(s.id === 'g-qual-type') s.value = 'meta';
         else s.value = '';
     });
 
@@ -3364,9 +3480,9 @@ function renderActiveTab() {
     if(activeId === 'tab-dataexplorer') renderDataExplorer();
     if(activeId === 'tab-team') renderTeamInsights();
     if(activeId === 'tab-drill') renderDrillDown();
+    if(activeId === 'tab-sme') renderSmeTab();
     if(activeId === 'tab-rca-explorer' && window.renderRCAExplorer) window.renderRCAExplorer();
-    if(activeId === 'tab-scorecard') renderScorecard();
-    if(activeId === 'tab-supervisor') renderSupervisor();
+    if(activeId === 'tab-pidx') renderPerformanceIndex();
     if(activeId === 'tab-psp') renderPSP();
     if(activeId === 'tab-defint') renderDefectIntelligence();
     if(activeId === 'tab-cp') renderCoachingPriorities();
@@ -3801,6 +3917,12 @@ function renderExec(){
   const msv = msvD>0 ? msvN/msvD : null;
   const qaln = quickD>0 ? quickN/quickD : null;
 
+  // TOPS Adoption — topsA/topsB summed across SW-level quality rows (same fields
+  // used by the TL coaching doc and monthly WBR table), so this always matches.
+  let topsA=0, topsB=0;
+  qualRowsLM.forEach(r => { topsA += r.topsA||0; topsB += r.topsB||0; });
+  const tops = topsB>0 ? Math.min(topsA/topsB, 1) : null;
+
   // Throughput = (Total Jobs [Decisions] + Total Transferred Jobs) / Time in Available status (hrs)
   // Same numerator components used to build Occupancy — this is Occupancy's numerator, not
   // a repackaged version of "decisions per reviewer-week."
@@ -3832,7 +3954,8 @@ function renderExec(){
   if(alignEl) alignEl.innerHTML =
     kcard('AOA ↑', alignment!==null?p(alignment):'—', 'aoa', 'Target: 98%', 98, null, null, {compact:true, onClick:deLink('aoa')}) +
     kcard('MSV ↑', msv!==null?p(msv):'—', 'msv', 'Target: 98%', 98, null, null, {compact:true, onClick:deLink('msv')}) +
-    kcard('Q Alignment ↑', qaln!==null?p(qaln):'—', 'qaln', 'Target: 98%', 98, null, null, {compact:true, onClick:deLink('qaln')});
+    kcard('Q Alignment ↑', qaln!==null?p(qaln):'—', 'qaln', 'Target: 98%', 98, null, null, {compact:true, onClick:deLink('qaln')}) +
+    kcard('TOPS Adoption ↑', tops!==null?p(tops):'—', 'tops', 'Target: 100%', 100, null, null, {compact:true, onClick:deLink('tops')});
 
   document.getElementById('e-nht-note').innerHTML = sws.length !== 1 ? "*NHT% tracking is suppressed across blended workflows to prevent skewed averages." : "";
 
@@ -3855,6 +3978,7 @@ function renderExec(){
       {label:'AOA', val:alignment, key:'aoa', deCol:'aoa', fmt:p},
       {label:'MSV', val:msv, key:'msv', deCol:'msv', fmt:p},
       {label:'Q Alignment', val:qaln, key:'qaln', deCol:'qaln', fmt:p},
+      {label:'TOPS Adoption', val:tops, key:'tops', deCol:'tops', fmt:p},
     ];
     const flagged = checks
       .filter(c => c.val !== null && c.val !== undefined)
@@ -8091,6 +8215,188 @@ function renderDrillDown(){
   }
 }
 
+// ── SME TAB ──────────────────────────────────────────────────────────────────
+// SMEs take jobs like reviewers (personal Quality/AHT/AOA/MSV/Attendance) and
+// are additionally accountable for the QA (Adj Acc/Prec/Rec only — no AHT) of
+// the specific TL's team they support, per SME_TL_MAP. Picker-driven, single
+// SME at a time, mirroring the Reviewer Deep-Dive tab's structure.
+function renderSmeTab(){
+  const sme = document.getElementById('g-sme') ? document.getElementById('g-sme').value : '';
+  const emptyEl = document.getElementById('sme-empty-state');
+  const bodyEl  = document.getElementById('sme-body');
+  if(!sme){
+    if(emptyEl) emptyEl.style.display = '';
+    if(bodyEl) bodyEl.style.display = 'none';
+    return;
+  }
+  if(emptyEl) emptyEl.style.display = 'none';
+  if(bodyEl) bodyEl.style.display = '';
+
+  const sws = typeof getSel==='function' ? getSel('g-sw') : [];
+  const workflows = typeof getSel==='function' ? getSel('g-workflow') : [];
+  const tenures = typeof getSel==='function' ? getSel('g-tenure') : [];
+  const reviewTypes = typeof getSel==='function' ? getSel('g-review-type') : [];
+  const selMonths = typeof getSelMonths==='function' ? getSelMonths() : [];
+
+  const allMonths = [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort();
+  const periodMonths = selMonths.length ? selMonths : (allMonths.length ? [allMonths[allMonths.length-1]] : []);
+
+  // ── Personal rows (this SME, as an individual contributor) ─────────────────
+  const baseRows = RAW_ROWS.filter(r => r.reviewer === sme && r.sw && r.sw !== '(blank)');
+  const personalRows = (typeof filterRows==='function' && typeof qaFilter==='function')
+    ? filterRows(qaFilter(baseRows), [], tenures, sws, workflows, [], reviewTypes)
+    : baseRows;
+  const periodRows = personalRows.filter(r => periodMonths.length ? periodMonths.includes(r.month) : true);
+
+  const cellCls = (v,key) => { const c = flag(v,key); return c==='good'?'c-good':c==='warn'?'c-warn':c==='bad'?'c-bad':'c-na'; };
+  const fmt = v => v!==null && v!==undefined && !isNaN(v) ? (v*100).toFixed(2)+'%' : '—';
+
+  // Personal Quality (Adj Acc / Prec / Rec / AR — AR-gated per app convention)
+  let tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0;
+  periodRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;});
+  const tot = tpa+fpa+fna+tna;
+  const pAcc  = tot>0 ? (tpa+tna)/tot : null;
+  const pPrec = (tpa+fpa)>0 ? tpa/(tpa+fpa) : null;
+  const pRec  = (tpa+fna)>0 ? tpa/(tpa+fna) : null;
+  const pAr   = tot>0 ? (tpa+fpa)/tot : null;
+  const pAht  = dec>0 ? Math.round((dht+nht)/dec) : null;
+  const pNhtPct = dec>0 ? (nht/(dht+nht||1)) : null;
+  const pHighAR = pAr!==null && pAr>=0.10;
+
+  // Personal AOA/MSV/Absenteeism — scoped to this SME only (never team-pooled)
+  const wkSet = new Set(periodRows.map(r=>r.week).filter(Boolean));
+  let wfm = { aoa:null, msv:null, abs:null };
+  if(typeof aggWfm === 'function'){
+    try { wfm = aggWfm(new Set([sme]), wkSet.size ? wkSet : null, null); } catch(e){ console.warn('[sme] aggWfm failed', e); }
+  }
+
+  // ── Team QA (the TL's team this SME supports) — Adj Acc/Prec/Rec only, no AHT ──
+  const tl = getSmeTl(sme);
+  const teamSubEl = document.getElementById('sme-team-sub');
+  const warnEl = document.getElementById('sme-warn-banner');
+  let teamAcc=null, teamPrec=null, teamRec=null;
+  if(tl){
+    if(teamSubEl) teamSubEl.textContent = 'Supporting: ' + sn(tl);
+    if(warnEl) warnEl.style.display = 'none';
+    const teamBaseRows = RAW_ROWS.filter(r => r.sw && r.sw!=='(blank)');
+    const teamRows = (typeof filterRows==='function' && typeof qaFilter==='function')
+      ? filterRows(qaFilter(teamBaseRows), [tl], tenures, sws, workflows, [], reviewTypes)
+      : teamBaseRows.filter(r=>r.supervisor===tl);
+    const teamPeriodRows = teamRows.filter(r => periodMonths.length ? periodMonths.includes(r.month) : true);
+    let ttpa=0,tfpa=0,tfna=0,ttna=0;
+    teamPeriodRows.forEach(r=>{ttpa+=r.tpa||0;tfpa+=r.fpa||0;tfna+=r.fna||0;ttna+=r.tna||0;});
+    const tTot = ttpa+tfpa+tfna+ttna;
+    teamAcc  = tTot>0 ? (ttpa+ttna)/tTot : null;
+    teamPrec = (ttpa+tfpa)>0 ? ttpa/(ttpa+tfpa) : null;
+    teamRec  = (ttpa+tfna)>0 ? ttpa/(ttpa+tfna) : null;
+  } else {
+    if(teamSubEl) teamSubEl.textContent = 'No TL assigned';
+    if(warnEl){ warnEl.style.display = ''; warnEl.textContent = '⚠ No TL assignment found for ' + sn(sme) + ' in SME_TL_MAP — update the map in-code to see team QA.'; }
+  }
+  const PR_TARGET = 0.96; // Precision/Recall/Adj Acc target for SME team QA is always 96%, per spec
+
+  // ── Render Team Performance card ────────────────────────────────────────────
+  const teamMetricsEl = document.getElementById('sme-team-metrics');
+  if(teamMetricsEl){
+    const tAccCls  = tl ? cellCls(teamAcc, 'adj_acc')  : 'c-na';
+    const tPrecCls = tl ? cellCls(teamPrec, 'prec')    : 'c-na';
+    const tRecCls  = tl ? cellCls(teamRec, 'rec')      : 'c-na';
+    teamMetricsEl.innerHTML = `
+      <div class="snap-kpi-row ${tAccCls}" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">Adj Accuracy</span>
+        <span class="snap-kpi-val" style="font-size:16px">${fmt(teamAcc)}</span>
+      </div>
+      <div class="snap-kpi-row ${tPrecCls}" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">Precision</span>
+        <span class="snap-kpi-val" style="font-size:16px">${fmt(teamPrec)}</span>
+      </div>
+      <div class="snap-kpi-row ${tRecCls}" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">Recall</span>
+        <span class="snap-kpi-val" style="font-size:16px">${fmt(teamRec)}</span>
+      </div>`;
+  }
+
+  // ── Render Personal Stats card ──────────────────────────────────────────────
+  const persMetricsEl = document.getElementById('sme-personal-metrics');
+  if(persMetricsEl){
+    const accCls  = cellCls(pAcc,'adj_acc') + (pHighAR ? ' c-secondary' : '');
+    const precCls = cellCls(pPrec,'prec')   + (!pHighAR ? ' c-secondary' : '');
+    const recCls  = cellCls(pRec,'rec')     + (!pHighAR ? ' c-secondary' : '');
+    const aoaCls  = cellCls(wfm.aoa,'aoa');
+    const msvCls  = cellCls(wfm.msv,'msv');
+    const absCls  = cellCls(wfm.abs,'abs');
+    persMetricsEl.innerHTML = `
+      <div class="snap-kpi-row ${accCls}" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">Adj Accuracy</span><span class="snap-kpi-val">${fmt(pAcc)}</span>
+      </div>
+      <div class="snap-kpi-row ${precCls}" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">Precision</span><span class="snap-kpi-val">${fmt(pPrec)}</span>
+      </div>
+      <div class="snap-kpi-row ${recCls}" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">Recall</span><span class="snap-kpi-val">${fmt(pRec)}</span>
+      </div>
+      <div class="snap-kpi-row" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">AHT</span><span class="snap-kpi-val">${pAht!==null?pAht+'s':'—'}</span>
+      </div>
+      <div class="snap-kpi-row ${aoaCls}" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">AOA</span><span class="snap-kpi-val">${fmt(wfm.aoa)}</span>
+      </div>
+      <div class="snap-kpi-row ${msvCls}" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">MSV</span><span class="snap-kpi-val">${fmt(wfm.msv)}</span>
+      </div>
+      <div class="snap-kpi-row ${absCls}" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">Absenteeism</span><span class="snap-kpi-val">${fmt(wfm.abs)}</span>
+      </div>
+      <div class="snap-kpi-row" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="snap-kpi-label">Action Rate</span><span class="snap-kpi-val">${fmt(pAr)}</span>
+      </div>`;
+  }
+
+  // ── Per-SW quality table ────────────────────────────────────────────────────
+  const swList = [...new Set(periodRows.map(r=>r.sw).filter(Boolean))];
+  const qBody = document.getElementById('sme-sw-quality-table');
+  if(qBody){
+    if(!swList.length){
+      qBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--tm)">No data for this period.</td></tr>';
+    } else {
+      qBody.innerHTML = swList.map(sw=>{
+        const sr = periodRows.filter(r=>r.sw===sw);
+        let t=0,f=0,fp=0,fn=0,tp=0,d=0;
+        sr.forEach(r=>{t+=(r.tpa||0)+(r.tna||0);f+=(r.fpa||0)+(r.fna||0);fp+=r.fpa||0;fn+=r.fna||0;tp+=r.tpa||0;d+=r.decisions||0;});
+        const swAcc = (t+f)>0 ? t/(t+f) : null;
+        const swPrec = (tp+fp)>0 ? tp/(tp+fp) : null;
+        const swRec = (tp+fn)>0 ? tp/(tp+fn) : null;
+        const cls = cellCls(swAcc,'adj_acc');
+        return `<tr><td>${sw}</td><td>${d}</td><td class="${cls}">${fmt(swAcc)}</td><td>${fmt(swPrec)}</td><td>${fmt(swRec)}</td><td>${f}</td></tr>`;
+      }).join('');
+    }
+  }
+
+  // ── Per-SW AHT table (min 10 decisions/SW, per reviewer AHT eligibility rule) ──
+  const aBody = document.getElementById('sme-sw-aht-table');
+  if(aBody){
+    const ahtRows = swList.map(sw=>{
+      const sr = periodRows.filter(r=>r.sw===sw);
+      let d=0,dh=0,nh=0;
+      sr.forEach(r=>{d+=r.decisions||0;dh+=r.dht||0;nh+=r.nht||0;});
+      if(d<10) return null;
+      const actual = Math.round((dh+nh)/d);
+      const tgt = (SW_TARGETS[sw] && SW_TARGETS[sw].aht) ? SW_TARGETS[sw].aht : null;
+      const pass = tgt ? actual<=tgt : null;
+      return {sw, d, actual, tgt, pass};
+    }).filter(Boolean);
+    if(!ahtRows.length){
+      aBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--tm)">No SW meets the 10-decision minimum for this period.</td></tr>';
+    } else {
+      aBody.innerHTML = ahtRows.map(x=>{
+        const statusCls = x.pass===null ? '' : (x.pass ? 'c-good' : 'c-bad');
+        const statusTxt = x.pass===null ? '—' : (x.pass ? 'Pass' : 'Over target');
+        return `<tr><td>${x.sw}</td><td>${x.d}</td><td>${x.actual}s</td><td>${x.tgt?x.tgt+'s':'—'}</td><td class="${statusCls}">${statusTxt}</td></tr>`;
+      }).join('');
+    }
+  }
+}
+
 // ── OPEN OPPORTUNITIES PANEL ──────────────────────────────────────────────────
 function renderDrillOppPanel(rows, rv, el) {
   if(!el) return;
@@ -9849,28 +10155,7 @@ async function copyBreakdownTable(tableId, title, btnElem) {
     }
 }
 
-function renderScorecard() {
-    const tls=getSel('g-tl'), tenures=getSel('g-tenure'), sws=getSel('g-sw'), workflows=getSel('g-workflow'), roles=getSel('g-role'), reviewTypes=getSel('g-review-type');
-    const rv = document.getElementById('g-reviewer').value;
-    const selMonths = getSelMonths();
-    // Quality rows (excludes _wfmOnly via filterRows)
-    let rows = filterRows(qaFilter(RAW_ROWS), tls, tenures, sws, workflows, roles, reviewTypes);
-    if(selMonths.length) rows = rows.filter(r => selMonths.includes(r.month));
-    // WFM-only stub rows — include separately so WFM section shows for people with no quality data
-    let stubRows = RAW_ROWS.filter(r => false &&
-        (tls.length === 0     || tls.includes(r.supervisor)) &&
-        (tenures.length === 0 || tenures.includes(r.tenure)) &&
-        (selMonths.length === 0 || selMonths.includes(r.month)));
-    const allRows = [...rows, ...stubRows];
-    if(!rv) {
-        document.getElementById('sc-content').innerHTML = '<div style="background:var(--sa);border-radius:var(--r);padding:2rem;text-align:center;color:var(--tm);font-size:13px">Select a <strong>Reviewer</strong> from the filter bar to view their monthly performance scorecard.</div>';
-        const scLeg = document.getElementById('sc-legend'); if(scLeg) scLeg.innerHTML = '';
-        return;
-    }
-    const rvRows = allRows.filter(r => r.reviewer === rv);
-    const rvSupervisor = rvRows.length ? stl(rvRows[0].supervisor) : '';
-    buildMonthlyBreakdown(rvRows, sn(rv), 'TL: ' + rvSupervisor, 'sc-content', 'sc-legend', false);
-}
+// (Reviewer Scorecard replaced by Performance Index — see renderPerformanceIndex)
 
 
 let _svLatestSupMode = false;
@@ -9903,7 +10188,7 @@ function toggleLatestSupervisor() {
     _svLatestSupMode = !_svLatestSupMode;
 
     // Sync all Latest Supervisor buttons across all tabs
-    ['sv-latest-sup-btn','ti-latest-sup-btn','defint-latest-sup-btn',
+    ['ti-latest-sup-btn','defint-latest-sup-btn',
      'ctrl-latest-sup-btn','psp-latest-sup-btn','cp-latest-sup-btn'].forEach(id => {
         const btn = document.getElementById(id);
         if(!btn) return;
@@ -9917,50 +10202,382 @@ function toggleLatestSupervisor() {
     if(!activeEl) return;
     const id = activeEl.id;
     if(id === 'tab-team')       renderTeamInsights();
-    else if(id === 'tab-supervisor') renderSupervisor();
     else if(id === 'tab-defint')     renderDefectIntelligence();
     else if(id === 'tab-control')    renderControl();
     else if(id === 'tab-psp')        renderPSP();
     else if(id === 'tab-cp')         renderCoachingPriorities();
 }
 
-function renderSupervisor() {
-    const tls=getSel('g-tl'), tenures=getSel('g-tenure'), sws=getSel('g-sw'), workflows=getSel('g-workflow'), roles=getSel('g-role'), reviewTypes=getSel('g-review-type');
-    const selMonths=getSelMonths();
-    // Quality rows
-    let qualRows = filterRows(qaFilter(RAW_ROWS), tls, tenures, sws, workflows, roles, reviewTypes);
-    if(selMonths.length) qualRows = qualRows.filter(r=>selMonths.includes(r.month));
-    // WFM-only stub rows — for TLs/reviewers with hours but no quality data
-    let stubRows = RAW_ROWS.filter(r => false &&
-        (tls.length === 0     || tls.includes(r.supervisor)) &&
-        (tenures.length === 0 || tenures.includes(r.tenure)) &&
-        (selMonths.length === 0 || selMonths.includes(r.month)));
-    let rows = [...qualRows, ...stubRows];
+// (Supervisor Scorecard replaced by Performance Index — see renderPerformanceIndex)
 
-    if(!rows.length) {
-        document.getElementById('sv-content').innerHTML = '<div style="background:var(--sa);border-radius:var(--r);padding:2rem;text-align:center;color:var(--tm);font-size:13px">No data available. Load a dataset first.</div>';
-        return;
-    }
+// ─── PERFORMANCE INDEX ─────────────────────────────────────────────────────────
+// Bell-curve attainment distribution across Reviewers or Team Leads.
+// AHT attainment: per SW-month, eligible only if decisions >= threshold (10 for
+// Reviewer, 50 for TL — the aggregation unit's cap). SW counts as "met" if
+// dht/decisions <= SW_TARGETS[sw].aht. AHT% = met SWs / eligible SWs.
+// Quality attainment: per SW-month, AR = (tpa+fpa)/(tpa+fpa+fna+tna).
+//   AR >= 10%  -> 2 points possible (Precision met, Recall met)
+//   AR <  10%  -> 1 point possible  (Accuracy met)
+// Quality% = points earned / points possible, summed across all SWs (no floor).
+// Overall% = simple average of AHT% and Quality%.
+let PIDX_VIEW = 'reviewer'; // 'reviewer' | 'tl'
+let PIDX_KPI  = 'overall';  // 'overall' | 'aht' | 'quality'
 
-    const effectiveRows = _svLatestSupMode ? applyLatestSup(rows) : rows;
-
-    const allTLs = tls.length
-        ? tls
-        : [...new Set(effectiveRows.map(r=>r.supervisor).filter(Boolean))].sort();
-
-    if(!allTLs.length) {
-        document.getElementById('sv-content').innerHTML = '<div style="background:var(--sa);border-radius:var(--r);padding:2rem;text-align:center;color:var(--tm);font-size:13px">No data available. Load a dataset first.</div>';
-        return;
-    }
-
-    const modeLabel = _svLatestSupMode ? 'Team Lead · Latest assignment' : 'Team Lead';
-
-    document.getElementById('sv-content').innerHTML = allTLs.map((tl,i)=>`<div id="sv-tl-${i}" style="margin-bottom:2rem"></div>`).join('');
-    allTLs.forEach((tl,i) => {
-        const tlRows = effectiveRows.filter(r=>r.supervisor===tl);
-        buildMonthlyBreakdown(tlRows, stl(tl), modeLabel, `sv-tl-${i}`, 'sv-legend', true, tl);
-    });
+function pidxSetView(v) {
+    PIDX_VIEW = v;
+    const rvBtn = document.getElementById('pidx-view-rv');
+    const tlBtn = document.getElementById('pidx-view-tl');
+    if(rvBtn) { rvBtn.style.background = v==='reviewer' ? 'var(--purple)' : 'transparent'; rvBtn.style.color = v==='reviewer' ? '#fff' : 'var(--ts)'; }
+    if(tlBtn) { tlBtn.style.background = v==='tl'       ? 'var(--purple)' : 'transparent'; tlBtn.style.color = v==='tl'       ? '#fff' : 'var(--ts)'; }
+    renderPerformanceIndex();
 }
+
+function pidxSetKpi(k) {
+    PIDX_KPI = k;
+    ['overall','aht','quality'].forEach(kk => {
+        const btn = document.getElementById('pidx-kpi-' + kk);
+        if(!btn) return;
+        btn.style.background = k===kk ? 'var(--purple)' : 'transparent';
+        btn.style.color      = k===kk ? '#fff'          : 'var(--ts)';
+    });
+    renderPerformanceIndex();
+}
+
+// Aggregate one person's rows into per-SW-month totals, then compute AHT% and Quality%.
+function pidxComputePerson(rows, ahtMinJobs) {
+    // Group by sw+month so a person working the same SW across multiple months
+    // gets scored once per SW-month (mirrors "per month" in the spec).
+    const swMonthMap = {};
+    rows.forEach(r => {
+        if(!r.sw) return;
+        const key = r.sw + '|' + r.month;
+        if(!swMonthMap[key]) swMonthMap[key] = { sw: r.sw, month: r.month, dht:0, decisions:0, tpa:0, fpa:0, fna:0, tna:0 };
+        const s = swMonthMap[key];
+        s.dht += r.dht||0; s.decisions += r.decisions||0;
+        s.tpa += r.tpa||0; s.fpa += r.fpa||0; s.fna += r.fna||0; s.tna += r.tna||0;
+    });
+    const swMonths = Object.values(swMonthMap);
+
+    // Per-SW detail rows (one per sw+month) carrying every sub-metric needed
+    // by the collapsible detail view, plus AHT/quality met flags.
+    const swDetail = swMonths.map(s => {
+        const tot = s.tpa + s.fpa + s.fna + s.tna;
+        const ar  = tot > 0 ? (s.tpa + s.fpa) / tot : null;
+        const acc = tot > 0 ? (s.tpa + s.tna) / tot : null;
+        const prec = (s.tpa + s.fpa) > 0 ? s.tpa / (s.tpa + s.fpa) : null;
+        const rec  = (s.tpa + s.fna) > 0 ? s.tpa / (s.tpa + s.fna) : null;
+        const tgt = SW_TARGETS[s.sw] || {};
+        const ahtEligible = s.decisions >= ahtMinJobs && !!tgt.aht;
+        const actualAHT = s.decisions > 0 ? s.dht / s.decisions : null;
+        const ahtMet = ahtEligible && actualAHT !== null ? actualAHT <= tgt.aht : null;
+
+        let qPossible = 0, qEarned = 0, accMet = null, precMet = null, recMet = null;
+        if(tot > 0) {
+            if(ar >= 0.10) {
+                qPossible = 2;
+                precMet = (prec !== null && tgt.prec) ? prec >= tgt.prec : null;
+                recMet  = (rec  !== null && tgt.rec)  ? rec  >= tgt.rec  : null;
+                if(precMet) qEarned++;
+                if(recMet)  qEarned++;
+            } else {
+                qPossible = 1;
+                accMet = (acc !== null && tgt.acc) ? acc >= tgt.acc : null;
+                if(accMet) qEarned++;
+            }
+        }
+
+        return {
+            sw: s.sw, month: s.month, decisions: s.decisions, dht: s.dht,
+            aht: actualAHT, ahtTarget: tgt.aht||null, ahtEligible, ahtMet,
+            ar, acc, prec, rec, accTarget: tgt.acc||null, precTarget: tgt.prec||null, recTarget: tgt.rec||null,
+            accMet, precMet, recMet, qPossible, qEarned
+        };
+    });
+
+    // AHT attainment (roll-up)
+    let ahtEligible = 0, ahtMet = 0;
+    swDetail.forEach(s => { if(s.ahtEligible) { ahtEligible++; if(s.ahtMet) ahtMet++; } });
+    const ahtPct = ahtEligible > 0 ? ahtMet / ahtEligible : null;
+
+    // Quality attainment (roll-up)
+    let qPossible = 0, qEarned = 0;
+    swDetail.forEach(s => { qPossible += s.qPossible; qEarned += s.qEarned; });
+    const qPct = qPossible > 0 ? qEarned / qPossible : null;
+
+    const overallPct = (ahtPct !== null && qPct !== null) ? (ahtPct + qPct) / 2
+        : (ahtPct !== null ? ahtPct : qPct);
+
+    // Aggregate quality sub-metrics across all SWs (pooled, for the summary row)
+    let poolTpa=0, poolFpa=0, poolFna=0, poolTna=0, poolDht=0, poolDec=0;
+    swMonths.forEach(s => { poolTpa+=s.tpa; poolFpa+=s.fpa; poolFna+=s.fna; poolTna+=s.tna; poolDht+=s.dht; poolDec+=s.decisions; });
+    const poolTot = poolTpa+poolFpa+poolFna+poolTna;
+    const poolAR  = poolTot>0 ? (poolTpa+poolFpa)/poolTot : null;
+    const poolAcc = poolTot>0 ? (poolTpa+poolTna)/poolTot : null;
+    const poolPrec = (poolTpa+poolFpa)>0 ? poolTpa/(poolTpa+poolFpa) : null;
+    const poolRec  = (poolTpa+poolFna)>0 ? poolTpa/(poolTpa+poolFna) : null;
+    const poolAHT  = poolDec>0 ? poolDht/poolDec : null;
+
+    return {
+        ahtEligible, ahtMet, ahtPct, qPossible, qEarned, qPct, overallPct,
+        swDetail, totalSw: swMonths.length,
+        poolAR, poolAcc, poolPrec, poolRec, poolAHT, poolDec
+    };
+}
+
+
+
+function renderPerformanceIndex() {
+    const canvasId = 'chart-pidx-hist';
+    if(!RAW_ROWS.length) {
+        const tbody = document.getElementById('pidx-table-body');
+        if(tbody) tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:2rem;color:var(--tm)">No dataset loaded — use Load Dataset to upload a CSV.</td></tr>';
+        if(charts[canvasId]) { charts[canvasId].destroy(); delete charts[canvasId]; }
+        return;
+    }
+
+    const tls=getSel('g-tl'), tenures=getSel('g-tenure'), sws=getSel('g-sw'), workflows=getSel('g-workflow'), roles=getSel('g-role'), reviewTypes=getSel('g-review-type');
+    const selMonths = getSelMonths();
+
+    let rows = filterRows(qaFilter(RAW_ROWS), tls, tenures, sws, workflows, roles, reviewTypes);
+    if(selMonths.length) rows = rows.filter(r => selMonths.includes(r.month));
+
+    const isTL = PIDX_VIEW === 'tl';
+    const ahtMinJobs = isTL ? 50 : 10;
+    const entityKey = isTL ? 'supervisor' : 'reviewer';
+
+    // Group rows by entity (reviewer or TL)
+    const entityMap = {};
+    rows.forEach(r => {
+        const k = r[entityKey];
+        if(!k) return;
+        if(!entityMap[k]) entityMap[k] = { rows: [], supervisor: isTL ? k : r.supervisor };
+        entityMap[k].rows.push(r);
+    });
+
+    const people = Object.keys(entityMap).sort().map(name => {
+        const stats = pidxComputePerson(entityMap[name].rows, ahtMinJobs);
+        return { name, supervisor: entityMap[name].supervisor, ...stats };
+    });
+
+    // Metric selector
+    const kpiField = PIDX_KPI === 'aht' ? 'ahtPct' : PIDX_KPI === 'quality' ? 'qPct' : 'overallPct';
+    const scored = people.filter(p => p[kpiField] !== null);
+
+    // Meta label
+    const metaEl = document.getElementById('pidx-meta-label');
+    if(metaEl) metaEl.textContent = scored.length + ' ' + (isTL ? 'team lead' : 'reviewer') + (scored.length!==1?'s':'') + ' scored · ' + (selMonths.length ? selMonths.map(fmtMonth).join(', ') : 'all months');
+
+    // ── Bell curve: kernel density estimate over attainment values ─────────
+    // Silverman's rule of thumb for bandwidth, Gaussian kernel, evaluated
+    // across a grid so the curve reads as a smooth density line. Each
+    // person is also plotted as a marker on the curve (interpolated y),
+    // carrying their name/value for the tooltip.
+    const PURPLE = '#5B21B6', PURPLE_FILL = 'rgba(91,33,182,0.12)', PURPLE_LT = '#C4B5FD';
+    if(charts[canvasId]) charts[canvasId].destroy();
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    if(!scored.length) {
+        charts[canvasId] = new Chart(ctx, { type:'line', data:{labels:[],datasets:[]}, options:{responsive:true,maintainAspectRatio:false} });
+    } else {
+        const vals = scored.map(p => p[kpiField] * 100);
+        const n = vals.length;
+        const mean = vals.reduce((a,b)=>a+b,0) / n;
+        const variance = n>1 ? vals.reduce((a,b)=>a+(b-mean)*(b-mean),0) / (n-1) : 0;
+        const sd = Math.sqrt(variance) || 1;
+        const bandwidth = Math.max(1.06 * sd * Math.pow(n, -0.2), 1.5);
+
+        const gridMin = Math.max(0, Math.min(...vals) - 3*bandwidth);
+        const gridMax = Math.min(150, Math.max(...vals) + 3*bandwidth);
+        const steps = 60;
+        const grid = [];
+        for(let i=0;i<=steps;i++) grid.push(gridMin + (gridMax-gridMin)*i/steps);
+
+        function gaussianKernel(u) { return Math.exp(-0.5*u*u) / Math.sqrt(2*Math.PI); }
+        function densityAt(x) {
+            const sum = vals.reduce((acc,v) => acc + gaussianKernel((x-v)/bandwidth), 0);
+            return sum / (n*bandwidth);
+        }
+        const density = grid.map(densityAt);
+
+        // Per-person markers: x = their attainment %, y = density curve value
+        // at that x (so markers sit directly on the curve), carrying name for tooltip.
+        const markerPoints = scored.map(p => {
+            const x = p[kpiField] * 100;
+            return { x, y: densityAt(x), name: sn(p.name) || p.name };
+        });
+
+        charts[canvasId] = new Chart(ctx, {
+            data: {
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Distribution',
+                        data: grid.map((x,i) => ({ x, y: density[i] })),
+                        borderColor: PURPLE, backgroundColor: PURPLE_FILL, fill: true,
+                        borderWidth: 2.5, pointRadius: 0, tension: 0.4,
+                        order: 2
+                    },
+                    {
+                        type: 'scatter',
+                        label: isTL ? 'Team Leads' : 'Reviewers',
+                        data: markerPoints,
+                        backgroundColor: PURPLE, borderColor: '#fff', borderWidth: 1,
+                        pointRadius: 4, pointHoverRadius: 6,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        filter: ctx => ctx.datasetIndex === 1,
+                        callbacks: {
+                            title: ctx => ctx[0]?.raw?.name || '',
+                            label: ctx => (PIDX_KPI==='aht'?'AHT':PIDX_KPI==='quality'?'Quality':'Overall') + ': ' + ctx.raw.x.toFixed(1) + '%'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear', min: gridMin, max: gridMax,
+                        title:{display:true,text:(PIDX_KPI==='aht'?'AHT':PIDX_KPI==='quality'?'Quality':'Overall')+' Attainment (%)'},
+                        ticks:{font:{size:10},color:'#8E95A3', maxTicksLimit:11},
+                        grid:{display:false}
+                    },
+                    y: {
+                        beginAtZero:true,
+                        title:{display:true,text:'Relative Density'},
+                        ticks:{display:false},
+                        grid:{color:'#F0EFFB'}
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Summary stats strip ─────────────────────────────────────────────────
+    const statsEl = document.getElementById('pidx-hist-stats');
+    if(statsEl) {
+        if(!scored.length) {
+            statsEl.innerHTML = '<span style="color:var(--tm);font-size:12px">No scored ' + (isTL?'team leads':'reviewers') + ' for the current filters.</span>';
+        } else {
+            const vals = scored.map(p => p[kpiField]).sort((a,b)=>a-b);
+            const mean = vals.reduce((a,b)=>a+b,0) / vals.length;
+            const median = vals[Math.floor(vals.length/2)];
+            const stat = (label, val) => `<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm);margin-bottom:2px">${label}</div><div style="font-size:16px;font-weight:800;color:var(--purple)">${val}</div></div>`;
+            statsEl.innerHTML =
+                stat('Mean', (mean*100).toFixed(1)+'%') +
+                stat('Median', (median*100).toFixed(1)+'%') +
+                stat('Scored', vals.length + ' / ' + people.length);
+        }
+    }
+
+    // ── Detail table (grouped header, per-SW collapsible rows) ─────────────
+    const tbody = document.getElementById('pidx-table-body');
+    if(tbody) {
+        if(!people.length) {
+            tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:2rem;color:var(--tm)">No data available for the current filters.</td></tr>';
+        } else {
+            const sorted = [...people].sort((a,b) => {
+                const av = a[kpiField], bv = b[kpiField];
+                if(av===null && bv===null) return 0;
+                if(av===null) return 1;
+                if(bv===null) return -1;
+                return av - bv; // worst first
+            });
+            // Cascading greens: darkest = highest attainment, lightest = lowest.
+            // Applies to Attainment/Quality/AHT % columns only (per Karl's request).
+            const cascadeBands = [
+                { min: 0.96, text: '#065F46', bg: '#A7F3D0' }, // darkest green
+                { min: 0.90, text: '#0F766E', bg: '#CCFBF1' },
+                { min: 0.80, text: '#15803D', bg: '#DCFCE7' },
+                { min: 0.70, text: '#4D7C0F', bg: '#ECFCCB' },
+                { min: 0,    text: '#65A30D', bg: '#F7FEE7' }  // lightest green
+            ];
+            const cascade = v => {
+                if(v === null || v === undefined) return { text: 'var(--tm)', bg: 'transparent' };
+                const band = cascadeBands.find(b => v >= b.min) || cascadeBands[cascadeBands.length-1];
+                return { text: band.text, bg: band.bg };
+            };
+            // Standard met/not-met red-amber-green, cell background included, for
+            // Accuracy/Precision/Recall/AHT sub-metrics.
+            const metColor = met => met===null ? 'var(--tm)' : met ? 'var(--green)' : 'var(--coral)';
+            const metBg    = met => met===null ? 'transparent' : met ? 'var(--gsec)' : 'var(--csec)';
+            const fmtPct = v => v===null ? '—' : (v*100).toFixed(1)+'%';
+            const fmtNum = v => v===null || v===undefined ? '—' : v.toFixed(0)+'s';
+
+            let html = '';
+            sorted.forEach((p, i) => {
+                const rid = 'pidx-' + i;
+                const tlName = p.supervisor ? (typeof stl === 'function' ? stl(p.supervisor) : p.supervisor) : '—';
+                const overallC = cascade(p.overallPct), qC = cascade(p.qPct), ahtC = cascade(p.ahtPct);
+                // Pooled sub-metrics judged against the standard 96% quality bar for cell coloring.
+                const accMet  = p.poolAcc  === null ? null : p.poolAcc  >= 0.96;
+                const precMet = p.poolPrec === null ? null : p.poolPrec >= 0.96;
+                const recMet  = p.poolRec  === null ? null : p.poolRec  >= 0.96;
+                html += `
+                <tr class="de-tr" style="cursor:pointer" onclick="pidxToggleRow('${rid}')">
+                    <td style="text-align:center;width:20px"><span id="pidx-btn-${rid}" style="font-size:10px;color:var(--tm)">▸</span></td>
+                    <td style="text-align:left;font-weight:600">${sn(p.name)||p.name}</td>
+                    <td style="text-align:left;color:var(--tm)">${tlName}</td>
+                    <td style="text-align:center;font-weight:800;color:${overallC.text};background:${overallC.bg}">${fmtPct(p.overallPct)}</td>
+                    <td style="text-align:center;font-weight:700;color:${qC.text};background:${qC.bg}">${fmtPct(p.qPct)}</td>
+                    <td style="text-align:center">${p.qEarned}/${p.qPossible}</td>
+                    <td style="text-align:center">${p.totalSw}</td>
+                    <td style="text-align:center">${p.poolAR!==null ? (p.poolAR*100).toFixed(1)+'%' : '—'}</td>
+                    <td style="text-align:center;font-weight:600;color:${metColor(accMet)};background:${metBg(accMet)}">${p.poolAcc!==null ? (p.poolAcc*100).toFixed(1)+'%' : '—'}</td>
+                    <td style="text-align:center;font-weight:600;color:${metColor(precMet)};background:${metBg(precMet)}">${p.poolPrec!==null ? (p.poolPrec*100).toFixed(1)+'%' : '—'}</td>
+                    <td style="text-align:center;font-weight:600;color:${metColor(recMet)};background:${metBg(recMet)}">${p.poolRec!==null ? (p.poolRec*100).toFixed(1)+'%' : '—'}</td>
+                    <td style="text-align:center;font-weight:700;color:${ahtC.text};background:${ahtC.bg}">${fmtPct(p.ahtPct)}</td>
+                    <td style="text-align:center">${p.ahtMet}/${p.ahtEligible}</td>
+                    <td style="text-align:center">${p.totalSw}</td>
+                    <td style="text-align:center">${fmtNum(p.poolAHT)}</td>
+                    <td style="text-align:center">${p.poolDec!==null && p.poolDec!==undefined ? p.poolDec.toLocaleString() : '—'}</td>
+                </tr>`;
+
+                if(p.swDetail.length) {
+                    const swSorted = [...p.swDetail].sort((a,b) => a.sw.localeCompare(b.sw) || a.month.localeCompare(b.month));
+                    html += swSorted.map(s => {
+                        const sQC = s.qPossible ? cascade(s.qEarned/s.qPossible) : cascade(null);
+                        return `
+                    <tr class="pidx-detail-${rid}" style="display:none;background:var(--sa);font-size:11.5px">
+                        <td></td>
+                        <td style="text-align:left;color:var(--tm)">↳ ${s.sw}</td>
+                        <td style="text-align:left;color:var(--tm)">${fmtMonth(s.month)}</td>
+                        <td style="text-align:center;color:var(--tm)">—</td>
+                        <td style="text-align:center;color:${sQC.text};background:${sQC.bg}">${s.qPossible ? (s.qEarned/s.qPossible*100).toFixed(0)+'%' : '—'}</td>
+                        <td style="text-align:center">${s.qEarned}/${s.qPossible}</td>
+                        <td style="text-align:center">1</td>
+                        <td style="text-align:center">${s.ar!==null ? (s.ar*100).toFixed(1)+'%' : '—'}</td>
+                        <td style="text-align:center;color:${metColor(s.accMet)};background:${metBg(s.accMet)}">${s.acc!==null ? (s.acc*100).toFixed(1)+'%' : '—'}</td>
+                        <td style="text-align:center;color:${metColor(s.precMet)};background:${metBg(s.precMet)}">${s.prec!==null ? (s.prec*100).toFixed(1)+'%' : '—'}</td>
+                        <td style="text-align:center;color:${metColor(s.recMet)};background:${metBg(s.recMet)}">${s.rec!==null ? (s.rec*100).toFixed(1)+'%' : '—'}</td>
+                        <td style="text-align:center;color:${metColor(s.ahtMet)};background:${metBg(s.ahtMet)}">${s.ahtEligible ? (s.ahtMet?'Met':'Missed') : '—'}</td>
+                        <td style="text-align:center">${s.ahtEligible ? (s.ahtMet?'1/1':'0/1') : '—'}</td>
+                        <td style="text-align:center">1</td>
+                        <td style="text-align:center">${s.aht!==null ? s.aht.toFixed(0)+'s' : '—'}</td>
+                        <td style="text-align:center">${s.decisions}</td>
+                    </tr>`;
+                    }).join('');
+                }
+            });
+            tbody.innerHTML = html;
+        }
+    }
+}
+
+function pidxToggleRow(rid) {
+    const rows = document.querySelectorAll('.pidx-detail-' + rid);
+    const btn  = document.getElementById('pidx-btn-' + rid);
+    if(!rows.length) return;
+    const open = rows[0].style.display === 'none' || rows[0].style.display === '';
+    rows.forEach(r => r.style.display = open ? 'table-row' : 'none');
+    if(btn) btn.textContent = open ? '▾' : '▸';
+}
+
+// ─── END PERFORMANCE INDEX ──────────────────────────────────────────────────────
 
 // EDITABLE SW TARGETS
 function renderTargetsTable() {
@@ -10006,6 +10623,54 @@ function saveTargets() {
 }
 
 // COPY TAB AS HTML
+async function copyElementAsImage(elId, btnElem) {
+    const el = document.getElementById(elId);
+    if(!el) return;
+    const orig = btnElem.innerHTML;
+    btnElem.innerHTML = '⏳ Rendering...';
+    btnElem.disabled = true;
+
+    const loadLib = () => new Promise((res, rej) => {
+        if(window.html2canvas) return res();
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+    });
+
+    try {
+        await loadLib();
+        const canvas = await html2canvas(el, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#FFFFFF',
+            logging: false,
+            scrollX: 0, scrollY: 0,
+            windowWidth: el.scrollWidth,
+            width: el.scrollWidth,
+            height: el.scrollHeight
+        });
+        canvas.toBlob(async blob => {
+            if(!blob) { btnElem.innerHTML = '❌ Failed'; btnElem.disabled = false; return; }
+            try {
+                await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+                btnElem.innerHTML = '✅ Copied!';
+            } catch {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = elId + '.png';
+                a.click();
+                btnElem.innerHTML = '📥 Downloaded';
+            }
+            setTimeout(() => { btnElem.innerHTML = orig; btnElem.disabled = false; }, 2500);
+        }, 'image/png');
+    } catch(e) {
+        btnElem.innerHTML = '❌ Error';
+        btnElem.disabled = false;
+        setTimeout(() => { btnElem.innerHTML = orig; }, 2000);
+    }
+}
+
 async function copyTabAsImage(tabId, btnElem) {
     const tab = document.getElementById(tabId);
     if(!tab) return;
@@ -11906,7 +12571,7 @@ function renderControl() {
         </tr>${swSubHTML}`;
     }).join('');
     document.getElementById('c-rv-body').innerHTML = rvHTML ||
-        `<tr><td colspan="14" style="text-align:center;color:var(--tm);padding:2rem">No reviewer data found for this period.</td></tr>`;
+        `<tr><td colspan="13" style="text-align:center;color:var(--tm);padding:2rem">No reviewer data found for this period.</td></tr>`;
 
     renderIntLog();
 }
@@ -12002,8 +12667,8 @@ function renderExecCharts(qRows, wfmRows, targetsObj, qualType, vsfs, passRates)
     // Period label isn't currently consumable as a filter elsewhere in the app, so this jumps to the
     // relevant scorecard view rather than attempting to also select that exact week — same click-through
     // pattern as the KPI cards above.
-    const onQualPointClick = () => goToTab('scorecard','.t-sc');
-    const onWfmPointClick  = () => goToTab('supervisor','.t-sv');
+    const onQualPointClick = () => goToTab('pidx','.t-pidx');
+    const onWfmPointClick  = () => goToTab('pidx','.t-pidx');
 
     buildLine('chart-e-acc',  qLabels,   accData,  targetsObj.acc,  'Accuracy',     'up', '#1A56DB', '#B91C1C', true, onQualPointClick);
     const r2Acc = buildLine._lastR2;
@@ -13529,8 +14194,8 @@ function buildComparisonChart(canvasId, labels, data1, data2, label1, label2) {
 // ─── DATA EXPLORER ────────────────────────────────────────────────────────────
 let DE_DIMS = ['reviewer'];
 let DE_SORT = { col: 'adj_acc', dir: 'asc' };
-let DE_COLS = { adj:true, meta:true, raw:true, eff:true, act:true, wfm:true, aligngrp:false, vsf:false, timestamps:false,
-                comp_raw:false, comp_adj:false, comp_meta:false, comp_eff:false, comp_wfm:false, comp_aligngrp:false, comp_act:false };
+let DE_COLS = { adj:true, meta:true, raw:true, eff:true, act:true, wfm:true, aligngrp:false, vsf:false, timestamps:false, tops:false,
+                comp_raw:false, comp_adj:false, comp_meta:false, comp_eff:false, comp_wfm:false, comp_aligngrp:false, comp_act:false, comp_tops:false };
 
 // Queue Type filter for adj/meta/raw columns only ('all' | 'quality' | 'labelling')
 let DE_QT_FILTER = 'all';
@@ -13723,10 +14388,12 @@ function deAggQuality(rows) {
 function deAggEff(rows) {
     let dht=0,nht=0,dec=0,aud=0,viol=0,enf=0;
     let tpa=0,fpa=0,fna=0,tna=0; // needed for AR — always from full rows
+    let topsA=0,topsB=0;
     rows.forEach(r => {
         dht+=r.dht||0; nht+=r.nht||0; dec+=r.decisions||0; aud+=r.audits||0;
         viol+=r.viol||0; enf+=r.enf||0;
         tpa+=r.tpa||0; fpa+=r.fpa||0; fna+=r.fna||0; tna+=r.tna||0;
+        topsA+=r.topsA||0; topsB+=r.topsB||0;
     });
     const safe = (n,d) => d>0 ? n/d : null;
     return {
@@ -13735,7 +14402,8 @@ function deAggEff(rows) {
         ar:      safe(tpa+fpa, tpa+fpa+fna+tna),
         par:     safe(viol, enf),
         dec, aud, viol, enf, dht,
-        tpaFpa: tpa+fpa, tpaFpaFnaTna: tpa+fpa+fna+tna
+        tpaFpa: tpa+fpa, tpaFpaFnaTna: tpa+fpa+fna+tna,
+        topsA, topsB, tops: topsB>0 ? Math.min(topsA/topsB, 1) : null
     };
 }
 
@@ -13945,6 +14613,7 @@ function deGroupCols(grp, colDefs, compDefs) {
     if(!DE_COLS[grp]) return { head1:'', head2:'', count:0 };
     const labels = {adj:'Adjusted quality',meta:'Meta adjusted',raw:'Raw quality',
                     eff:'Efficiency',act:'Action rate',wfm:'Workforce',aligngrp:'AOA / MSV / Q Alignment',
+                    tops:'TOPS Adoption',
                     vsf:'📐 VSF / Control Limits',timestamps:'⏱ Timestamps (hrs)'};
     const compKey = 'comp_' + grp;
     const hasComp = compDefs && compDefs.length && compKey in DE_COLS;
@@ -14011,6 +14680,12 @@ function deCells(s, includeWfm, ahtTgt, includeTs) {
             : '';
         alignCells = base + comp;
     }
+    let topsCells = '';
+    if(DE_COLS.tops) {
+        const base = n(s.tops,'pct',1.0);
+        const comp = DE_COLS.comp_tops ? n(s.topsA,'int',null)+n(s.topsB,'int',null) : '';
+        topsCells = base + comp;
+    }
     // Timestamp cells — stored in minutes, displayed as hours
     // Color: % fields red if (value/tsTotal) > planned threshold; Lunch red if >5h abs; Onboarding no color
     let tsCells = '';
@@ -14066,7 +14741,7 @@ function deCells(s, includeWfm, ahtTgt, includeTs) {
             nv(s.vsf_rec,'vsf')  + nLim(s.lcl_rec,'pct')  + nLim(s.ucl_rec,'pct')  +
             nv(s.vsf_aht,'vsf')  + nLim(s.lcl_aht,'sec')  + nLim(s.ucl_aht,'sec');
     }
-    return adj+meta+raw+eff+act+wfm+alignCells+tsCells+vsfCells;
+    return adj+meta+raw+eff+act+wfm+alignCells+topsCells+tsCells+vsfCells;
 }
 
 function renderDataExplorer() {
@@ -14168,6 +14843,7 @@ function renderDataExplorer() {
     const actC  = [['ar','AR%'],['par','Prod AR%'],['enf','Enf'],['aud','Aud']];
     const wfmC  = [['util','Util%'],['occ','Occ%'],['abs','Abs%'],['wfSla','SLA%']];
     const alignC = [['alignment','AOA%'],['msv','MSV%'],['qaln','QAln%']];  // alignment=aoa alias, qaln=quick alias
+    const topsC  = [['tops','TOPS%']];
     const tsC   = [
         ['tsAvail','Available'],['tsFbLearn','FB Learn'],['tsNonFbLearn','Non-FB Learn'],
         ['tsCoaching','Coaching'],['tsMeeting','Meeting'],['tsWellness','Wellness'],
@@ -14182,6 +14858,7 @@ function renderDataExplorer() {
     const actX    = [['viol','Viol'],['tpaFpa','TPA+FPA'],['tpaFpaFnaTna','Total']];
     const wfmX    = [['avail','Avail hrs'],['bill','Billable hrs'],['rev','Reviewing hrs'],['actual','Actual (count)'],['sched','Scheduled (count)'],['slaN','SLA Events'],['slaD','Total Events']];
     const alignX  = [['aoan','AOA N'],['aoad','AOA D'],['msvN','MSV N'],['msvD','MSV D'],['quickN','QUICK N'],['quickD','QUICK D']];
+    const topsX   = [['topsA','TOPS A'],['topsB','TOPS B']];
 
     const vsfC  = [
         ['vsf_acc','Acc VSF'],  ['lcl_acc','Acc LCL'],  ['ucl_acc','Acc UCL'],
@@ -14197,8 +14874,9 @@ function renderDataExplorer() {
     const act   = deGroupCols('act',  actC,  actX);
     const wfm   = showWfm ? deGroupCols('wfm', wfmC, wfmX) : {head1:'',head2:'',count:0};
     const aligngrp = (DE_COLS.aligngrp && showWfm) ? deGroupCols('aligngrp', alignC, alignX) : {head1:'',head2:'',count:0};
+    const topsGrp = DE_COLS.tops ? deGroupCols('tops', topsC, topsX) : {head1:'',head2:'',count:0};
     const tsGrp = showTs ? deGroupCols('timestamps', tsC, null) : {head1:'',head2:'',count:0};
-    const totalCols = 1+adj.count+meta.count+raw.count+eff.count+act.count+wfm.count+aligngrp.count+tsGrp.count+vsfGrp.count;
+    const totalCols = 1+adj.count+meta.count+raw.count+eff.count+act.count+wfm.count+aligngrp.count+topsGrp.count+tsGrp.count+vsfGrp.count;
 
     const total = tree.length;
     const filterDesc = [selMonths.length?selMonths.map(fmtMonth).join(', '):'all months', selWeeks.length?selWeeks.map(fmtW).join(', '):'all weeks'].join(' · ');
@@ -14211,8 +14889,8 @@ function renderDataExplorer() {
     const thead = document.getElementById('de-thead');
     if(thead) {
         thead.innerHTML = '<tr><th class="de-thg de-g-dim" rowspan="2" style="text-align:left;min-width:180px;border-right:1px solid var(--border)"></th>' +
-            adj.head1+meta.head1+raw.head1+eff.head1+act.head1+wfm.head1+aligngrp.head1+tsGrp.head1+vsfGrp.head1+'</tr>' +
-            '<tr>'+adj.head2+meta.head2+raw.head2+eff.head2+act.head2+wfm.head2+aligngrp.head2+tsGrp.head2+vsfGrp.head2+'</tr>';
+            adj.head1+meta.head1+raw.head1+eff.head1+act.head1+wfm.head1+aligngrp.head1+topsGrp.head1+tsGrp.head1+vsfGrp.head1+'</tr>' +
+            '<tr>'+adj.head2+meta.head2+raw.head2+eff.head2+act.head2+wfm.head2+aligngrp.head2+topsGrp.head2+tsGrp.head2+vsfGrp.head2+'</tr>';
     }
 
     const dimCellClasses    = ['de-dim-cell','de-sub-dim-1','de-sub-dim-2','de-sub-dim-3'];
@@ -17614,7 +18292,6 @@ function handleUpload(input){
             if (typeof JOBDETAIL_ROWS !== 'undefined' && JOBDETAIL_ROWS.length && typeof jdBackfillRealAHT === 'function') jdBackfillRealAHT();
             document.getElementById('up-ok').textContent = '✓ Loaded '+RAW_ROWS.length.toLocaleString()+' rows across '+WEEKS.length+' weeks from '+file.name;
             document.getElementById('up-err').style.display = 'none';
-            setTimeout(() => showTab('exec', document.querySelector('.tab.t-ex')), 600);
         } catch(err) {
             console.error('handleUpload error:', err);
             document.getElementById('up-err').style.display = 'block';
@@ -25700,6 +26377,15 @@ function mcdGenerate(){
 .tcm-commit-inp-wide{width:100%;font-size:11px;font-family:var(--f);padding:5px 8px;border-radius:var(--r-xs);border:1.5px solid var(--pbd);background:var(--pbg);color:var(--purple);font-weight:600}
 .tcm-commit-inp-wide:focus{outline:none;border-color:var(--purple)}
 .tcm-commit-hint{font-size:10px;color:var(--tm);margin-top:3px;line-height:1.4}
+/* Combined "Team KPI + Commit target" single-row layout — replaces the old stacked
+   tcm-metrics block + separate tcm-commit-row to save vertical space in the modal. */
+.tcm-mc-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--sa);border:1px solid var(--border);border-radius:var(--r-xs);flex-wrap:wrap}
+.tcm-mc-metric{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.tcm-mc-lbl{font-size:9px;color:var(--tm);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.tcm-mc-val{font-size:12px;font-weight:800;font-family:var(--m);white-space:nowrap}
+.tcm-mc-arr{font-size:13px;color:var(--tm);flex-shrink:0}
+.tcm-mc-commit{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0}
+.tcm-mc-commit-lbl{font-size:9px;color:var(--tm);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
 .tcm-act-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
 .tcm-act-col-hdr{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ts);margin-bottom:5px}
 .tcm-cnt{font-size:10px;color:var(--tm);margin-left:auto}
@@ -25725,6 +26411,37 @@ function mcdGenerate(){
 .tcm-btn:hover{background:var(--surface);border-color:var(--ts)}
 .tcm-btn-primary{background:var(--purple);border-color:var(--purple);color:#fff}
 .tcm-btn-primary:hover{opacity:.9}
+
+/* ── SME coaching modal (scm-*) — lean, no opportunity checklist/action banks;
+   reuses the same visual language as tcm-* but its own namespace to avoid any
+   DOM/class collision with the TL modal. ── */
+#scm-overlay{display:none;position:fixed;inset:0;background:rgba(15,18,28,.55);z-index:9000;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto}
+#scm-overlay.scm-open{display:flex}
+#scm-modal{background:var(--surface);border-radius:var(--r-xl);border:1px solid var(--border);width:100%;max-width:640px;overflow:hidden;box-shadow:0 8px 40px rgba(15,18,28,.22);margin:auto}
+.scm-hdr{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:var(--surface)}
+.scm-title{font-size:14px;font-weight:800;color:var(--text)}
+.scm-sub{font-size:11px;color:var(--tm);margin-top:2px}
+.scm-close{background:none;border:none;cursor:pointer;font-size:18px;color:var(--tm);line-height:1;padding:2px 6px;border-radius:var(--r-xs);font-family:var(--f)}
+.scm-close:hover{background:var(--sa);color:var(--text)}
+.scm-body{padding:16px 20px;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 160px);overflow-y:auto}
+.scm-sec{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tm);margin-bottom:7px}
+.scm-card{border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)}
+.scm-card-hdr{padding:9px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;gap:8px;background:var(--sa)}
+.scm-card-title{font-size:12px;font-weight:700;color:var(--text);flex:1}
+.scm-card-body{padding:12px 14px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.scm-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.scm-metric{background:var(--sa);border:1px solid var(--border);border-radius:var(--r-xs);padding:6px 10px}
+.scm-metric-lbl{font-size:10px;color:var(--tm);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.scm-metric-val{font-size:13px;font-weight:800;font-family:var(--m)}
+.scm-notes{width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:8px 11px;font-family:var(--f);font-size:12px;color:var(--text);background:var(--surface);resize:vertical;line-height:1.6;min-height:52px}
+.scm-notes:focus{outline:none;border-color:var(--blue)}
+.scm-notes::placeholder{color:var(--tm)}
+.scm-warn{background:var(--cbg);border:1px solid var(--cbd);border-radius:var(--r-xs);padding:7px 12px;font-size:11px;color:var(--coral)}
+.scm-ftr{padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--sa)}
+.scm-btn{padding:7px 16px;border-radius:var(--r);border:1.5px solid var(--border);background:transparent;font-family:var(--f);font-size:12px;font-weight:700;color:var(--ts);cursor:pointer;transition:all .15s}
+.scm-btn:hover{background:var(--surface);border-color:var(--ts)}
+.scm-btn-primary{background:var(--purple);border-color:var(--purple);color:#fff}
+.scm-btn-primary:hover{opacity:.9}
 </style>
 
 <div id="tcm-overlay" onclick="tcmOverlayClick(event)">
@@ -25758,6 +26475,70 @@ function mcdGenerate(){
   <div class="tcm-ftr">
     <button class="tcm-btn" onclick="closeTcmModal()">Cancel</button>
     <button class="tcm-btn tcm-btn-primary" onclick="tcmGenerate()">Generate doc →</button>
+  </div>
+</div>
+</div>
+
+<div id="scm-overlay" onclick="scmOverlayClick(event)">
+<div id="scm-modal">
+  <div class="scm-hdr">
+    <div>
+      <div class="scm-title" id="scm-title">SME coaching doc</div>
+      <div class="scm-sub" id="scm-sub">Team QA and personal performance</div>
+    </div>
+    <button class="scm-close" onclick="closeScmModal()" title="Close">✕</button>
+  </div>
+
+  <div class="scm-body">
+
+    <div id="scm-warn" class="scm-warn" style="display:none"></div>
+
+    <div class="scm-card">
+      <div class="scm-card-hdr"><div class="scm-card-title" id="scm-team-title">Team QA</div></div>
+      <div class="scm-card-body">
+        <div class="scm-metrics">
+          <div class="scm-metric"><div class="scm-metric-lbl">Adj Accuracy</div><div class="scm-metric-val" id="scm-team-acc">—</div></div>
+          <div class="scm-metric"><div class="scm-metric-lbl">Precision</div><div class="scm-metric-val" id="scm-team-prec">—</div></div>
+          <div class="scm-metric"><div class="scm-metric-lbl">Recall</div><div class="scm-metric-val" id="scm-team-rec">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scm-card">
+      <div class="scm-card-hdr"><div class="scm-card-title">Personal Quality by Sub-Workflow</div></div>
+      <div class="scm-card-body">
+        <div class="twrap"><table><thead><tr><th>Sub-Workflow</th><th>Decisions</th><th>Adj Acc</th><th>Precision</th><th>Recall</th><th>Errors</th></tr></thead><tbody id="scm-q-rows"></tbody></table></div>
+      </div>
+    </div>
+
+    <div class="scm-card">
+      <div class="scm-card-hdr"><div class="scm-card-title">Personal AHT by Sub-Workflow</div></div>
+      <div class="scm-card-body">
+        <div class="twrap"><table><thead><tr><th>Sub-Workflow</th><th>Decisions</th><th>Actual</th><th>Target</th><th>Status</th></tr></thead><tbody id="scm-aht-rows"></tbody></table></div>
+      </div>
+    </div>
+
+    <div class="scm-card">
+      <div class="scm-card-hdr"><div class="scm-card-title">AOA / MSV / Attendance</div></div>
+      <div class="scm-card-body">
+        <div class="scm-metrics">
+          <div class="scm-metric"><div class="scm-metric-lbl">AOA</div><div class="scm-metric-val" id="scm-aoa">—</div></div>
+          <div class="scm-metric"><div class="scm-metric-lbl">MSV</div><div class="scm-metric-val" id="scm-msv">—</div></div>
+          <div class="scm-metric"><div class="scm-metric-lbl">Absenteeism</div><div class="scm-metric-val" id="scm-abs">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="scm-sec">Notes (optional)</div>
+      <textarea class="scm-notes" id="scm-notes" rows="2" placeholder="Prior coaching history, context, or anything relevant going into this conversation."></textarea>
+    </div>
+
+  </div>
+
+  <div class="scm-ftr">
+    <button class="scm-btn" onclick="closeScmModal()">Cancel</button>
+    <button class="scm-btn scm-btn-primary" onclick="scmGenerate()">Generate doc →</button>
   </div>
 </div>
 </div>
@@ -25849,8 +26630,8 @@ function openTlCoachingModal(mode){
   periodRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;});
   const teamPrec = (tpa+fpa)>0 ? tpa/(tpa+fpa) : null;
   const teamRec  = (tpa+fna)>0 ? tpa/(tpa+fna) : null;
-  const PREC_TARGET = (typeof T!=='undefined') ? T.prec.v : 0.95;
-  const REC_TARGET  = (typeof T!=='undefined') ? T.rec.v  : 0.95;
+  const PREC_TARGET = 0.96; // Precision & Recall target is always >=96%, per spec — not the general 0.95 QA target
+  const REC_TARGET  = 0.96;
 
   // ── AHT — SW pass-rate based, not pooled team AHT ───────────────────────────
   // Per SW: needs >=50 decisions to qualify. Passes if actual AHT <= SW target.
@@ -26111,26 +26892,35 @@ function tcmDefaultCommit(key){
   }
 }
 
+// Renders the commit-target input alone (used only for qualitative-only opportunities
+// that have no Team KPI metric to sit alongside — coach, map, bi, other).
 function tcmCommitBlock(key){
   const c = tcmDefaultCommit(key);
-  const isQualitative = (c.current === null);
-  if(isQualitative){
-    return `<div>
-      <div class="tcm-commit-lbl">Commit target</div>
-      <input class="tcm-commit-inp-wide" type="text" id="tcm-commit-${key}" value="${tcmEsc(c.default)}" />
-      <div class="tcm-commit-hint">Pre-filled placeholder — replace with a specific, checkable target for next period.</div>
-    </div>`;
-  }
   return `<div>
     <div class="tcm-commit-lbl">Commit target</div>
-    <div class="tcm-commit-row">
-      <div class="tcm-commit-dot" style="background:var(--purple)"></div>
-      <span class="tcm-commit-txt">Current: ${tcmEsc(c.current)}</span>
-      <span class="tcm-commit-arr">→</span>
-      <input class="tcm-commit-inp" type="text" id="tcm-commit-${key}" value="${tcmEsc(c.default)}" />
-    </div>
-    <div class="tcm-commit-hint">Pre-filled to target. Adjust for phasing (e.g. partial improvement this period).</div>
+    <input class="tcm-commit-inp-wide" type="text" id="tcm-commit-${key}" value="${tcmEsc(c.default)}" />
+    <div class="tcm-commit-hint">Pre-filled placeholder — replace with a specific, checkable target for next period.</div>
   </div>`;
+}
+
+// Combined "Team KPI" + "Commit target" single row — keeps both on the same line to
+// save vertical space in the modal. metricLbl/metricVal render on the left, the commit
+// input renders on the right, sourced from tcmDefaultCommit(key) so the input's default
+// value stays in sync with whatever target logic that function already encodes.
+function tcmMetricCommitRow(metricLbl, metricValHtml, key, extraNote){
+  const c = tcmDefaultCommit(key);
+  return `<div class="tcm-mc-row">
+      <div class="tcm-mc-metric">
+        <div class="tcm-mc-lbl">${metricLbl}</div>
+        <div class="tcm-mc-val">${metricValHtml}</div>
+      </div>
+      <span class="tcm-mc-arr">→</span>
+      <div class="tcm-mc-commit">
+        <div class="tcm-mc-commit-lbl">Commit target</div>
+        <input class="tcm-commit-inp" type="text" id="tcm-commit-${key}" value="${tcmEsc(c.default)}" />
+      </div>
+    </div>
+    ${extraNote ? `<div class="tcm-commit-hint">${extraNote}</div>` : ''}`;
 }
 
 function tcmMetricsBlock(key){
@@ -26140,9 +26930,9 @@ function tcmMetricsBlock(key){
     const off = p.val!==null ? p.val < p.tgt : null;
     return {
       badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
-      html: `<div class="tcm-metrics">
-        <div class="tcm-metric"><div class="tcm-metric-lbl">Team Precision</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(p.val)} <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(p.tgt)} tgt</span></div></div>
-      </div>`
+      html: tcmMetricCommitRow('Team Precision',
+        `<span style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(p.val)}</span> <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(p.tgt)} tgt</span>`,
+        key)
     };
   }
   if(key === 'rec'){
@@ -26150,9 +26940,9 @@ function tcmMetricsBlock(key){
     const off = r.val!==null ? r.val < r.tgt : null;
     return {
       badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
-      html: `<div class="tcm-metrics">
-        <div class="tcm-metric"><div class="tcm-metric-lbl">Team Recall</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(r.val)} <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(r.tgt)} tgt</span></div></div>
-      </div>`
+      html: tcmMetricCommitRow('Team Recall',
+        `<span style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(r.val)}</span> <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(r.tgt)} tgt</span>`,
+        key)
     };
   }
   if(key === 'aht'){
@@ -26160,11 +26950,10 @@ function tcmMetricsBlock(key){
     const off = a.passRate!==null ? a.passRate < a.passRateTgt : null;
     return {
       badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
-      html: `<div class="tcm-metrics">
-        <div class="tcm-metric"><div class="tcm-metric-lbl">SW Pass Rate</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${a.qualifying>0?a.passing+' / '+a.qualifying+' SWs':'—'} <span style="color:var(--tm);font-weight:600;font-size:11px">(${tcmPct(a.passRate)})</span></div></div>
-        <div class="tcm-metric"><div class="tcm-metric-lbl">Threshold</div><div class="tcm-metric-val" style="color:var(--tm)">≥${tcmPct(a.passRateTgt)} of qualifying SWs</div></div>
-      </div>
-      ${a.qualifying===0 ? `<div class="tcm-commit-hint">No SWs with ≥50 decisions this period — AHT pass rate cannot be judged yet.</div>` : ''}`
+      html: tcmMetricCommitRow('SW Pass Rate',
+        `<span style="color:${off?'var(--coral)':'var(--green)'}">${a.qualifying>0?a.passing+' / '+a.qualifying+' SWs':'—'}</span> <span style="color:var(--tm);font-weight:600;font-size:11px">(${tcmPct(a.passRate)}, ≥${tcmPct(a.passRateTgt)} tgt)</span>`,
+        key,
+        a.qualifying===0 ? 'No SWs with ≥50 decisions this period — AHT pass rate cannot be judged yet.' : null)
     };
   }
   if(key === 'tops'){
@@ -26172,9 +26961,9 @@ function tcmMetricsBlock(key){
     const off = t.val!==null ? t.val < t.tgt : null;
     return {
       badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
-      html: `<div class="tcm-metrics">
-        <div class="tcm-metric"><div class="tcm-metric-lbl">TOPS (A/B)</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(t.val)} <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(t.tgt)} tgt</span></div></div>
-      </div>`
+      html: tcmMetricCommitRow('TOPS (A/B)',
+        `<span style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(t.val)}</span> <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(t.tgt)} tgt</span>`,
+        key)
     };
   }
   if(key === 'fin'){
@@ -26182,9 +26971,9 @@ function tcmMetricsBlock(key){
     const off = f.val!==null ? f.val > f.tgt : null;
     return {
       badgeClass: tcmFlagClass(off), badgeLabel: tcmFlagLabel(off),
-      html: `<div class="tcm-metrics">
-        <div class="tcm-metric"><div class="tcm-metric-lbl">Absenteeism</div><div class="tcm-metric-val" style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(f.val)} <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(f.tgt)} tgt</span></div></div>
-      </div>`
+      html: tcmMetricCommitRow('Absenteeism',
+        `<span style="color:${off?'var(--coral)':'var(--green)'}">${tcmPct(f.val)}</span> <span style="color:var(--tm);font-weight:600;font-size:11px">/ ${tcmPct(f.tgt)} tgt</span>`,
+        key)
     };
   }
   if(key === 'product'){
@@ -26195,10 +26984,9 @@ function tcmMetricsBlock(key){
     return {
       badgeClass: (msvOff===null&&aoaOff===null) ? 'tcm-badge-n' : (bothOff ? 'tcm-badge-r' : 'tcm-badge-g'),
       badgeLabel: (msvOff===null&&aoaOff===null) ? 'No data' : (bothOff ? 'Off target' : 'On target'),
-      html: `<div class="tcm-metrics">
-        <div class="tcm-metric"><div class="tcm-metric-lbl">MSV</div><div class="tcm-metric-val" style="color:${msvOff?'var(--coral)':'var(--green)'}">${tcmPct(p.msv)}</div></div>
-        <div class="tcm-metric"><div class="tcm-metric-lbl">AOA</div><div class="tcm-metric-val" style="color:${aoaOff?'var(--coral)':'var(--green)'}">${tcmPct(p.aoa)}</div></div>
-      </div>`
+      html: tcmMetricCommitRow('MSV / AOA',
+        `<span style="color:${msvOff?'var(--coral)':'var(--green)'}">MSV ${tcmPct(p.msv)}</span> / <span style="color:${aoaOff?'var(--coral)':'var(--green)'}">AOA ${tcmPct(p.aoa)}</span>`,
+        key)
     };
   }
   return null; // qualitative-only opportunity: coach, map, bi, other
@@ -26232,8 +27020,7 @@ function tcmRenderFocusAreas(){
         <span class="tcm-fa-title">${tcmEsc(opp.label)}</span>
       </div>
       <div class="tcm-fa-body">
-        ${metricBlock ? metricBlock.html : ''}
-        ${tcmCommitBlock(key)}
+        ${metricBlock ? metricBlock.html : tcmCommitBlock(key)}
         <div class="tcm-act-cols">
           <div>
             <div class="tcm-act-col-hdr">🔎 TL <span class="tcm-cnt" id="tcm-cnt-tl-${key}">0 / 3</span></div>
@@ -26364,10 +27151,13 @@ function tcmGenerate(){
   };
 
   // Monthly TL doc gets the full performance history sections (6-month overview + 3-month SW table).
-  // Mid-month doc stays lean — commitments only.
+  // Mid-month doc gets its own parallel sections (5-week overview + MTD, 5-week SW table + MTD).
   if(_tcm.mode === 'monthly'){
     try { config.history = tcmBuildHistory(_tcm.tl); }
     catch(e){ console.warn('[tcm] history build failed', e); config.history = null; }
+  } else if(_tcm.mode === 'midmonth'){
+    try { config.midHistory = tcmBuildMidHistory(_tcm.tl); }
+    catch(e){ console.warn('[tcm] mid-history build failed', e); config.midHistory = null; }
   }
 
   closeTcmModal();
@@ -26394,8 +27184,8 @@ function tcmBuildHistory(tl){
     : RAW_ROWS.filter(r => r.sw && r.sw!=='(blank)' && r.supervisor === tl);
 
   const ACC_TARGET = 0.96;
-  const PREC_TARGET = (typeof T!=='undefined') ? T.prec.v : 0.95;
-  const REC_TARGET  = (typeof T!=='undefined') ? T.rec.v  : 0.95;
+  const PREC_TARGET = 0.96; // Precision & Recall target is always >=96%, per spec
+  const REC_TARGET  = 0.96;
   const AOA_TARGET  = (typeof T!=='undefined') ? T.aoa.v  : 0.98;
   const MSV_TARGET  = (typeof T!=='undefined') ? T.msv.v  : 0.98;
   const ABS_TARGET  = (typeof T!=='undefined') ? T.abs.v  : 0.05;
@@ -26485,6 +27275,109 @@ function tcmPassRateForMonth(swMoData, mo, kpiFn, tgtFn, lowerIsBetter){
   return qualifying>0 ? passing/qualifying : null;
 }
 
+// ── Build 5-week overview + current-month (MTD) column for the Mid Month TL doc ────
+// Same shape/logic as tcmBuildHistory, but keyed by week instead of month, with one
+// extra synthetic "MTD" bucket appended (all rows where r.month === current month —
+// same MTD semantic used elsewhere in the app, e.g. renderPrioritySurface). The SW
+// table mirrors this: last 5 weeks + MTD, same >=50 decisions AHT gatekeeper.
+function tcmBuildMidHistory(tl){
+  const allWeeks = (typeof WEEKS!=='undefined' && WEEKS.length)
+    ? WEEKS.slice()
+    : [...new Set(RAW_ROWS.map(r=>r.week).filter(Boolean))].sort();
+  const currIdx = allWeeks.length - 1;
+  const last5Weeks = allWeeks.slice(Math.max(0, currIdx-4), currIdx+1);
+  const currWeek = allWeeks[currIdx];
+
+  const allMonths = [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort();
+  const currMonth = allMonths[allMonths.length-1];
+
+  const teamRows = (typeof filterRows==='function' && typeof qaFilter==='function')
+    ? filterRows(qaFilter(RAW_ROWS), [tl], [], [], [], [], []).filter(r=>r.sw && r.sw!=='(blank)')
+    : RAW_ROWS.filter(r => r.sw && r.sw!=='(blank)' && r.supervisor === tl);
+
+  const ACC_TARGET = 0.96;
+  const PREC_TARGET = 0.96; // Precision & Recall target is always >=96%, per spec
+  const REC_TARGET  = 0.96;
+  const AOA_TARGET  = (typeof T!=='undefined') ? T.aoa.v  : 0.98;
+  const MSV_TARGET  = (typeof T!=='undefined') ? T.msv.v  : 0.98;
+  const ABS_TARGET  = (typeof T!=='undefined') ? T.abs.v  : 0.05;
+  const TOPS_TARGET = 0.98;
+  const SW_MIN_DEC = 50;
+
+  // MTD_KEY is a synthetic bucket id (not a real week) standing in for "current month to date".
+  const MTD_KEY = '__MTD__';
+  const cols = [...last5Weeks, MTD_KEY];
+  const rowsForCol = col => col===MTD_KEY ? teamRows.filter(r=>r.month===currMonth) : teamRows.filter(r=>r.week===col);
+
+  // Per-column team totals (accuracy/precision/recall/AR/AHT/decisions/tops)
+  const colStats = {};
+  cols.forEach(col=>{
+    const rows = rowsForCol(col);
+    let tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0,topsA=0,topsB=0;
+    rows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;topsA+=r.topsA||0;topsB+=r.topsB||0;});
+    const tot=tpa+fpa+fna+tna;
+    colStats[col] = {
+      acc: tot>0?(tpa+tna)/tot:null,
+      prec:(tpa+fpa)>0?tpa/(tpa+fpa):null,
+      rec: (tpa+fna)>0?tpa/(tpa+fna):null,
+      ar:  tot>0?(tpa+fpa)/tot:null,
+      aht: dec>0?Math.round((dht+nht)/dec):null,
+      dec, tops: topsB>0?Math.min(topsA/topsB,1):null
+    };
+  });
+
+  // Per-column SW breakdown (for Pass Rate rows + the SW table) — team rollup
+  const swColData = {}; // sw -> col -> {tpa,fpa,fna,tna,dht,nht,dec}
+  cols.forEach(col=>{
+    rowsForCol(col).forEach(r=>{
+      if(!r.sw) return;
+      if(!swColData[r.sw]) swColData[r.sw] = {};
+      if(!swColData[r.sw][col]) swColData[r.sw][col] = {tpa:0,fpa:0,fna:0,tna:0,dht:0,nht:0,dec:0};
+      const s = swColData[r.sw][col];
+      s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0; s.dht+=r.dht||0; s.nht+=r.nht||0; s.dec+=r.decisions||0;
+    });
+  });
+
+  const accKpi  = s => (s.tpa+s.fpa+s.fna+s.tna)>0 ? (s.tpa+s.tna)/(s.tpa+s.fpa+s.fna+s.tna) : null;
+  const precKpi = s => (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
+  const recKpi  = s => (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
+  const ahtKpi  = s => s.dec>0 ? Math.round((s.dht+s.nht)/s.dec) : null;
+
+  const accTgtFn  = sw => (SW_TARGETS[sw] && SW_TARGETS[sw].acc)  || ACC_TARGET;
+  const precTgtFn = sw => (SW_TARGETS[sw] && SW_TARGETS[sw].prec) || ACC_TARGET;
+  const recTgtFn  = sw => (SW_TARGETS[sw] && SW_TARGETS[sw].rec)  || ACC_TARGET;
+  const ahtTgtFn  = sw => (SW_TARGETS[sw] && SW_TARGETS[sw].aht)  || null;
+
+  const colAccPassRate  = {}, colPrecPassRate = {}, colRecPassRate = {}, colAhtPassRate = {};
+  cols.forEach(col=>{
+    colAccPassRate[col]  = tcmPassRateForMonth(swColData, col, accKpi,  accTgtFn,  false);
+    colPrecPassRate[col] = tcmPassRateForMonth(swColData, col, precKpi, precTgtFn, false);
+    colRecPassRate[col]  = tcmPassRateForMonth(swColData, col, recKpi,  recTgtFn,  false);
+    colAhtPassRate[col]  = tcmPassRateForMonth(swColData, col, ahtKpi,  ahtTgtFn,  true);
+  });
+
+  // Per-column AOA/MSV/Absenteeism via aggWfm, scoped to this TL's team
+  const colAoa = {}, colMsv = {}, colAbs = {};
+  cols.forEach(col=>{
+    const wkSet = col===MTD_KEY
+      ? new Set(teamRows.filter(r=>r.month===currMonth).map(r=>r.week).filter(Boolean))
+      : new Set([col]);
+    let wfm = {aoa:null,msv:null,abs:null};
+    if(typeof aggWfm === 'function' && wkSet.size){
+      try { wfm = aggWfm(null, wkSet, new Set([tl])); } catch(e){}
+    }
+    colAoa[col]=wfm.aoa; colMsv[col]=wfm.msv; colAbs[col]=wfm.abs;
+  });
+
+  return {
+    last5Weeks, currWeek, currMonth, MTD_KEY, cols,
+    colStats, colAccPassRate, colPrecPassRate, colRecPassRate, colAhtPassRate,
+    colAoa, colMsv, colAbs,
+    swColData,
+    targets: { ACC_TARGET, PREC_TARGET, REC_TARGET, AOA_TARGET, MSV_TARGET, ABS_TARGET, TOPS_TARGET, SW_MIN_DEC }
+  };
+}
+
 // ── Final doc renderer — reuses the same visual language as the existing TL docs ──
 function _tcmGenerateDoc(config){
   const surface='#FFFFFF', lightGray='#F4F6F9', borderColor='#DDE1E9', divider='#E8EBF0';
@@ -26541,20 +27434,31 @@ function _tcmGenerateDoc(config){
     return met ? green : red;
   };
 
+  // Combined value+pass-rate renderer for compact "one row" merges (value on top,
+  // pass-rate as a small suffix underneath — replaces the old separate PassRate rows).
+  const combo = (valFmt, passRate) => {
+    const passStr = passRate!==null && passRate!==undefined ? pctFmt(passRate) : '—';
+    return `<div style="line-height:1.25">
+      <div>${valFmt}</div>
+      <div style="font-size:8px;font-weight:600;opacity:.75;margin-top:1px">PR ${passStr}</div>
+    </div>`;
+  };
+
   let overviewHTML = '';
   if(config.history){
     const h = config.history;
     const t = h.targets;
+    const PR_TARGET = 0.96; // Precision & Recall target is always >=96%, per spec
     const overviewRows = [
-      { lbl:'Accuracy', gate:'low',  get:mo=>h.moStats[mo]?.acc,  fmt:pctFmt, tgt:t.ACC_TARGET, higher:true },
-      { lbl:'Accuracy Pass Rate', gate:'low',  get:mo=>h.moAccPassRate[mo], fmt:pctFmt, tgt:0.80, higher:true },
-      { lbl:'Precision', gate:'high', get:mo=>h.moStats[mo]?.prec, fmt:pctFmt, tgt:t.PREC_TARGET, higher:true },
-      { lbl:'Precision Pass Rate', gate:'high', get:mo=>h.moPrecPassRate[mo], fmt:pctFmt, tgt:0.80, higher:true },
-      { lbl:'Recall', gate:'high', get:mo=>h.moStats[mo]?.rec, fmt:pctFmt, tgt:t.REC_TARGET, higher:true },
-      { lbl:'Recall Pass Rate', gate:'high', get:mo=>h.moRecPassRate[mo], fmt:pctFmt, tgt:0.80, higher:true },
+      { lbl:'Accuracy', gate:null,  get:mo=>h.moStats[mo]?.acc,  fmt:pctFmt, tgt:t.ACC_TARGET, higher:true, colorGate:'low',
+        passRate:mo=>h.moAccPassRate[mo] },
+      { lbl:'Precision', gate:null, get:mo=>h.moStats[mo]?.prec, fmt:pctFmt, tgt:PR_TARGET, higher:true, colorGate:'high',
+        passRate:mo=>h.moPrecPassRate[mo] },
+      { lbl:'Recall', gate:null, get:mo=>h.moStats[mo]?.rec, fmt:pctFmt, tgt:PR_TARGET, higher:true, colorGate:'high',
+        passRate:mo=>h.moRecPassRate[mo] },
       { lbl:'Action Rate', gate:null, get:mo=>h.moStats[mo]?.ar, fmt:pctFmt, tgt:null, higher:null },
-      { lbl:'AHT', gate:null, get:mo=>h.moStats[mo]?.aht, fmt:secsFmt, tgt:null, higher:false },
-      { lbl:'AHT Pass Rate', gate:null, get:mo=>h.moAhtPassRate[mo], fmt:pctFmt, tgt:0.80, higher:true },
+      { lbl:'AHT', gate:null, get:mo=>h.moStats[mo]?.aht, fmt:secsFmt, tgt:null, higher:false,
+        passRate:mo=>h.moAhtPassRate[mo] },
       { lbl:'AOA', gate:null, get:mo=>h.moAoa[mo], fmt:pctFmt, tgt:t.AOA_TARGET, higher:true },
       { lbl:'MSV', gate:null, get:mo=>h.moMsv[mo], fmt:pctFmt, tgt:t.MSV_TARGET, higher:true },
       { lbl:'Absenteeism', gate:null, get:mo=>h.moAbs[mo], fmt:pctFmt, tgt:t.ABS_TARGET, higher:false },
@@ -26584,13 +27488,20 @@ function _tcmGenerateDoc(config){
               ${h.last6Months.map(mo=>{
                 const isCurr = mo===h.currMonth;
                 const v = row.get(mo);
-                let active = true;
-                if(row.gate==='low')  active = moAR(mo)===null || moAR(mo)===undefined ? true : moAR(mo) < 0.10;
-                if(row.gate==='high') active = moAR(mo)===null || moAR(mo)===undefined ? true : moAR(mo) >= 0.10;
-                const c = active && row.tgt!==null ? cellColor(v, row.tgt, row.higher) : (active ? textSec : textMuted);
-                const bg = isCurr ? '#EEF2FF' : 'transparent';
-                const disp = (v===null || v===undefined || !active) ? (active ? '—' : '—') : row.fmt(v);
-                return `<td style="padding:5px 8px;text-align:right;font-family:${mono};font-size:11px;font-weight:${c===green||c===red?'700':'400'};color:${c};background:${bg}">${disp}</td>`;
+                // colorGate controls whether THIS row's cell gets color-coded (Accuracy only
+                // colored when AR<10%, Precision/Recall only colored when AR>=10%). The value
+                // itself always displays regardless of AR — only the color coding is gated.
+                let colorActive = true;
+                if(row.colorGate==='low')  colorActive = moAR(mo)===null || moAR(mo)===undefined ? true : moAR(mo) < 0.10;
+                if(row.colorGate==='high') colorActive = moAR(mo)===null || moAR(mo)===undefined ? true : moAR(mo) >= 0.10;
+                const c = colorActive && row.tgt!==null ? cellColor(v, row.tgt, row.higher) : textSec;
+                // Cell background follows the same pass/fail color coding as the text
+                // (green/red tint), not just the text color — current-month tint is used
+                // only as a fallback when no pass/fail color applies (e.g. no target, no data).
+                const cellBg = c===green ? '#F0FDF4' : c===red ? '#FEF2F2' : (isCurr ? '#EEF2FF' : 'transparent');
+                const disp = (v===null || v===undefined) ? '—' : row.fmt(v);
+                const content = row.passRate ? combo(disp, row.passRate(mo)) : disp;
+                return `<td style="padding:5px 8px;text-align:right;font-family:${mono};font-size:11px;font-weight:${c===green||c===red?'700':'400'};color:${c};background:${cellBg}">${content}</td>`;
               }).join('')}
             </tr>`;
           }).join('')}
@@ -26599,13 +27510,195 @@ function _tcmGenerateDoc(config){
     </div>`;
   }
 
+  // ── Section: Overall performance — last 5 weeks + current month (MTD) ────────
+  // Mid-month equivalent of the monthly 6-month overview table above, but keyed by
+  // week instead of month, with a final synthetic "MTD" column standing in for the
+  // current month's rows so far (same MTD semantic used elsewhere in the app).
+  let midOverviewHTML = '';
+  if(config.midHistory){
+    const h = config.midHistory;
+    const t = h.targets;
+    const PR_TARGET = 0.96; // Precision & Recall target is always >=96%, per spec
+
+    const midOverviewRows = [
+      { lbl:'Accuracy', get:col=>h.colStats[col]?.acc,  fmt:pctFmt, tgt:t.ACC_TARGET, higher:true, colorGate:'low',
+        passRate:col=>h.colAccPassRate[col] },
+      { lbl:'Precision', get:col=>h.colStats[col]?.prec, fmt:pctFmt, tgt:PR_TARGET, higher:true, colorGate:'high',
+        passRate:col=>h.colPrecPassRate[col] },
+      { lbl:'Recall', get:col=>h.colStats[col]?.rec, fmt:pctFmt, tgt:PR_TARGET, higher:true, colorGate:'high',
+        passRate:col=>h.colRecPassRate[col] },
+      { lbl:'Action Rate', get:col=>h.colStats[col]?.ar, fmt:pctFmt, tgt:null, higher:null },
+      { lbl:'AHT', get:col=>h.colStats[col]?.aht, fmt:secsFmt, tgt:null, higher:false,
+        passRate:col=>h.colAhtPassRate[col] },
+      { lbl:'AOA', get:col=>h.colAoa[col], fmt:pctFmt, tgt:t.AOA_TARGET, higher:true },
+      { lbl:'MSV', get:col=>h.colMsv[col], fmt:pctFmt, tgt:t.MSV_TARGET, higher:true },
+      { lbl:'Absenteeism', get:col=>h.colAbs[col], fmt:pctFmt, tgt:t.ABS_TARGET, higher:false },
+      { lbl:'TOPS Adoption', get:col=>h.colStats[col]?.tops, fmt:pctFmt, tgt:t.TOPS_TARGET, higher:true }
+    ];
+    const colLabel = col => col===h.MTD_KEY ? 'MTD' : fmtW(col);
+    const colW = `${Math.round(78/h.cols.length)}%`;
+
+    midOverviewHTML = `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
+        <colgroup>
+          <col style="width:22%">
+          ${h.cols.map((_,i)=>`<col style="width:${colW}${i===h.cols.length-1?';border-left:0.5px solid '+borderColor:''}">`).join('')}
+        </colgroup>
+        <thead>
+          <tr style="background:${lightGray}">
+            <th style="padding:5px 9px;text-align:left;font-size:9px;font-weight:700;color:${textMuted};text-transform:uppercase;letter-spacing:.06em">KPI</th>
+            ${h.cols.map(col=>{
+              const isMTD = col===h.MTD_KEY;
+              return `<th style="padding:5px 8px;text-align:right;font-size:9px;font-weight:700;color:${isMTD?textPri:textSec};${isMTD?'background:#EEF2FF;':''}">${colLabel(col)}</th>`;
+            }).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${midOverviewRows.map(row=>{
+            const colAR = col => h.colStats[col]?.ar;
+            return `<tr style="border-bottom:0.5px solid ${divider}">
+              <td style="padding:5px 9px;font-size:10px;font-weight:600;color:${textMuted};background:${lightGray};white-space:nowrap">${row.lbl}</td>
+              ${h.cols.map(col=>{
+                const isMTD = col===h.MTD_KEY;
+                const v = row.get(col);
+                let colorActive = true;
+                if(row.colorGate==='low')  colorActive = colAR(col)===null || colAR(col)===undefined ? true : colAR(col) < 0.10;
+                if(row.colorGate==='high') colorActive = colAR(col)===null || colAR(col)===undefined ? true : colAR(col) >= 0.10;
+                const c = colorActive && row.tgt!==null ? cellColor(v, row.tgt, row.higher) : textSec;
+                const cellBg = c===green ? '#F0FDF4' : c===red ? '#FEF2F2' : (isMTD ? '#EEF2FF' : 'transparent');
+                const disp = (v===null || v===undefined) ? '—' : row.fmt(v);
+                const content = row.passRate ? combo(disp, row.passRate(col)) : disp;
+                return `<td style="padding:5px 8px;text-align:right;font-family:${mono};font-size:11px;font-weight:${c===green||c===red?'700':'400'};color:${c};background:${cellBg}">${content}</td>`;
+              }).join('')}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  // ── Section: QA & AHT — last 5 weeks + current month (MTD) by sub-workflow ───
+  // Mid-month equivalent of the monthly 3-month SW table, keyed by week + MTD column.
+  let midSwTableHTML = '';
+  if(config.midHistory){
+    const h = config.midHistory;
+    const greenBg='#F0FDF4', redBg='#FEF2F2', mutedBg='transparent';
+    const sws = Object.keys(h.swColData).filter(sw =>
+      h.cols.some(col => { const s=h.swColData[sw][col]; return s && (s.tpa+s.fpa+s.fna+s.tna+s.dec)>0; })
+    );
+
+    const swToWf = {};
+    (typeof filterRows==='function' && typeof qaFilter==='function'
+      ? filterRows(qaFilter(RAW_ROWS), [config.tl], [], [], [], [], [])
+      : RAW_ROWS.filter(r=>r.supervisor===config.tl)
+    ).forEach(r=>{ if(r.sw && r.workflow && !swToWf[r.sw]) swToWf[r.sw]=r.workflow; });
+    RAW_ROWS.forEach(r=>{ if(r.sw && r.workflow && !swToWf[r.sw]) swToWf[r.sw]=r.workflow; });
+    const wfKeyOf = sw => { const wf=swToWf[sw]; return wf ? (wf.includes('Actor')?'Actor':wf.includes('Conduct')?'Conduct':wf.includes('Content')?'Content':wf) : 'Other'; };
+    const WF_ORDER = ['Actor','Conduct','Content'];
+
+    // Sort by decisions in the MTD column (current-month total), descending within group —
+    // MTD is the most complete/representative window available in the mid-month doc.
+    const swDecMtd = sw => h.swColData[sw][h.MTD_KEY]?.dec || 0;
+
+    const swsByWf = {};
+    sws.forEach(sw=>{ const wk=wfKeyOf(sw); if(!swsByWf[wk]) swsByWf[wk]=[]; swsByWf[wk].push(sw); });
+    Object.keys(swsByWf).forEach(wk=>swsByWf[wk].sort((a,b)=>swDecMtd(b)-swDecMtd(a)));
+    const wfKeysPresent = [...WF_ORDER.filter(wk=>swsByWf[wk]), ...Object.keys(swsByWf).filter(wk=>!WF_ORDER.includes(wk)).sort()];
+
+    const cellFor = (sw, col) => {
+      const s = h.swColData[sw]?.[col];
+      if(!s) return { acc:'—', prec:'—', rec:'—', aht:'—', hasData:false };
+      const tot = s.tpa+s.fpa+s.fna+s.tna;
+      const acc = tot>0 ? (s.tpa+s.tna)/tot : null;
+      const prec = (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
+      const rec = (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
+      const swTgt = SW_TARGETS[sw] || {};
+      const accTgt = swTgt.acc || h.targets.ACC_TARGET;
+      const precTgt = swTgt.prec || accTgt;
+      const recTgt = swTgt.rec || accTgt;
+      const ahtQualifies = s.dec >= h.targets.SW_MIN_DEC;
+      const aht = ahtQualifies && s.dec>0 ? Math.round((s.dht+s.nht)/s.dec) : null;
+      const ahtTgt = swTgt.aht || null;
+      return {
+        acc: acc!==null?pctFmt(acc):'—', accC: acc!==null?(acc>=accTgt?green:red):textMuted, accBg: acc!==null?(acc>=accTgt?greenBg:redBg):mutedBg,
+        prec: prec!==null?pctFmt(prec):'—', precC: prec!==null?(prec>=precTgt?green:red):textMuted, precBg: prec!==null?(prec>=precTgt?greenBg:redBg):mutedBg,
+        rec: rec!==null?pctFmt(rec):'—', recC: rec!==null?(rec>=recTgt?green:red):textMuted, recBg: rec!==null?(rec>=recTgt?greenBg:redBg):mutedBg,
+        aht: aht!==null?aht+'s':(ahtQualifies?'—':'n/a <50'), ahtC: aht!==null&&ahtTgt?(aht<=ahtTgt?green:red):textMuted, ahtBg: aht!==null&&ahtTgt?(aht<=ahtTgt?greenBg:redBg):mutedBg,
+        hasData:true
+      };
+    };
+
+    const wfGroupHeadRow = wk => `<tr style="background:${lightGray}">
+      <td colspan="${1+h.cols.length*4}" style="padding:4px 8px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${textSec};border-top:1px solid ${borderColor};border-bottom:1px solid ${borderColor}">${wk}</td>
+    </tr>`;
+
+    const swRow = (sw, isLastOverall) => `<tr style="border-bottom:${isLastOverall?'none':'0.5px solid '+divider}">
+      <td style="padding:5px 8px 5px 16px;font-size:10px;font-weight:600;color:${textPri};white-space:nowrap">${sw}</td>
+      ${h.cols.map(col=>{
+        const c = cellFor(sw,col);
+        const bl = 'border-left:1px solid '+borderColor+';';
+        return `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;font-weight:600;color:${c.accC};background:${c.accBg};${bl}">${c.acc}</td>`+
+               `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;font-weight:600;color:${c.precC};background:${c.precBg}">${c.prec}</td>`+
+               `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;font-weight:600;color:${c.recC};background:${c.recBg}">${c.rec}</td>`+
+               `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;font-weight:600;color:${c.ahtC};background:${c.ahtBg}">${c.aht}</td>`;
+      }).join('')}
+    </tr>`;
+
+    const colHdrLabel = col => col===h.MTD_KEY ? 'MTD' : fmtW(col);
+
+    midSwTableHTML = sws.length===0
+      ? `<div style="padding:14px 12px;font-size:11px;color:${textMuted};font-style:italic;text-align:center;border:1px solid ${borderColor};border-radius:8px">No QA data found for this team in the last 5 weeks.</div>`
+      : `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
+        <table style="width:100%;min-width:640px;border-collapse:collapse;font-size:10px">
+          <thead>
+            <tr style="background:${lightGray}">
+              <th rowspan="2" style="padding:5px 8px;text-align:left;font-size:9px;font-weight:700;color:${textMuted};text-transform:uppercase;vertical-align:bottom">Sub-workflow</th>
+              ${h.cols.map(col=>`<th colspan="4" style="padding:4px 6px;text-align:center;font-size:9px;font-weight:700;color:${col===h.MTD_KEY?textPri:textSec};border-left:1px solid ${borderColor};${col===h.MTD_KEY?'background:#EEF2FF;':''}">${colHdrLabel(col)}</th>`).join('')}
+            </tr>
+            <tr style="background:${lightGray}">
+              ${h.cols.map(col=>['Acc','P','R','AHT'].map((l,i)=>`<th style="padding:3px 4px;text-align:center;font-size:8px;font-weight:600;color:${textMuted};${i===0?'border-left:1px solid '+borderColor:''}${col===h.MTD_KEY?';background:#EEF2FF':''}">${l}</th>`).join('')).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${wfKeysPresent.map((wk,wi)=>{
+              const list = swsByWf[wk];
+              return wfGroupHeadRow(wk) + list.map((sw,idx)=>swRow(sw, wi===wfKeysPresent.length-1 && idx===list.length-1)).join('');
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
   // ── Section: QA & AHT — last 3 months by sub-workflow (team rollup) ──────────
+  // Grouped by workflow (Actor → Conduct → Content), sub-workflows sorted by
+  // decisions (last 3mo total) descending within each group — matches the
+  // convention used elsewhere in the app (e.g. Job Detail Explorer SW AHT Bands).
   let swTableHTML = '';
   if(config.history){
     const h = config.history;
+    const greenBg='#F0FDF4', redBg='#FEF2F2', mutedBg='transparent';
     const sws = Object.keys(h.swMoData).filter(sw =>
       h.last3Months.some(mo => { const s=h.swMoData[sw][mo]; return s && (s.tpa+s.fpa+s.fna+s.tna+s.dec)>0; })
-    ).sort();
+    );
+
+    // sw -> workflow map, built from team rows with a RAW_ROWS fallback (same pattern
+    // used elsewhere in the app, e.g. swToWf at line ~15351).
+    const swToWf = {};
+    (typeof filterRows==='function' && typeof qaFilter==='function'
+      ? filterRows(qaFilter(RAW_ROWS), [config.tl], [], [], [], [], [])
+      : RAW_ROWS.filter(r=>r.supervisor===config.tl)
+    ).forEach(r=>{ if(r.sw && r.workflow && !swToWf[r.sw]) swToWf[r.sw]=r.workflow; });
+    RAW_ROWS.forEach(r=>{ if(r.sw && r.workflow && !swToWf[r.sw]) swToWf[r.sw]=r.workflow; });
+    const wfKeyOf = sw => { const wf=swToWf[sw]; return wf ? (wf.includes('Actor')?'Actor':wf.includes('Conduct')?'Conduct':wf.includes('Content')?'Content':wf) : 'Other'; };
+    const WF_ORDER = ['Actor','Conduct','Content'];
+
+    // Total decisions per SW across the 3-month window, for descending sort within group.
+    const swDec3mo = sw => h.last3Months.reduce((sum,mo)=>sum+(h.swMoData[sw][mo]?.dec||0),0);
+
+    const swsByWf = {};
+    sws.forEach(sw=>{ const wk=wfKeyOf(sw); if(!swsByWf[wk]) swsByWf[wk]=[]; swsByWf[wk].push(sw); });
+    Object.keys(swsByWf).forEach(wk=>swsByWf[wk].sort((a,b)=>swDec3mo(b)-swDec3mo(a)));
+    const wfKeysPresent = [...WF_ORDER.filter(wk=>swsByWf[wk]), ...Object.keys(swsByWf).filter(wk=>!WF_ORDER.includes(wk)).sort()];
 
     const cellFor = (sw, mo) => {
       const s = h.swMoData[sw]?.[mo];
@@ -26622,13 +27715,29 @@ function _tcmGenerateDoc(config){
       const aht = ahtQualifies && s.dec>0 ? Math.round((s.dht+s.nht)/s.dec) : null;
       const ahtTgt = swTgt.aht || null;
       return {
-        acc: acc!==null?pctFmt(acc):'—', accC: acc!==null?(acc>=accTgt?green:red):textMuted,
-        prec: prec!==null?pctFmt(prec):'—', precC: prec!==null?(prec>=precTgt?green:red):textMuted,
-        rec: rec!==null?pctFmt(rec):'—', recC: rec!==null?(rec>=recTgt?green:red):textMuted,
-        aht: aht!==null?aht+'s':(ahtQualifies?'—':'n/a <50'), ahtC: aht!==null&&ahtTgt?(aht<=ahtTgt?green:red):textMuted,
+        acc: acc!==null?pctFmt(acc):'—', accC: acc!==null?(acc>=accTgt?green:red):textMuted, accBg: acc!==null?(acc>=accTgt?greenBg:redBg):mutedBg,
+        prec: prec!==null?pctFmt(prec):'—', precC: prec!==null?(prec>=precTgt?green:red):textMuted, precBg: prec!==null?(prec>=precTgt?greenBg:redBg):mutedBg,
+        rec: rec!==null?pctFmt(rec):'—', recC: rec!==null?(rec>=recTgt?green:red):textMuted, recBg: rec!==null?(rec>=recTgt?greenBg:redBg):mutedBg,
+        aht: aht!==null?aht+'s':(ahtQualifies?'—':'n/a <50'), ahtC: aht!==null&&ahtTgt?(aht<=ahtTgt?green:red):textMuted, ahtBg: aht!==null&&ahtTgt?(aht<=ahtTgt?greenBg:redBg):mutedBg,
         hasData:true
       };
     };
+
+    const wfGroupHeadRow = wk => `<tr style="background:${lightGray}">
+      <td colspan="${1+h.last3Months.length*4}" style="padding:4px 8px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${textSec};border-top:1px solid ${borderColor};border-bottom:1px solid ${borderColor}">${wk}</td>
+    </tr>`;
+
+    const swRow = (sw, isLastOverall) => `<tr style="border-bottom:${isLastOverall?'none':'0.5px solid '+divider}">
+      <td style="padding:5px 8px 5px 16px;font-size:10px;font-weight:600;color:${textPri};white-space:nowrap">${sw}</td>
+      ${h.last3Months.map(mo=>{
+        const c = cellFor(sw,mo);
+        const bl = 'border-left:1px solid '+borderColor+';';
+        return `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;font-weight:600;color:${c.accC};background:${c.accBg};${bl}">${c.acc}</td>`+
+               `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;font-weight:600;color:${c.precC};background:${c.precBg}">${c.prec}</td>`+
+               `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;font-weight:600;color:${c.recC};background:${c.recBg}">${c.rec}</td>`+
+               `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;font-weight:600;color:${c.ahtC};background:${c.ahtBg}">${c.aht}</td>`;
+      }).join('')}
+    </tr>`;
 
     swTableHTML = sws.length===0
       ? `<div style="padding:14px 12px;font-size:11px;color:${textMuted};font-style:italic;text-align:center;border:1px solid ${borderColor};border-radius:8px">No QA data found for this team in the last 3 months.</div>`
@@ -26644,17 +27753,10 @@ function _tcmGenerateDoc(config){
             </tr>
           </thead>
           <tbody>
-            ${sws.map((sw,idx)=>`<tr style="border-bottom:${idx===sws.length-1?'none':'0.5px solid '+divider}">
-              <td style="padding:5px 8px;font-size:10px;font-weight:600;color:${textPri};white-space:nowrap">${sw}</td>
-              ${h.last3Months.map(mo=>{
-                const c = cellFor(sw,mo);
-                const bl = 'border-left:1px solid '+borderColor+';';
-                return `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;color:${c.accC};${bl}">${c.acc}</td>`+
-                       `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;color:${c.precC}">${c.prec}</td>`+
-                       `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;color:${c.recC}">${c.rec}</td>`+
-                       `<td style="padding:4px;text-align:center;font-family:${mono};font-size:9px;color:${c.ahtC}">${c.aht}</td>`;
-              }).join('')}
-            </tr>`).join('')}
+            ${wfKeysPresent.map((wk,wi)=>{
+              const list = swsByWf[wk];
+              return wfGroupHeadRow(wk) + list.map((sw,idx)=>swRow(sw, wi===wfKeysPresent.length-1 && idx===list.length-1)).join('');
+            }).join('')}
           </tbody>
         </table>
       </div>`;
@@ -26670,8 +27772,10 @@ function _tcmGenerateDoc(config){
 
     ${config.history ? secHead('Overall performance — last 6 months', blue) + overviewHTML : ''}
     ${config.history ? secHead('QA & AHT — last 3 months by sub-workflow', red) + swTableHTML : ''}
+    ${config.midHistory ? secHead('Overall performance — last 5 weeks + current month', blue) + midOverviewHTML : ''}
+    ${config.midHistory ? secHead('QA & AHT — last 5 weeks + MTD by sub-workflow', red) + midSwTableHTML : ''}
 
-    ${secHead('Monthly Coaching Commitments', purple)}
+    ${secHead(config.mode==='midmonth' ? 'Mid Month Coaching Commitments' : 'Monthly Coaching Commitments', purple)}
     ${oppKeys.map(oppBlock).join('')}
 
     ${config.notes ? secHead('Notes', blue) + `<div style="padding:12px 14px;background:${lightGray};border-radius:10px;font-size:13px;color:${textSec};line-height:1.6;white-space:pre-wrap">${config.notes}</div>` : ''}
@@ -26694,6 +27798,300 @@ function _tcmGenerateDoc(config){
   }
 }
 // ─── END TL COACHING MODAL ──────────────────────────────────────────────────
+
+// ─── SME COACHING MODAL ─────────────────────────────────────────────────────
+// Namespace: scm* / _scm. Lean by design (per spec): no opportunity checklist,
+// no TL/AOM action banks — just Team QA (the supported TL's team, Adj Acc/Prec/
+// Rec only, no AHT) + Personal Performance (Quality, AHT, AOA, MSV, Absenteeism)
+// + free-text notes. Pattern-matches openTlCoachingModal/renderSmeTab for data,
+// but keeps its own state object and DOM ids to avoid any collision with mcd/tcm.
+var _scm = { sme:'', tl:null, mode:'monthly', periodLabel:'' };
+
+function openSmeCoachingModal(mode){
+  const sme = document.getElementById('g-sme') ? document.getElementById('g-sme').value : '';
+  if(!sme){ alert('Please select an SME in the filter bar first.'); return; }
+
+  const sws = typeof getSel==='function' ? getSel('g-sw') : [];
+  const workflows = typeof getSel==='function' ? getSel('g-workflow') : [];
+  const tenures = typeof getSel==='function' ? getSel('g-tenure') : [];
+  const reviewTypes = typeof getSel==='function' ? getSel('g-review-type') : [];
+  const selMonths = typeof getSelMonths==='function' ? getSelMonths() : [];
+
+  const allMonths = [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort();
+  const periodMonths = selMonths.length ? selMonths : (allMonths.length ? [allMonths[allMonths.length-1]] : []);
+  const periodLabel = periodMonths.length ? periodMonths.map(fmtMonth).join(', ') : 'All months';
+
+  const baseRows = RAW_ROWS.filter(r => r.reviewer === sme && r.sw && r.sw !== '(blank)');
+  const personalRows = (typeof filterRows==='function' && typeof qaFilter==='function')
+    ? filterRows(qaFilter(baseRows), [], tenures, sws, workflows, [], reviewTypes)
+    : baseRows;
+  const periodRows = personalRows.filter(r => periodMonths.length ? periodMonths.includes(r.month) : true);
+
+  if(!periodRows.length){ alert(`No data found for ${sn(sme)} in ${periodLabel}.`); return; }
+
+  _scm.sme = sme;
+  _scm.mode = mode || 'monthly';
+  _scm.periodLabel = periodLabel;
+  _scm.tl = getSmeTl(sme);
+
+  // ── Team QA (Adj Acc/Prec/Rec only, no AHT — per spec) ──────────────────
+  let teamAcc=null, teamPrec=null, teamRec=null;
+  if(_scm.tl){
+    const teamBaseRows = RAW_ROWS.filter(r => r.sw && r.sw!=='(blank)');
+    const teamRows = (typeof filterRows==='function' && typeof qaFilter==='function')
+      ? filterRows(qaFilter(teamBaseRows), [_scm.tl], tenures, sws, workflows, [], reviewTypes)
+      : teamBaseRows.filter(r=>r.supervisor===_scm.tl);
+    const teamPeriodRows = teamRows.filter(r => periodMonths.length ? periodMonths.includes(r.month) : true);
+    let ttpa=0,tfpa=0,tfna=0,ttna=0;
+    teamPeriodRows.forEach(r=>{ttpa+=r.tpa||0;tfpa+=r.fpa||0;tfna+=r.fna||0;ttna+=r.tna||0;});
+    const tTot = ttpa+tfpa+tfna+ttna;
+    teamAcc  = tTot>0 ? (ttpa+ttna)/tTot : null;
+    teamPrec = (ttpa+tfpa)>0 ? ttpa/(ttpa+tfpa) : null;
+    teamRec  = (ttpa+tfna)>0 ? ttpa/(ttpa+tfna) : null;
+  }
+  _scm.teamAcc = teamAcc; _scm.teamPrec = teamPrec; _scm.teamRec = teamRec;
+
+  // ── Personal per-SW quality ──────────────────────────────────────────────
+  const swList = [...new Set(periodRows.map(r=>r.sw).filter(Boolean))];
+  const swQuality = swList.map(sw=>{
+    const sr = periodRows.filter(r=>r.sw===sw);
+    let t=0,f=0,fp=0,fn=0,tp=0,d=0;
+    sr.forEach(r=>{t+=(r.tpa||0)+(r.tna||0);f+=(r.fpa||0)+(r.fna||0);fp+=r.fpa||0;fn+=r.fna||0;tp+=r.tpa||0;d+=r.decisions||0;});
+    return {
+      sw, dec: d, errors: f,
+      acc: (t+f)>0 ? t/(t+f) : null,
+      prec: (tp+fp)>0 ? tp/(tp+fp) : null,
+      rec: (tp+fn)>0 ? tp/(tp+fn) : null
+    };
+  });
+  _scm.swQuality = swQuality;
+
+  // ── Personal per-SW AHT (min 10 decisions/SW, per reviewer eligibility rule) ──
+  const swAht = swList.map(sw=>{
+    const sr = periodRows.filter(r=>r.sw===sw);
+    let d=0,dh=0,nh=0;
+    sr.forEach(r=>{d+=r.decisions||0;dh+=r.dht||0;nh+=r.nht||0;});
+    if(d<10) return null;
+    const actual = Math.round((dh+nh)/d);
+    const tgt = (SW_TARGETS[sw] && SW_TARGETS[sw].aht) ? SW_TARGETS[sw].aht : null;
+    return { sw, dec:d, actual, target:tgt, pass: tgt ? actual<=tgt : null };
+  }).filter(Boolean);
+  _scm.swAht = swAht;
+
+  // ── AOA/MSV/Absenteeism — personal only, via aggWfm scoped to this SME ────
+  const wkSet = new Set(periodRows.map(r=>r.week).filter(Boolean));
+  let wfm = { aoa:null, msv:null, abs:null };
+  if(typeof aggWfm === 'function'){
+    try { wfm = aggWfm(new Set([sme]), wkSet.size ? wkSet : null, null); } catch(e){ console.warn('[scm] aggWfm failed', e); }
+  }
+  _scm.wfm = wfm;
+
+  // ── Populate modal DOM ────────────────────────────────────────────────────
+  const docLabel = _scm.mode==='weekly' ? 'Weekly SME coaching doc' : 'Monthly SME coaching doc';
+  document.getElementById('scm-title').textContent = docLabel + ' — ' + sn(sme);
+  document.getElementById('scm-sub').textContent = periodLabel;
+
+  const warnEl = document.getElementById('scm-warn');
+  if(_scm.tl){
+    warnEl.style.display = 'none';
+    document.getElementById('scm-team-title').textContent = 'Team QA — Supporting ' + sn(_scm.tl);
+  } else {
+    warnEl.style.display = '';
+    warnEl.textContent = '⚠ No TL assignment found for ' + sn(sme) + ' in SME_TL_MAP — team QA cannot be shown until the map is updated.';
+    document.getElementById('scm-team-title').textContent = 'Team QA — No TL assigned';
+  }
+
+  const pctStr = v => v!==null && v!==undefined ? (v*100).toFixed(2)+'%' : '—';
+  document.getElementById('scm-team-acc').textContent = pctStr(teamAcc);
+  document.getElementById('scm-team-prec').textContent = pctStr(teamPrec);
+  document.getElementById('scm-team-rec').textContent = pctStr(teamRec);
+
+  const qBody = document.getElementById('scm-q-rows');
+  qBody.innerHTML = swQuality.length ? swQuality.map(sq=>
+    `<tr><td>${sq.sw}</td><td>${sq.dec}</td><td>${pctStr(sq.acc)}</td><td>${pctStr(sq.prec)}</td><td>${pctStr(sq.rec)}</td><td>${sq.errors}</td></tr>`
+  ).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--tm)">No data for this period.</td></tr>';
+
+  const aBody = document.getElementById('scm-aht-rows');
+  aBody.innerHTML = swAht.length ? swAht.map(x=>{
+    const statusTxt = x.pass===null ? '—' : (x.pass ? 'Pass' : 'Over target');
+    return `<tr><td>${x.sw}</td><td>${x.dec}</td><td>${x.actual}s</td><td>${x.target?x.target+'s':'—'}</td><td>${statusTxt}</td></tr>`;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--tm)">No SW meets the 10-decision minimum for this period.</td></tr>';
+
+  document.getElementById('scm-aoa').textContent = pctStr(wfm.aoa);
+  document.getElementById('scm-msv').textContent = pctStr(wfm.msv);
+  document.getElementById('scm-abs').textContent = pctStr(wfm.abs);
+  document.getElementById('scm-notes').value = '';
+
+  document.getElementById('scm-overlay').classList.add('scm-open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeScmModal(){
+  document.getElementById('scm-overlay').classList.remove('scm-open');
+  document.body.style.overflow = '';
+}
+function scmOverlayClick(e){ if(e.target===document.getElementById('scm-overlay')) closeScmModal(); }
+
+function scmGenerate(){
+  const config = {
+    sme: _scm.sme,
+    tl: _scm.tl,
+    mode: _scm.mode,
+    periodLabel: _scm.periodLabel,
+    teamAcc: _scm.teamAcc, teamPrec: _scm.teamPrec, teamRec: _scm.teamRec,
+    swQuality: _scm.swQuality,
+    swAht: _scm.swAht,
+    wfm: _scm.wfm,
+    notes: document.getElementById('scm-notes').value.trim()
+  };
+  closeScmModal();
+  try { _scmGenerateDoc(config); }
+  catch(err){
+    const msg = 'SME Coaching Doc error:\n\n' + err.message + '\n\nStack:\n' + (err.stack||'').split('\n').slice(0,5).join('\n');
+    alert(msg); console.error('[scmGenerate]', err);
+  }
+}
+
+function _scmGenerateDoc(config){
+  const lightGray='#F4F6F9', borderColor='#DDE1E9', divider='#E8EBF0';
+  const textPri='#1A1D23', textSec='#555B67', textMuted='#8E95A3';
+  const blue='#1A56DB', green='#15803D', red='#B91C1C', purple='#5B21B6';
+  const dateStr = (() => { const d=new Date(); const day=String(d.getDate()).padStart(2,'0'); const mon=d.toLocaleDateString('en-GB',{month:'short'}); return `${day} ${mon} ${d.getFullYear()}`; })();
+  const pctFmt = v => v!==null && v!==undefined ? (v*100).toFixed(2)+'%' : '—';
+  const PR_TARGET = 0.96; // Team QA target is always 96%, per spec
+  const cellColor = (v, tgt) => { if(v===null || v===undefined) return textMuted; return v>=tgt ? green : red; };
+
+  const secHead = (label, color) =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;margin-top:20px">
+      <div style="width:3px;height:18px;border-radius:0;background:${color};flex-shrink:0"></div>
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${textPri}">${label}</div>
+    </div>`;
+
+  const teamHTML = `
+    <div style="border:1px solid ${borderColor};border-radius:10px;overflow:hidden;margin-bottom:12px">
+      <div style="padding:9px 14px;background:${lightGray};border-bottom:1px solid ${divider};font-size:12px;font-weight:700;color:${textPri}">
+        ${config.tl ? 'Supporting: ' + sn(config.tl) : 'No TL assigned — update SME_TL_MAP'}
+      </div>
+      <div style="padding:12px 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div style="background:${lightGray};border-radius:8px;padding:8px 10px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Adj Accuracy</div>
+          <div style="font-size:15px;font-weight:800;color:${cellColor(config.teamAcc,PR_TARGET)}">${pctFmt(config.teamAcc)}</div>
+        </div>
+        <div style="background:${lightGray};border-radius:8px;padding:8px 10px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Precision</div>
+          <div style="font-size:15px;font-weight:800;color:${cellColor(config.teamPrec,PR_TARGET)}">${pctFmt(config.teamPrec)}</div>
+        </div>
+        <div style="background:${lightGray};border-radius:8px;padding:8px 10px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Recall</div>
+          <div style="font-size:15px;font-weight:800;color:${cellColor(config.teamRec,PR_TARGET)}">${pctFmt(config.teamRec)}</div>
+        </div>
+      </div>
+    </div>`;
+
+  const qRowsHTML = config.swQuality.length ? config.swQuality.map(sq => `
+    <tr>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;color:${textPri}">${sq.sw}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;color:${textSec};text-align:center">${sq.dec}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;text-align:center;color:${cellColor(sq.acc,0.96)}">${pctFmt(sq.acc)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;color:${textSec};text-align:center">${pctFmt(sq.prec)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;color:${textSec};text-align:center">${pctFmt(sq.rec)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;color:${textSec};text-align:center">${sq.errors}</td>
+    </tr>`).join('') : `<tr><td colspan="6" style="padding:10px;text-align:center;color:${textMuted};font-size:12px">No data for this period.</td></tr>`;
+
+  const qualityHTML = `
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Sub-Workflow</th>
+        <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Decisions</th>
+        <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Adj Acc</th>
+        <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Precision</th>
+        <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Recall</th>
+        <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Errors</th>
+      </tr></thead>
+      <tbody>${qRowsHTML}</tbody>
+    </table>`;
+
+  const aRowsHTML = config.swAht.length ? config.swAht.map(x => {
+    const statusTxt = x.pass===null ? '—' : (x.pass ? 'Pass' : 'Over target');
+    const statusColor = x.pass===null ? textMuted : (x.pass ? green : red);
+    return `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;color:${textPri}">${x.sw}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;color:${textSec};text-align:center">${x.dec}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;color:${textSec};text-align:center">${x.actual}s</td>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;color:${textSec};text-align:center">${x.target?x.target+'s':'—'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid ${divider};font-size:12px;text-align:center;color:${statusColor}">${statusTxt}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="5" style="padding:10px;text-align:center;color:${textMuted};font-size:12px">No SW meets the 10-decision minimum for this period.</td></tr>`;
+
+  const ahtHTML = `
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Sub-Workflow</th>
+        <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Decisions</th>
+        <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Actual</th>
+        <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Target</th>
+        <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};border-bottom:1.5px solid ${borderColor}">Status</th>
+      </tr></thead>
+      <tbody>${aRowsHTML}</tbody>
+    </table>`;
+
+  const wfm = config.wfm || {aoa:null,msv:null,abs:null};
+  const wfmHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <div style="background:${lightGray};border-radius:8px;padding:8px 10px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">AOA</div>
+        <div style="font-size:15px;font-weight:800;color:${cellColor(wfm.aoa,0.98)}">${pctFmt(wfm.aoa)}</div>
+      </div>
+      <div style="background:${lightGray};border-radius:8px;padding:8px 10px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">MSV</div>
+        <div style="font-size:15px;font-weight:800;color:${cellColor(wfm.msv,0.98)}">${pctFmt(wfm.msv)}</div>
+      </div>
+      <div style="background:${lightGray};border-radius:8px;padding:8px 10px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted}">Absenteeism</div>
+        <div style="font-size:15px;font-weight:800;color:${wfm.abs!==null && wfm.abs<=0.05 ? green : (wfm.abs!==null ? red : textMuted)}">${pctFmt(wfm.abs)}</div>
+      </div>
+    </div>`;
+
+  const docHTML = `
+  <div style="max-width:820px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,.08);padding:28px 32px;font-family:'DM Sans',system-ui,sans-serif;color:${textPri}">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid ${borderColor};padding-bottom:14px;margin-bottom:8px">
+      <div>
+        <div style="font-size:18px;font-weight:800;color:${textPri}">${config.mode==='weekly'?'Weekly':'Monthly'} SME Coaching Doc</div>
+        <div style="font-size:13px;color:${textSec};margin-top:2px">${sn(config.sme)} · ${config.periodLabel}</div>
+      </div>
+      <div style="font-size:11px;color:${textMuted};text-align:right">Generated ${dateStr}</div>
+    </div>
+
+    ${secHead('Team QA', purple)}
+    ${teamHTML}
+
+    ${secHead('Personal Quality by Sub-Workflow', blue)}
+    ${qualityHTML}
+
+    ${secHead('Personal AHT by Sub-Workflow', blue)}
+    ${ahtHTML}
+
+    ${secHead('AOA / MSV / Attendance', blue)}
+    ${wfmHTML}
+
+    ${config.notes ? secHead('Notes', blue) + `<div style="padding:12px 14px;background:${lightGray};border-radius:10px;font-size:13px;color:${textSec};line-height:1.6;white-space:pre-wrap">${config.notes}</div>` : ''}
+
+    <div style="margin-top:24px;padding-top:14px;border-top:1px solid ${divider};font-size:11px;color:${textMuted}">
+      This document reflects a review of ${sn(config.sme)}'s ${config.mode==='weekly'?'weekly':'monthly'} personal performance and supported-team QA, discussed and agreed collaboratively.
+    </div>
+  </div>`;
+
+  const win = window.open('', '_blank');
+  if(win){
+    win.document.write(`<!DOCTYPE html><html><head><title>${config.mode==='weekly'?'Weekly':'Monthly'} SME Doc — ${sn(config.sme)}</title>
+      <style>body{margin:0;padding:32px;background:#F4F6F9}</style></head>
+      <body>${docHTML}</body></html>`);
+    win.document.close();
+  } else {
+    alert('Please allow pop-ups to view the generated document.');
+  }
+}
+// ─── END SME COACHING MODAL ─────────────────────────────────────────────────
 </script>
 </body>
 </html>
