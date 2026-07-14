@@ -2873,6 +2873,17 @@ function goalsHandleUpload(input) {
 // RAW_ROWS (i.e. the "Last, First" format used everywhere else in the app —
 // see r.reviewer). Case, comma, and spacing all matter for the lookup to hit.
 // Update this object directly whenever SME assignments change.
+//
+// IMPORTANT — map VALUES are the short/display TL name (e.g. "Kwon", "Apple"),
+// matching what appears in the filter-bar dropdown label, NOT the raw
+// r.supervisor string. r.supervisor is stored as full "Last, First" (see
+// stl(), which does the same short-name split for the g-tl dropdown labels).
+// getSmeTl() resolves the short name back to the exact r.supervisor string by
+// matching stl(r.supervisor) against the map's value, so lookups against
+// filterRows()/r.supervisor (which require an exact full-string match) work
+// correctly. If a supervisor's actual short name is ambiguous (two TLs whose
+// last name matches after stl()), this resolves to the first RAW_ROWS match —
+// flag it here in-code if that ever happens.
 const SME_TL_MAP = {
     'Lim, Hoi Hung': 'Kwon',
     'See, Jason Khye Xuan': 'Wen Jie',
@@ -2880,7 +2891,13 @@ const SME_TL_MAP = {
 };
 function getSmeTl(sme){
     if(!sme) return null;
-    return SME_TL_MAP[sme.trim()] || null;
+    const shortName = SME_TL_MAP[sme.trim()];
+    if(!shortName) return null;
+    // Resolve short TL name -> exact r.supervisor string (full "Last, First").
+    const fullSupervisor = (typeof RAW_ROWS !== 'undefined' ? RAW_ROWS : [])
+        .map(r => r.supervisor)
+        .find(sup => sup && stl(sup) === shortName);
+    return fullSupervisor || shortName; // fall back to raw map value if no match found (e.g. data not loaded yet)
 }
 // ─── END SME → TL ASSIGNMENT MAP ─────────────────────────────────────────────
 
