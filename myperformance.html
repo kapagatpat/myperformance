@@ -353,6 +353,9 @@ tr:hover td{background:#F8F9FB}
 .de-tr.de-l3-row:hover td{background:#ECEEF2}
 .de-tr.de-l4-row td{background:#F9FAFB}
 .de-tr.de-l4-row:hover td{background:#ECEEF2}
+.de-tr.de-l2-row td.de-n.de-good,.de-tr.de-l3-row td.de-n.de-good,.de-tr.de-l4-row td.de-n.de-good{background:var(--gsec)}
+.de-tr.de-l2-row td.de-n.de-warn,.de-tr.de-l3-row td.de-n.de-warn,.de-tr.de-l4-row td.de-n.de-warn{background:var(--asec)}
+.de-tr.de-l2-row td.de-n.de-bad,.de-tr.de-l3-row td.de-n.de-bad,.de-tr.de-l4-row td.de-n.de-bad{background:var(--csec)}
 .de-tr.de-subtotal-0 td{background:var(--psec);border-top:1.5px solid var(--pbd);border-bottom:2px solid var(--pbd)}
 .de-tr.de-subtotal-0 .de-dim-cell,.de-tr.de-subtotal-0 .de-sub-dim-1,.de-tr.de-subtotal-0 .de-sub-dim-2,.de-tr.de-subtotal-0 .de-sub-dim-3{font-weight:800;color:var(--purple);font-size:11px}
 .de-tr.de-subtotal-0 .de-n{color:var(--purple)!important;font-weight:700}
@@ -12990,7 +12993,12 @@ function renderStackRank() {
         if(!rows.length) return { ranked: [], excluded: [], isMay: isMayOnly };
 
         const rvMap = {};
+        // Reviewer Stack Ranking excludes these SMEs from ranking, per Karl —
+        // matched against the raw "Last, First" reviewer string since that's
+        // the exact format r.reviewer uses (same convention as SME_TL_MAP keys).
+        const SR_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
         rows.forEach(r => {
+            if(SR_RV_EXCLUDE.includes(r.reviewer)) return;
             if(!rvMap[r.reviewer]) rvMap[r.reviewer] = { name: r.reviewer, supervisor: r.supervisor, tpa:0, tna:0, fpa:0, fna:0, dec:0, dht:0, nht:0, sw:r.sw, swDec:{}, swDht:{} };
             const m = rvMap[r.reviewer];
             m.tpa+=r.tpa; m.tna+=r.tna; m.fpa+=r.fpa; m.fna+=r.fna;
@@ -13162,8 +13170,15 @@ function renderStackRank() {
         if(!rows.length) return { ranked: [], isMay: isMayOnly };
 
         const svMap = {};
+        // Stack Ranking / Incentive for TLs is restricted to Kwon, Mangahas,
+        // and Long (Lai Wen Jie) only, per Karl. Matched via stl() short-name
+        // the same way JD_TL_NAMED_COLORS does, so it's robust to the exact
+        // raw "Last, First" supervisor string.
+        const SR_TL_ALLOWLIST = ['kwon', 'mangahas', 'long'];
         rows.forEach(r => {
             const sv = r.supervisor || '—';
+            const svShort = (typeof stl === 'function' ? stl(sv) : sv).toLowerCase();
+            if(!SR_TL_ALLOWLIST.some(name => svShort.includes(name))) return;
             if(!svMap[sv]) svMap[sv] = { name: sv, rvSet: new Set(), tpa:0, tna:0, fpa:0, fna:0, dec:0, dht:0, nht:0, swDec:{}, swDht:{} };
             const m = svMap[sv];
             m.tpa+=r.tpa; m.tna+=r.tna; m.fpa+=r.fpa; m.fna+=r.fna;
@@ -14423,7 +14438,7 @@ function deInitFilters() {
 
     const allTLs      = [...new Set(RAW_ROWS.map(r=>r.supervisor).filter(Boolean))].sort();
     const allReviewers= [...new Set(RAW_ROWS.map(r=>r.reviewer).filter(Boolean))].sort();
-    const allTenures  = [...new Set(RAW_ROWS.map(r=>r.tenure).filter(Boolean))].sort();
+    const allTenures  = [...new Set(RAW_ROWS.map(r=>r.tenure).filter(Boolean))].sort((a,b)=>deTenureRank(a)-deTenureRank(b) || (a<b?-1:a>b?1:0));
     const allRoles    = [...new Set(RAW_ROWS.map(r=>r.role).filter(Boolean))].sort();
     const allWF       = [...new Set(RAW_ROWS.map(r=>r.workflow).filter(Boolean))].sort();
     const allSW       = [...new Set(RAW_ROWS.map(r=>r.sw).filter(Boolean))].sort();
@@ -14844,6 +14859,32 @@ function deCells(s, includeWfm, ahtTgt, includeTs) {
     return adj+meta+raw+eff+act+wfm+alignCells+topsCells+tsCells+vsfCells;
 }
 
+function deTenureRank(v) {
+    if(!v) return Infinity;
+    const s = String(v).trim();
+    if(s === '(blank)') return Infinity;
+    const plus = s.match(/^(\d+)\s*\+$/);
+    if(plus) return parseInt(plus[1], 10);
+    const range = s.match(/^(\d+)\s*-\s*(\d+)$/);
+    if(range) return parseInt(range[1], 10);
+    const num = s.match(/(\d+(\.\d+)?)/);
+    if(num) return parseFloat(num[1]);
+    return Infinity;
+}
+function deWaveRank(v) {
+    if(!v) return Infinity;
+    const s = String(v).trim();
+    if(s === '(blank)') return Infinity;
+    const num = s.match(/(\d+(\.\d+)?)/);
+    if(num) return parseFloat(num[1]);
+    return Infinity;
+}
+function deNaturalKeySort(a, b, dim) {
+    const rankFn = dim === 'tenure' ? deTenureRank : deWaveRank;
+    const ar = rankFn(a.key), br = rankFn(b.key);
+    if(ar !== br) return ar - br;
+    return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+}
 function renderDataExplorer() {
     if(!RAW_ROWS.length) {
         const tb = document.getElementById('de-tbody');
@@ -14921,6 +14962,10 @@ function renderDataExplorer() {
         // Month and week dimensions: sort chronologically by key unless user explicitly clicked a column
         if((dim==='month'||dim==='week'||dim==='date') && !DE_SORT.userSet) {
             return [...nodes].sort((a,b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+        }
+        // Tenure and Wave: always natural low-to-high order, regardless of metric sort column
+        if(dim==='tenure' || dim==='wave') {
+            return [...nodes].sort((a,b) => deNaturalKeySort(a,b,dim));
         }
         return [...nodes].sort(function(a,b) {
             // Use sortStats (full-row quality) when QT filter is active so toggling never reorders rows
@@ -25009,7 +25054,10 @@ function gpDecReqExpand(open) {
   function renderReviewerTable(monthRows, month) {
     // Group by reviewer
     const rvMap = {};
+    // Excluded from Reviewer Incentive/Stack Ranking, per Karl.
+    const INC_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
     monthRows.forEach(r => {
+      if (INC_RV_EXCLUDE.includes(r.reviewer)) return;
       if (!rvMap[r.reviewer]) rvMap[r.reviewer] = { rows: [], wfmRows: [], supervisor: r.supervisor };
       rvMap[r.reviewer].rows.push(r);
     });
@@ -25186,8 +25234,13 @@ function gpDecReqExpand(open) {
   function renderTLTable(monthRows, month) {
     // Group by supervisor
     const tlMap = {};
+    // Incentive TL view is restricted to Kwon, Mangahas, and Long (Lai Wen
+    // Jie) only, per Karl — same allow-list convention as Stack Ranking.
+    const INC_TL_ALLOWLIST = ['kwon', 'mangahas', 'long'];
     monthRows.forEach(r => {
       const tl = r.supervisor || '—';
+      const tlShort = (typeof stl === 'function' ? stl(tl) : tl).toLowerCase();
+      if (!INC_TL_ALLOWLIST.some(name => tlShort.includes(name))) return;
       if (!tlMap[tl]) tlMap[tl] = [];
       tlMap[tl].push(r);
     });
@@ -25428,7 +25481,9 @@ function gpDecReqExpand(open) {
 
     if (_incView === 'reviewer') {
       const rvMap = {};
+      const INC_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
       monthRows.forEach(r => {
+        if (INC_RV_EXCLUDE.includes(r.reviewer)) return;
         if (!rvMap[r.reviewer]) rvMap[r.reviewer] = { rows: [], supervisor: r.supervisor };
         rvMap[r.reviewer].rows.push(r);
       });
