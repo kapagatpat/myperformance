@@ -25051,6 +25051,54 @@ function gpDecReqExpand(open) {
 
   // ── Reviewer table ────────────────────────────────────────────────────────────
 
+  // ── Special World Review / Video Review bonus (11 Jul – 24 Jul 2026 only) ──
+  // Mechanics per Karl: for each of World Review and Video Review, up to 2 pts:
+  //   - Precision >=97% -> +1, Recall >=97% -> +1 (up to 2 for that SW)
+  //   - If P&R not computable (no FPA/FNA denominator) but Accuracy >=97% -> +2 automatically
+  //   Gated on <5% absenteeism (reuses the same absRate calc as the base score).
+  //   Only active when July 2026 is the selected incentive month; still restricted
+  //   to rows whose date falls within 11-24 Jul regardless of full month selection.
+  const WRVR_BONUS_START = '2026-07-11';
+  const WRVR_BONUS_END   = '2026-07-24';
+  const WRVR_BONUS_SWS   = ['World Review', 'Video Review'];
+  const WRVR_TARGET      = 0.97;
+  function isWrvrBonusActiveMonth(month) {
+    return month === '2026-07';
+  }
+  function calcWrvrBonus(reviewerRows, absRate) {
+    // absRate null (no WFM data) is treated as not-eligible, same spirit as absBonus.
+    const absOk = absRate !== null && absRate <= 0.05;
+    const bySw = {};
+    let totalPts = 0;
+    WRVR_BONUS_SWS.forEach(sw => {
+      const rows = reviewerRows.filter(r => r.sw === sw && r.date && r.date >= WRVR_BONUS_START && r.date <= WRVR_BONUS_END);
+      let tpa=0, fpa=0, fna=0, tna=0;
+      rows.forEach(r => { tpa+=r.tpa||0; fpa+=r.fpa||0; fna+=r.fna||0; tna+=r.tna||0; });
+      const hasPrecDen = (tpa+fpa) > 0;
+      const hasRecDen  = (tpa+fna) > 0;
+      const tot = tpa+fpa+fna+tna;
+      let pts = 0, detail = '—';
+      if(!absOk || !rows.length) {
+        detail = !rows.length ? 'no data' : 'absenteeism >5%';
+      } else if(!hasPrecDen && !hasRecDen) {
+        // No P&R at all -> fall back to Accuracy vs 97%
+        const acc = tot > 0 ? (tpa+tna)/tot : null;
+        if(acc !== null && acc >= WRVR_TARGET) { pts = 2; detail = `Acc ${(acc*100).toFixed(2)}% ✓ (+2 auto)`; }
+        else detail = acc !== null ? `Acc ${(acc*100).toFixed(2)}% ✗` : 'no data';
+      } else {
+        const prec = hasPrecDen ? tpa/(tpa+fpa) : null;
+        const rec  = hasRecDen  ? tpa/(tpa+fna) : null;
+        const precHit = prec !== null && prec >= WRVR_TARGET;
+        const recHit  = rec  !== null && rec  >= WRVR_TARGET;
+        pts = (precHit?1:0) + (recHit?1:0);
+        detail = `P ${prec!==null?(prec*100).toFixed(2)+'%':'—'}${precHit?' ✓':''} · R ${rec!==null?(rec*100).toFixed(2)+'%':'—'}${recHit?' ✓':''}`;
+      }
+      bySw[sw] = { pts, detail };
+      totalPts += pts;
+    });
+    return { totalPts, bySw };
+  }
+
   function renderReviewerTable(monthRows, month) {
     // Group by reviewer
     const rvMap = {};
@@ -25064,6 +25112,9 @@ function gpDecReqExpand(open) {
 
     // WFM (absenteeism) from WFM_LOOKUP for selected month weeks
     const monthWeeks = [...new Set(monthRows.map(r => r.week))];
+
+    // July 11-24 special bonus is only active when July 2026 is the selected month.
+    const wrvrActive = isWrvrBonusActiveMonth(month);
 
     // Pre-compute totals for sorting — mirrors the main calculation
     const _rvTotals = {};
@@ -25084,8 +25135,9 @@ function gpDecReqExpand(open) {
       const _pb=_prec!==null?Math.min(_prec,1)*0.01:null;
       const _rb=_rec!==null?Math.min(_rec,1)*0.01:null;
       const _ab=_ahtB.bonus!==null?Math.min(_ahtB.bonus,1)*0.01:null;
+      const _wrvrB = wrvrActive ? calcWrvrBonus(rows, _abs).totalPts * 0.01 : 0;
       const comps=[_acc,_pb,_rb,_ab,_absB];
-      _rvTotals[rv]=comps.every(v=>v!==null)?_acc+_pb+_rb+_ab+_absB:null;
+      _rvTotals[rv]=comps.every(v=>v!==null)?_acc+_pb+_rb+_ab+_absB+_wrvrB:null;
     });
     const reviewers = Object.keys(rvMap).sort((a,b)=>{
       const ta=_rvTotals[a], tb=_rvTotals[b];
@@ -25109,6 +25161,7 @@ function gpDecReqExpand(open) {
     // Unified column layout for both June and July:
     // Total | Base Score | Base Accuracy | Bonus Points | Precision | Recall | # SW AHT Met | Absenteeism
     // Base cols (green): Base Score, Base Accuracy. Bonus cols (yellow): Bonus Points, Precision, Recall, # SW AHT Met, Absenteeism.
+    // July 11-24 special bonus: World Review pts, Video Review pts — only shown when July 2026 is selected.
     let html = `
       <colgroup>
         <col style="width:20px">
@@ -25121,7 +25174,7 @@ function gpDecReqExpand(open) {
         <col style="width:100px">
         <col style="width:100px">
         <col style="width:160px">
-        <col style="width:110px">
+        <col style="width:110px">${wrvrActive ? '\n        <col style="width:130px">\n        <col style="width:130px">' : ''}
       </colgroup>
       <thead><tr style="background:var(--sa)">
         <th style="padding:7px 4px;border-bottom:1px solid var(--border)"></th>
@@ -25135,6 +25188,8 @@ function gpDecReqExpand(open) {
         ${_thYellow('Recall')}
         ${_thYellow('# SW with AHT Met')}
         ${_thYellow('Absent ≤5%')}
+        ${wrvrActive ? _thYellow('World Review pts (11-24 Jul)') : ''}
+        ${wrvrActive ? _thYellow('Video Review pts (11-24 Jul)') : ''}
       </tr></thead><tbody>`;
 
     reviewers_.forEach(rv => {
@@ -25165,20 +25220,26 @@ function gpDecReqExpand(open) {
       const absRate = wSched > 0 ? Math.max(0, (wSched - wActual) / wSched) : null;
       const absBonus = absRate !== null ? (absRate <= 0.05 ? 0.01 : 0) : null;
 
+      // Special World Review / Video Review bonus (11-24 Jul only, gated on July 2026 month)
+      const wrvr = wrvrActive ? calcWrvrBonus(rows, absRate) : null;
+
       // Total — base acc is fraction (0–1), each bonus converts: fraction * 0.01 = max +1%
       const precBonus = prec !== null ? Math.min(prec, 1) * 0.01 : null;
       const recBonus  = rec  !== null ? Math.min(rec,  1) * 0.01 : null;
       const ahtBonus  = ahtB.bonus !== null ? Math.min(ahtB.bonus, 1) * 0.01 : null;
+      // World/Video Review bonus: 1 pt = 1% (0.01), up to 4 pts = +0.04. Added into
+      // Total Score only (not into Bonus Points, which tracks the original 4 components).
+      const wrvrBonus = wrvrActive ? wrvr.totalPts * 0.01 : 0;
       const components = [acc, precBonus, recBonus, ahtBonus, absBonus];
       const total = components.every(v => v !== null)
-        ? acc + precBonus + recBonus + ahtBonus + absBonus
+        ? acc + precBonus + recBonus + ahtBonus + absBonus + wrvrBonus
         : null;
       // Bonus Points = sum of the 4 bonus components
       const bonusPoints = components.slice(1).every(v => v !== null)
         ? precBonus + recBonus + ahtBonus + absBonus
         : null;
 
-      const maxScore = 1.04;
+      const maxScore = wrvrActive ? 1.08 : 1.04;
       const totalColor = total !== null ? scoreColor(total, maxScore) : 'var(--tm)';
 
       // AHT cell label
@@ -25218,10 +25279,12 @@ function gpDecReqExpand(open) {
         ${tdBg(pct2(rec),  true, false, rec  !== null ? scoreColor(rec,  1) : 'var(--tm)', '#FFFBEB')}
         ${tdBg(ahtLabel,   true,  false, ahtB.bonus !== null ? scoreColor(ahtB.bonus, 1) : 'var(--tm)', '#FFFBEB')}
         ${tdBg(absRate !== null ? pct2(absRate) + (absBonus===0.01 ? ' ✓' : ' ✗') : '—', true, false, absBonus===0.01 ? 'var(--green)' : 'var(--coral)', '#FFFBEB')}
+        ${wrvrActive ? tdBg(`<strong>+${wrvr.bySw['World Review'].pts}</strong> <span style="font-weight:400;font-size:10px">(${wrvr.bySw['World Review'].detail})</span>`, true, false, wrvr.bySw['World Review'].pts > 0 ? 'var(--green)' : 'var(--tm)', '#FFFBEB') : ''}
+        ${wrvrActive ? tdBg(`<strong>+${wrvr.bySw['Video Review'].pts}</strong> <span style="font-weight:400;font-size:10px">(${wrvr.bySw['Video Review'].detail})</span>`, true, false, wrvr.bySw['Video Review'].pts > 0 ? 'var(--green)' : 'var(--tm)', '#FFFBEB') : ''}
       </tr>
       <tr id="inc-expand-${_rid}" style="display:none;background:var(--sa)">
         <td colspan="4" style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--ts);border-bottom:1px solid var(--divider)">pts breakdown</td>
-        ${_ptsHtml}
+        ${_ptsHtml}${wrvrActive ? _blankTd + _blankTd : ''}
       </tr>`;
     });
 
@@ -25488,7 +25551,9 @@ function gpDecReqExpand(open) {
         rvMap[r.reviewer].rows.push(r);
       });
       const monthWeeks = [...new Set(monthRows.map(r => r.week))];
-      const sheetData = [['Reviewer','TL','Total Score','Base Score','Base Accuracy','Bonus Points','Precision Pts','Recall Pts','AHT Pts','Absent Pts','Base Accuracy %','Precision %','Recall %','AHT Hit Ratio','Absenteeism %']];
+      const wrvrActiveExp = isWrvrBonusActiveMonth(_incMonth);
+      const baseHeaders = ['Reviewer','TL','Total Score','Base Score','Base Accuracy','Bonus Points','Precision Pts','Recall Pts','AHT Pts','Absent Pts','Base Accuracy %','Precision %','Recall %','AHT Hit Ratio','Absenteeism %'];
+      const sheetData = [wrvrActiveExp ? [...baseHeaders,'World Review Pts (11-24 Jul)','Video Review Pts (11-24 Jul)'] : baseHeaders];
       Object.keys(rvMap).forEach(rv => {
         const { rows, supervisor } = rvMap[rv];
         const qRows = incQualityFilter(rows.filter(r => r.sw), _incMonth);
@@ -25506,11 +25571,14 @@ function gpDecReqExpand(open) {
         const pb=prec!==null?Math.min(prec,1)*0.01:null;
         const rb=rec!==null?Math.min(rec,1)*0.01:null;
         const ab=ahtB.bonus!==null?Math.min(ahtB.bonus,1)*0.01:null;
+        const wrvrExp = wrvrActiveExp ? calcWrvrBonus(rows, absRate) : null;
+        const wrvrB = wrvrActiveExp ? wrvrExp.totalPts * 0.01 : 0;
         const comps=[acc,pb,rb,ab,absBonus];
-        const total=comps.every(v=>v!==null)?acc+pb+rb+ab+absBonus:null;
+        const total=comps.every(v=>v!==null)?acc+pb+rb+ab+absBonus+wrvrB:null;
         const bonusPts=comps.slice(1).every(v=>v!==null)?pb+rb+ab+absBonus:null;
         const fmt=v=>v!==null?(v*100).toFixed(4)+'%':'';
-        sheetData.push([rv,supervisor||'',fmt(total),fmt(acc),fmt(acc),fmt(bonusPts),fmt(pb),fmt(rb),fmt(ab),absBonus!==null?fmt(absBonus):'',fmt(acc),fmt(prec),fmt(rec),ahtB.eligible>0?((ahtB.hit/ahtB.eligible)*100).toFixed(2)+'%':'',fmt(absRate)]);
+        const baseRow=[rv,supervisor||'',fmt(total),fmt(acc),fmt(acc),fmt(bonusPts),fmt(pb),fmt(rb),fmt(ab),absBonus!==null?fmt(absBonus):'',fmt(acc),fmt(prec),fmt(rec),ahtB.eligible>0?((ahtB.hit/ahtB.eligible)*100).toFixed(2)+'%':'',fmt(absRate)];
+        sheetData.push(wrvrActiveExp ? [...baseRow, `+${wrvrExp.bySw['World Review'].pts} (${wrvrExp.bySw['World Review'].detail})`, `+${wrvrExp.bySw['Video Review'].pts} (${wrvrExp.bySw['Video Review'].detail})`] : baseRow);
       });
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
       const wb = XLSX.utils.book_new();
