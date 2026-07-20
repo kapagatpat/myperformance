@@ -8856,8 +8856,6 @@ function renderDrillOppPanel(rows, rv, el) {
   // panel. Looked up per-SW below so each qualFail line can show its own
   // root cause. rcamfLookup is defined unconditionally and returns [] when
   // no RCA masterfile has been loaded — safe to call regardless of state.
-  let _oppRcaSeq = 0;
-
   const renderLine = (f, allowRCA) => {
     const valStr = f.isAHT ? Math.round(f.val)+'s' : (f.val*100).toFixed(1)+'%';
     const tgtStr = f.isAHT
@@ -8871,29 +8869,57 @@ function renderDrillOppPanel(rows, rv, el) {
     if (allowRCA && typeof rcamfLookup === 'function') {
       const recs = rcamfLookup(rv, f.sw, oppMonthKeys);
       if (recs.length) {
-        // Dominant RCA Level 3 cause by count of errors it's tied to
-        // (FP for Precision misses, FN for Recall misses, both for Accuracy).
-        const l3Counts = {};
+        // Group records by RCA Level 3 cause. Each record keeps its own
+        // fp/fn (per-error, not summed away) so the per-cause breakdown
+        // below is accurate even when a cause mixes FP- and FN-driven
+        // errors. errCount decides which records count toward THIS
+        // metric's gap (FP for Precision, FN for Recall, both for
+        // Accuracy) — a record with 0 relevant errors for this metric is
+        // excluded even if it has errors on the other side.
+        const byL3 = {};
         recs.forEach(r => {
           const errCount = f.metric === 'Precision' ? r.fp : f.metric === 'Recall' ? r.fn : (r.fp + r.fn);
           if (errCount <= 0) return;
           const key = r.l3 || '(unspecified)';
-          l3Counts[key] = (l3Counts[key] || 0) + errCount;
+          if (!byL3[key]) byL3[key] = { l3: key, fp: 0, fn: 0, count: 0, recs: [] };
+          byL3[key].fp += r.fp;
+          byL3[key].fn += r.fn;
+          byL3[key].count += errCount;
+          byL3[key].recs.push(r);
         });
-        const ranked = Object.entries(l3Counts).sort((a, b) => b[1] - a[1]);
+        const ranked = Object.values(byL3).sort((a, b) => b.count - a.count);
+        const totalErr = ranked.reduce((s, c) => s + c.count, 0);
+
         if (ranked.length) {
-          const [topL3, topCount] = ranked[0];
-          const totalErr = ranked.reduce((s, [,c]) => s + c, 0);
-          const plain = (typeof rcamfPlainL3 === 'function' ? rcamfPlainL3(topL3) : null);
-          const actions = (typeof rcamfActionsFor === 'function' ? rcamfActionsFor(topL3) : []);
-          const id = 'opp-rca-' + (_oppRcaSeq++);
+          const causeBlocks = ranked.map(cause => {
+            const plain = (typeof rcamfPlainL3 === 'function' ? rcamfPlainL3(cause.l3) : null);
+            const fpfnStr = `${cause.fp} FP${cause.fp!==1?'s':''}, ${cause.fn} FN${cause.fn!==1?'s':''}`;
+            // Per-error lines: L4 (if present) then Signal · Clause ·
+            // Anchor (if extractable from Dispute.1.Comment), one line per
+            // underlying record — every error behind this cause gets its
+            // own line, not just a representative one.
+            const errorLines = cause.recs.map(r => {
+              const l4Line = r.l4 ? `<div style="margin-top:3px">${r.l4}</div>` : '';
+              const sca = (typeof rcamfExtractSCA === 'function') ? rcamfExtractSCA(r.cmt) : null;
+              let scaLine = '';
+              if (sca) {
+                const parts = [sca.signal, sca.clause, sca.anchor].filter(Boolean);
+                if (parts.length) scaLine = `<div style="margin-top:1px;color:var(--tm)">${parts.join(' · ')}</div>`;
+              }
+              return (l4Line || scaLine) ? `<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--divider)">${l4Line}${scaLine}</div>` : '';
+            }).join('');
+
+            return `<div style="margin-top:6px">
+              <div><strong>${cause.l3}</strong> (${cause.count} error${cause.count!==1?'s':''}: ${fpfnStr})${plain?` — ${plain}`:''}</div>
+              ${errorLines}
+            </div>`;
+          }).join('');
+
           rcaBlock = `
-            <button type="button" class="opp-rca-toggle" onclick="document.getElementById('${id}').classList.toggle('opp-rca-open')" style="font-size:9px;font-weight:700;color:var(--purple);background:none;border:none;cursor:pointer;padding:2px 0;text-align:left;font-family:var(--f)">Why? (${totalErr} error${totalErr!==1?'s':''})</button>
-            <div id="${id}" class="opp-rca-detail" style="display:none;font-size:10px;line-height:1.5;color:var(--ts);background:var(--sa);border-left:3px solid var(--purple);border-radius:0 var(--r) var(--r) 0;padding:6px 10px;margin:2px 0 6px">
-              <div><strong>Root cause:</strong> ${topL3}${topCount!==totalErr?` (${topCount} of ${totalErr} errors)`:''}${plain?` — ${plain}`:''}</div>
-              ${actions.length?`<div style="margin-top:4px"><strong>Suggested action:</strong> ${actions[0]}</div>`:''}
-            </div>
-            <style>#${id}.opp-rca-open{display:block !important}</style>`;
+            <div class="opp-rca-detail" style="font-size:10px;line-height:1.5;color:var(--ts);background:var(--sa);border-left:3px solid var(--purple);border-radius:0 var(--r) var(--r) 0;padding:6px 10px;margin:4px 0 6px">
+              <div style="font-weight:700;color:var(--purple)">Why? (${totalErr} error${totalErr!==1?'s':''})</div>
+              ${causeBlocks}
+            </div>`;
         }
       }
     }
@@ -21092,7 +21118,12 @@ let RCAMF_BY_RV_SW = {};   // "reviewer||sw" -> [{l2,l3,l4,fp,fn,problemArea}, .
             const monthKey = r.monthKey || '';
 
             const isReviewerCaused = /^reviewer\b/i.test(l2);
-            const rec = { name, sw, l1, l2, l3, l4, fp, fn, problemArea, isReviewerCaused, monthKey };
+            // cmt carries the raw Dispute.1.Comment (already clean()-normalized
+            // by parseMiscCSV) — parsed lazily per-error into Signal/Clause/
+            // Anchor by rcamfExtractSCA() at render time, since not every
+            // record needs it (e.g. AHT gaps never call this lookup).
+            const cmt = r.cmt || '';
+            const rec = { name, sw, l1, l2, l3, l4, fp, fn, problemArea, isReviewerCaused, monthKey, cmt };
             RCAMF_ROWS.push(rec);
 
             if (isReviewerCaused) {
@@ -21125,6 +21156,59 @@ let RCAMF_BY_RV_SW = {};   // "reviewer||sw" -> [{l2,l3,l4,fp,fn,problemArea}, .
         return all.filter(r => keep.has(r.monthKey));
     }
     window.rcamfLookup = rcamfLookup;
+
+    // Extracts Signal / Clause / Anchor from the raw Dispute.1.Comment text
+    // (the numbered dispute writeup: 1. Signal 2. Clause 3. Anchor 4. RCA
+    // 5. Policy & Sub-Policy 6. Executive comment). Works against the
+    // already clean()-normalized text coming through MISC_ROWS.
+    //
+    // Matches on the actual label words (Signal / Clause or Policy Clause /
+    // Anchor) rather than "any word after N." — the separator between the
+    // label and its value varies row to row (colon, dash, the raw \x96
+    // Windows-1252 byte that clean() does NOT normalize, or nothing at
+    // all), and section breaks are sometimes newlines instead of spaces.
+    // Verified against a real export at 89-95% extraction success per
+    // field; the remainder (inconsistent numbering/labels on some rows)
+    // simply returns null for that field, and the caller omits the line —
+    // same graceful-omit pattern as everything else in this panel.
+    //
+    // Anchor is dropped when it's the same text as Signal (common — many
+    // dispute writeups just restate the signal as its own anchor), since
+    // showing it twice adds no information.
+    function rcamfExtractSCA(cmt) {
+        if (!cmt) return null;
+        function field(num, labelWords) {
+            const labelPattern = labelWords.map(w => w.replace(/\s+/g, '\\s+')).join('|');
+            const re = new RegExp(
+                num + '\\.\\s*(?:' + labelPattern + ')\\s*[:\u0096\u2013\u2014-]?\\s*(.+?)(?=\\s*\\d\\.\\s*(?:Signal|Clause|Policy\\s*Clause|Anchor|RCA)|$)',
+                'i'
+            );
+            const m = cmt.match(re);
+            if (!m) return null;
+            let val = m[1].trim();
+            val = val.replace(/^["\u0096\u2013\u2014:\s]+/, '');
+            val = val.replace(/["\s]+$/, '').trim();
+            val = val.replace(/""+/g, '"');
+            // A small share of rows (~2%) have runs of 4+ literal quote
+            // characters from the original export's escaping, which can
+            // collapse down to a single unpaired quote (e.g. an opening
+            // quote with no matching close, or vice versa) once the runs
+            // above are reduced. Balance it by stripping one unmatched
+            // quote rather than leaving a dangling mark in the UI.
+            const quoteCount = (val.match(/"/g) || []).length;
+            if (quoteCount % 2 === 1) {
+                val = val.startsWith('"') ? val.slice(1) : val.endsWith('"') ? val.slice(0, -1) : val.replace(/"/, '');
+            }
+            return val || null;
+        }
+        const signal = field(1, ['Signal']);
+        const clause = field(2, ['Policy Clause', 'Clause']);
+        let anchor = field(3, ['Anchor']);
+        if (anchor && signal && anchor.trim().toLowerCase() === signal.trim().toLowerCase()) anchor = null;
+        if (!signal && !clause && !anchor) return null;
+        return { signal, clause, anchor };
+    }
+    window.rcamfExtractSCA = rcamfExtractSCA;
 
     // Plain-language translation of the RCA Level 3 failure mode — this is
     // the piece that turns a taxonomy label into something a newer TL can
