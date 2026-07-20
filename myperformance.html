@@ -83,6 +83,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--f);min-height:100v
 .tab.t-nrt-aht.active{background:var(--tsec);color:var(--teal)}.tab.t-nrt-aht.active .tab-icon{background:var(--teal)}
 .tab.t-inc.active{background:var(--asec);color:var(--amber)}.tab.t-inc.active .tab-icon{background:var(--amber)}
 .tab.t-cp.active{background:var(--csec);color:var(--coral)}.tab.t-cp.active .tab-icon{background:var(--coral)}
+.tab.t-outlier.active{background:var(--asec);color:var(--amber)}.tab.t-outlier.active .tab-icon{background:var(--amber)}
 .tab.t-sr.active{background:var(--abg);color:var(--amber)}.tab.t-sr.active .tab-icon{background:var(--amber)}
 .tab.t-de.active{background:var(--psec);color:var(--purple)}.tab.t-de.active .tab-icon{background:var(--purple)}
 .tab.t-jd.active{background:var(--csec);color:var(--coral)}.tab.t-jd.active .tab-icon{background:var(--coral)}
@@ -423,6 +424,8 @@ tr:hover td{background:#F8F9FB}
     <div class="sb-label" style="margin-top:1rem">Improve and Control</div>
     <button class="tab t-defint" onclick="showTab('defint',this)"><div class="tab-icon">🧠</div>Defect Intelligence</button>
     <button class="tab t-cp" onclick="showTab('cp',this)"><div class="tab-icon">🎯</div>Coaching Priorities</button>
+    <button class="tab t-outlier" onclick="showTab('outlier',this)"><div class="tab-icon">📌</div>Outlier Review</button>
+
     <button class="tab t-ctrl" onclick="showTab('control',this)"><div class="tab-icon">📊</div>Improve &amp; Control</button>
     <button class="tab t-psp" onclick="showTab('psp',this)"><div class="tab-icon">📋</div>PSP Tracker</button>
 
@@ -1736,6 +1739,10 @@ tr:hover td{background:#F8F9FB}
           <span style="font-size:11px;font-weight:700;color:var(--ts);min-width:100px">Cohort month:</span>
           <select id="psp-cohort-month" onchange="renderPSP()" style="font-size:12px;font-weight:700;border:1.5px solid var(--blue);border-radius:var(--r);padding:4px 10px;background:var(--bbg);color:var(--blue);font-family:var(--f);min-width:140px">
           </select>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--ts);cursor:pointer;margin-left:6px">
+            <input type="checkbox" id="psp-show-all-months" onchange="renderPSP()" style="cursor:pointer">
+            Show all months
+          </label>
           <span id="psp-legend" style="font-size:11px;color:var(--tm)"></span>
         </div>
 
@@ -1747,25 +1754,29 @@ tr:hover td{background:#F8F9FB}
           <button class="psp-sf active" data-status="all" onclick="setPSPFilter('all',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--text);color:#fff;cursor:pointer;font-family:var(--f)">All</button>
           <button class="psp-sf" data-status="PSP" onclick="setPSPFilter('PSP',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--cbd);background:var(--cbg);color:var(--coral);cursor:pointer;font-family:var(--f)">PSP only</button>
           <button class="psp-sf" data-status="Non-PSP" onclick="setPSPFilter('Non-PSP',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f)">Non-PSP only</button>
-          <span style="width:1px;height:18px;background:var(--border);margin:0 2px"></span>
-          <button class="psp-sf" data-status="PSP-Within Goal" onclick="setPSPFilter('PSP-Within Goal',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--gbd);background:var(--gsec);color:var(--green);cursor:pointer;font-family:var(--f)">PSP-Within Goal</button>
-          <button class="psp-sf" data-status="PSP-Improving" onclick="setPSPFilter('PSP-Improving',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--abd);background:var(--asec);color:var(--amber);cursor:pointer;font-family:var(--f)">PSP-Improving</button>
-          <button class="psp-sf" data-status="PSP-Regressing" onclick="setPSPFilter('PSP-Regressing',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--cbd);background:var(--csec);color:var(--coral);cursor:pointer;font-family:var(--f)">PSP-Regressing</button>
-          <button class="psp-sf" data-status="Within Goal" onclick="setPSPFilter('Within Goal',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--gbd);background:var(--gbg);color:var(--green);cursor:pointer;font-family:var(--f)">Within Goal</button>
-          <button class="psp-sf" data-status="Needs Improvement" onclick="setPSPFilter('Needs Improvement',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--cbd);background:var(--cbg);color:var(--coral);cursor:pointer;font-family:var(--f)">Needs Improvement</button>
         </div>
 
         <div style="height:1px;background:var(--divider)"></div>
 
         <!-- Row 2: View + Reviewer filter -->
         <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-          <div style="display:flex;gap:6px;align-items:center">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span style="font-size:11px;font-weight:700;color:var(--ts);min-width:40px">View:</span>
-            <button id="psptab-acc" onclick="switchPSPTable('acc')" style="font-size:11px;font-weight:700;padding:3px 14px;border-radius:var(--pill);border:1.5px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;font-family:var(--f)">🎯 Accuracy</button>
-            <button id="psptab-prec" onclick="switchPSPTable('prec')" style="font-size:11px;font-weight:700;padding:3px 14px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f)">🎯 Adj Precision</button>
-            <button id="psptab-rec" onclick="switchPSPTable('rec')" style="font-size:11px;font-weight:700;padding:3px 14px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f)">🎯 Adj Recall</button>
-            <button id="psptab-aht" onclick="switchPSPTable('aht')" style="font-size:11px;font-weight:700;padding:3px 14px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f)">⏱ AHT</button>
-            <button id="psptab-nht" onclick="switchPSPTable('nht')" style="font-size:11px;font-weight:700;padding:3px 14px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f)">📋 NHT%</button>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--blue);cursor:pointer">
+              <input type="checkbox" class="psp-kpi-check" value="acc" checked onchange="togglePSPKpi(this)" style="cursor:pointer">🎯 Accuracy
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--coral);cursor:pointer">
+              <input type="checkbox" class="psp-kpi-check" value="prec" onchange="togglePSPKpi(this)" style="cursor:pointer">🎯 Adj Precision
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green);cursor:pointer">
+              <input type="checkbox" class="psp-kpi-check" value="rec" onchange="togglePSPKpi(this)" style="cursor:pointer">🎯 Adj Recall
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--amber);cursor:pointer">
+              <input type="checkbox" class="psp-kpi-check" value="aht" onchange="togglePSPKpi(this)" style="cursor:pointer">⏱ AHT
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--teal);cursor:pointer">
+              <input type="checkbox" class="psp-kpi-check" value="nht" onchange="togglePSPKpi(this)" style="cursor:pointer">📋 NHT%
+            </label>
           </div>
           <div style="height:18px;width:1px;background:var(--border)"></div>
           <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:180px">
@@ -1797,7 +1808,31 @@ tr:hover td{background:#F8F9FB}
       <div id="cp-content"></div>
     </section>
 
+    <section id="tab-outlier" class="section">
+      <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <h1>📌 Outlier Review</h1>
+          <p>Weekly DSM outlier tracker rows — P&amp;R outliers (reviewer-level, ≥5 audits) and AHT outliers (org-wide top-3 SW by volume, ≥3 audits per SW). One row per TL per category. Copy straight into the DSM tracker.</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button onclick="copyTabToHTML('tab-outlier','Outlier Review',this)" style="flex-shrink:0;font-size:11px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">📋 Copy as HTML</button>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:1.25rem;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Log Date (Week Ending)</label>
+          <select id="outlier-week" onchange="renderOutlierReview()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:150px">
+          </select>
+        </div>
+        <div id="outlier-top3-note" style="font-size:11px;color:var(--tm);margin-top:14px"></div>
+      </div>
+
+      <div id="outlier-content"></div>
+    </section>
+
     <section id="tab-guide" class="section">
+
       <div class="ph"><h1>TL Guide</h1><p>How to use MyPerformance data for weekly coaching sessions and MPR preparation.</p></div>
       <div id="guide-content"></div>
     </section>
@@ -2231,6 +2266,17 @@ tr:hover td{background:#F8F9FB}
           <input type="file" id="jobdetail-file-input" accept=".csv" onchange="jobDetailHandleUpload(this)" style="display:none">
           <div id="jobdetail-up-ok"  style="margin-top:8px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
           <div id="jobdetail-up-err" style="margin-top:8px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
+        </div>
+
+        <!-- RCA MASTERFILE (Reviewer Deep-Dive root-cause context) UPLOAD -->
+        <div class="up-panel" id="rcamf-dropzone" onclick="document.getElementById('rcamf-file-input').click()" style="margin-bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;border-color:#c4b5fd">
+          <div style="font-size:24px;margin-bottom:6px">&#128300;</div>
+          <div style="font-size:13px;font-weight:800;color:var(--text)">Drop RCA Masterfile CSV here</div>
+          <div style="font-size:11px;color:var(--tm);margin-top:3px;text-align:center">Quality Raw Data export &middot; Name, Sub Workflow, Dispute.1.RCA_Level_1&ndash;4</div>
+          <div id="rcamf-load-status" style="margin-top:6px;font-size:11px;color:var(--tm)">No file loaded</div>
+          <input type="file" id="rcamf-file-input" accept=".csv" onchange="rcamfHandleUpload(this)" style="display:none">
+          <div id="rcamf-up-ok"  style="margin-top:8px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
+          <div id="rcamf-up-err" style="margin-top:8px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
         </div>
 
       </div>
@@ -3589,6 +3635,7 @@ function renderActiveTab() {
     if(activeId === 'tab-psp') renderPSP();
     if(activeId === 'tab-defint') renderDefectIntelligence();
     if(activeId === 'tab-cp') renderCoachingPriorities();
+    if(activeId === 'tab-outlier') renderOutlierReview();
     if(activeId === 'tab-guide') renderGuide();
     if(activeId === 'tab-control') renderControl();
     if(activeId === 'tab-upload') renderTargetsTable();
@@ -3597,6 +3644,230 @@ function renderActiveTab() {
     if(activeId === 'tab-nrt-aht') renderNRTAHT();
     if(activeId === 'tab-incentive') renderIncentive();
     if(activeId === 'tab-jobdetail') renderJobDetail();
+}
+
+// ─── OUTLIER REVIEW (DSM weekly tracker) ─────────────────────────────────────
+// Computes P&R and AHT outlier rows directly from RAW_ROWS for a single
+// selected week — no xlsx export/parse round-trip. Intentionally org-wide
+// (does not respect the global filter bar): AHT "top 3 SW by volume" must be
+// computed across the whole dataset for the week, not a filtered subset, or
+// the volume ranking would be meaningless.
+//
+// P&R outlier (reviewer-level, summed across all their SWs that week):
+//   - audits (tp+fp+fn+tn) >= 5
+//   - overall Precision or Recall < 0.96 (flat threshold, matches DSM skill)
+//   - SW driver lines under each reviewer: SW audits >= 3 and that SW's own
+//     P or R < SW_TARGETS[sw].prec / .rec
+//
+// AHT outlier (reviewer x SW, restricted to org-wide top-3 SW by decisions):
+//   - top 3 SW computed by total decisions across all reviewers, that week
+//   - reviewer-SW audits >= 3
+//   - (dht+nht)/decisions for that reviewer-SW > SW_TARGETS[sw].aht
+//
+// Both grouped into one row per TL per category (P&R row salmon, AHT row
+// amber), matching the DSM tracker's 8-column layout.
+function fmtOutlierLogDate(week) {
+    if(!week) return '';
+    const d = new Date(week+'T00:00:00');
+    if(isNaN(d.getTime())) return week;
+    return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function renderOutlierReview() {
+    const container = document.getElementById('outlier-content');
+    const weekSel = document.getElementById('outlier-week');
+    const noteEl = document.getElementById('outlier-top3-note');
+    if(!container || !weekSel) return;
+
+    const allWeeks = [...new Set(RAW_ROWS.map(r=>r.week).filter(Boolean))].sort();
+    if(!allWeeks.length) {
+        container.innerHTML = `<div style="background:var(--sa);border-radius:var(--r);padding:2rem;text-align:center;color:var(--tm)">No data loaded. Upload a dataset first.</div>`;
+        return;
+    }
+    if(weekSel.options.length === 0) {
+        weekSel.innerHTML = allWeeks.map(w => `<option value="${w}">${fmtW(w)}</option>`).join('');
+        weekSel.value = allWeeks[allWeeks.length-1]; // default to latest
+    }
+    // Guard against a stale selection if the underlying dataset changed.
+    if(!allWeeks.includes(weekSel.value)) weekSel.value = allWeeks[allWeeks.length-1];
+    const week = weekSel.value;
+    const logDate = fmtOutlierLogDate(week);
+
+    // Quality rows only (SW present) for this week — WFM-only rows have no
+    // tp/fp/fn/tn/sw and would corrupt the audit-count math.
+    const wkRows = qaFilter(RAW_ROWS).filter(r => r.week === week && r.sw);
+
+    // ── Step 1: reviewer-level P&R roll-up (summed across all SWs) ──────────
+    const rvAgg = {}; // reviewer -> {tp,fp,fn,tn,dht,nht,decisions,supervisor,swMap:{sw:{tp,fp,fn,tn}}}
+    wkRows.forEach(r => {
+        if(!rvAgg[r.reviewer]) rvAgg[r.reviewer] = {tp:0,fp:0,fn:0,tn:0,dht:0,nht:0,decisions:0,supervisor:r.supervisor,swMap:{}};
+        const a = rvAgg[r.reviewer];
+        a.tp+=r.tp; a.fp+=r.fp; a.fn+=r.fn; a.tn+=r.tn;
+        a.dht+=r.dht; a.nht+=r.nht; a.decisions+=r.decisions;
+        if(!a.swMap[r.sw]) a.swMap[r.sw] = {tp:0,fp:0,fn:0,tn:0};
+        const s = a.swMap[r.sw];
+        s.tp+=r.tp; s.fp+=r.fp; s.fn+=r.fn; s.tn+=r.tn;
+    });
+
+    const prOutliers = []; // {reviewer, supervisor, prec, rec, audits, swDrivers:[{sw,prec,rec,audits,failMetric}]}
+    Object.entries(rvAgg).forEach(([reviewer, a]) => {
+        const audits = a.tp+a.fp+a.fn+a.tn;
+        if(audits < 5) return;
+        const prec = (a.tp+a.fp) > 0 ? a.tp/(a.tp+a.fp) : null;
+        const rec  = (a.tp+a.fn) > 0 ? a.tp/(a.tp+a.fn) : null;
+        const precFail = prec !== null && prec < 0.96;
+        const recFail  = rec  !== null && rec  < 0.96;
+        if(!precFail && !recFail) return;
+
+        const swDrivers = [];
+        Object.entries(a.swMap).forEach(([sw, s]) => {
+            const swAudits = s.tp+s.fp+s.fn+s.tn;
+            if(swAudits < 3) return;
+            const swPrec = (s.tp+s.fp) > 0 ? s.tp/(s.tp+s.fp) : null;
+            const swRec  = (s.tp+s.fn) > 0 ? s.tp/(s.tp+s.fn) : null;
+            const targets = SW_TARGETS[sw] || {prec:0.96, rec:0.96};
+            const swPrecFail = swPrec !== null && swPrec < targets.prec;
+            const swRecFail  = swRec  !== null && swRec  < targets.rec;
+            if(swPrecFail || swRecFail) {
+                swDrivers.push({sw, prec:swPrec, rec:swRec, audits:swAudits, precFail:swPrecFail, recFail:swRecFail});
+            }
+        });
+        // Worst driver first (lowest of whichever metric failed)
+        swDrivers.sort((x,y) => {
+            const xv = Math.min(x.precFail?x.prec:1, x.recFail?x.rec:1);
+            const yv = Math.min(y.precFail?y.prec:1, y.recFail?y.rec:1);
+            return xv - yv;
+        });
+
+        prOutliers.push({reviewer, supervisor:a.supervisor, prec, rec, audits, precFail, recFail, swDrivers});
+    });
+
+    // ── Step 2: org-wide top-3 SW by volume (decisions), then AHT outliers ──
+    const swVolume = {};
+    wkRows.forEach(r => { swVolume[r.sw] = (swVolume[r.sw]||0) + r.decisions; });
+    const top3SW = Object.entries(swVolume).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+
+    const ahtRvAgg = {}; // reviewer -> {supervisor, swMap:{sw:{dht,nht,decisions,audits}}}
+    wkRows.filter(r => top3SW.includes(r.sw)).forEach(r => {
+        if(!ahtRvAgg[r.reviewer]) ahtRvAgg[r.reviewer] = {supervisor:r.supervisor, swMap:{}};
+        const a = ahtRvAgg[r.reviewer];
+        if(!a.swMap[r.sw]) a.swMap[r.sw] = {dht:0,nht:0,decisions:0,audits:0};
+        const s = a.swMap[r.sw];
+        s.dht+=r.dht; s.nht+=r.nht; s.decisions+=r.decisions; s.audits += (r.tp+r.fp+r.fn+r.tn);
+    });
+
+    const ahtOutliers = []; // {reviewer, supervisor, drivers:[{sw, aht, target, decisions}]}
+    Object.entries(ahtRvAgg).forEach(([reviewer, a]) => {
+        const drivers = [];
+        Object.entries(a.swMap).forEach(([sw, s]) => {
+            if(s.audits < 3 || s.decisions <= 0) return;
+            const aht = (s.dht+s.nht)/s.decisions;
+            const target = (SW_TARGETS[sw] && SW_TARGETS[sw].aht) || 900;
+            if(aht > target) drivers.push({sw, aht, target, decisions:s.decisions, audits:s.audits});
+        });
+        if(drivers.length) {
+            drivers.sort((x,y)=>y.aht-x.aht); // worst driver first
+            ahtOutliers.push({reviewer, supervisor:a.supervisor, drivers});
+        }
+    });
+
+    // ── Step 3: group by TL ──────────────────────────────────────────────────
+    const tlPR = {}, tlAHT = {};
+    prOutliers.forEach(o => { (tlPR[o.supervisor] = tlPR[o.supervisor]||[]).push(o); });
+    ahtOutliers.forEach(o => { (tlAHT[o.supervisor] = tlAHT[o.supervisor]||[]).push(o); });
+    const allTLs = [...new Set([...Object.keys(tlPR), ...Object.keys(tlAHT)])].sort((a,b)=>stl(a).localeCompare(stl(b)));
+
+    if(noteEl) {
+        noteEl.textContent = top3SW.length
+            ? `AHT scope this week — top 3 SW by volume: ${top3SW.join(', ')}`
+            : 'No SW volume found for this week.';
+    }
+
+    if(!allTLs.length) {
+        container.innerHTML = `<div class="twrap"><div style="padding:2rem;text-align:center;color:var(--tm)">No P&amp;R or AHT outliers found for ${fmtW(week)}. 🎉</div></div>`;
+        return;
+    }
+
+    // ── Step 4: render rows ──────────────────────────────────────────────────
+    function prNotes(list) {
+        return list.map(o => {
+            const metricStr = [
+                o.precFail ? `P: ${p(o.prec)}` : `P: ${o.prec!==null?p(o.prec):'—'}`,
+                o.recFail  ? `R: ${p(o.rec)}`  : `R: ${o.rec!==null?p(o.rec):'—'}`
+            ].join(', ');
+            let line = `${sn(o.reviewer)} — ${metricStr} (n=${o.audits})`;
+            if(o.swDrivers.length) {
+                line += '<br>' + o.swDrivers.map(d => {
+                    const dm = [d.precFail?`P ${p(d.prec)}`:null, d.recFail?`R ${p(d.rec)}`:null].filter(Boolean).join(', ');
+                    return `&nbsp;&nbsp;&nbsp;&nbsp;↳ ${d.sw} — ${dm} (n=${d.audits})`;
+                }).join('<br>');
+            }
+            return line;
+        }).join('<br><br>');
+    }
+    function ahtNotes(list) {
+        return list.map(o => {
+            const worst = o.drivers[0];
+            let line = `${sn(o.reviewer)} — AHT ${Math.round(worst.aht)}s on ${worst.sw} (target ≤${worst.target}s, n=${worst.decisions} dec)`;
+            if(o.drivers.length > 1) {
+                line += '<br>' + o.drivers.slice(1).map(d =>
+                    `&nbsp;&nbsp;&nbsp;&nbsp;↳ ${d.sw} — ${Math.round(d.aht)}s (target ≤${d.target}s, n=${d.decisions} dec)`
+                ).join('<br>');
+            }
+            return line;
+        }).join('<br><br>');
+    }
+
+    let rowsHtml = '';
+    allTLs.forEach(tl => {
+        const prList = tlPR[tl];
+        const ahtList = tlAHT[tl];
+
+        if(prList && prList.length) {
+            const names = prList.map(o=>sn(o.reviewer)).join(', ');
+            const actionItem = `Conduct targeted P&amp;R coaching sessions for: ${names}. Focus on missed violation patterns and policy clause application. Complete calibration using CCVE for each flagged reviewer.`;
+            const actionDetail = `${prList.length} reviewer(s) below 96% P&amp;R threshold this week under ${sn(tl)}. TL to conduct targeted coaching, document RCA per reviewer, and monitor P&amp;R daily until metrics recover.`;
+            rowsHtml += `<tr style="background:#FCE4D6">
+                <td style="white-space:nowrap;font-weight:700">${logDate}</td>
+                <td style="white-space:nowrap">Outlier Review</td>
+                <td style="min-width:320px">${prNotes(prList)}</td>
+                <td></td>
+                <td style="white-space:nowrap;font-weight:700">Yes</td>
+                <td style="min-width:220px">${actionItem}</td>
+                <td style="min-width:240px">${actionDetail}</td>
+                <td style="white-space:nowrap">${sn(tl)}</td>
+            </tr>`;
+        }
+        if(ahtList && ahtList.length) {
+            const names = ahtList.map(o=>sn(o.reviewer)).join(', ');
+            const actionItem = `Conduct targeted AHT coaching for: ${names}. Review job-handling patterns, identify time-sink sub-workflows, and coach on efficient CCVE navigation and decision speed.`;
+            const actionDetail = `${ahtList.length} reviewer(s) above AHT target this week under ${sn(tl)} (top-3 volume SW: ${top3SW.join(', ')}). TL to identify top AHT driver per reviewer, coach on speed-accuracy balance, and monitor AHT daily.`;
+            rowsHtml += `<tr style="background:#FFF2CC">
+                <td style="white-space:nowrap;font-weight:700">${logDate}</td>
+                <td style="white-space:nowrap">Outlier Review</td>
+                <td style="min-width:320px">${ahtNotes(ahtList)}</td>
+                <td></td>
+                <td style="white-space:nowrap;font-weight:700">Yes</td>
+                <td style="min-width:220px">${actionItem}</td>
+                <td style="min-width:240px">${actionDetail}</td>
+                <td style="white-space:nowrap">${sn(tl)}</td>
+            </tr>`;
+        }
+    });
+
+    container.innerHTML = `<div class="twrap"><table style="min-width:1100px;border-collapse:collapse">
+        <thead><tr style="background:var(--sa)">
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Log Date</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Category</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Notes</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Achieved</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Action Required</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Action Item</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Action Item Detail</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Owner</th>
+        </tr></thead>
+        <tbody style="font-size:12px">${rowsHtml}</tbody>
+    </table></div>`;
 }
 
 function filterRows(rows, tls, tenures, sws, workflows, roles, reviewTypes) {
@@ -8566,20 +8837,64 @@ function renderDrillOppPanel(rows, rv, el) {
   const totalFails = qualFails.length + ahtFails.length;
   const badgeCls   = totalFails===0 ? 'zero' : '';
 
-  const renderLine = (f) => {
+  // Reviewer-caused RCA context, keyed off the same rv passed into this
+  // panel. Looked up per-SW below so each qualFail line can show its own
+  // root cause. rcamfLookup is defined unconditionally and returns [] when
+  // no RCA masterfile has been loaded — safe to call regardless of state.
+  let _oppRcaSeq = 0;
+
+  const renderLine = (f, allowRCA) => {
     const valStr = f.isAHT ? Math.round(f.val)+'s' : (f.val*100).toFixed(1)+'%';
     const tgtStr = f.isAHT
       ? (f.bandObj&&f.bandObj.ach ? Math.round(f.bandObj.ach)+'s' : '—')
       : (f.bandObj&&f.bandObj.ach ? (f.bandObj.ach*100).toFixed(1)+'%' : '—');
-    return `<div class="opp-line">
-      <span class="opp-kpill ${f.band}">${f.metric}</span>
-      <span class="opp-sw">${f.sw}</span>
-      <span class="opp-val ${f.band}">${valStr}<span style="font-size:8px;color:var(--tm);font-weight:400">/${tgtStr}</span></span>
+
+    // Quality-only: look up reviewer-caused RCA records for this SW. AHT
+    // gaps don't get RCA context — the masterfile's RCA taxonomy explains
+    // quality misses (FP/FN causes), not speed.
+    let rcaBlock = '';
+    if (allowRCA && typeof rcamfLookup === 'function') {
+      const recs = rcamfLookup(rv, f.sw);
+      if (recs.length) {
+        // Dominant RCA Level 3 cause by count of errors it's tied to
+        // (FP for Precision misses, FN for Recall misses, both for Accuracy).
+        const l3Counts = {};
+        recs.forEach(r => {
+          const errCount = f.metric === 'Precision' ? r.fp : f.metric === 'Recall' ? r.fn : (r.fp + r.fn);
+          if (errCount <= 0) return;
+          const key = r.l3 || '(unspecified)';
+          l3Counts[key] = (l3Counts[key] || 0) + errCount;
+        });
+        const ranked = Object.entries(l3Counts).sort((a, b) => b[1] - a[1]);
+        if (ranked.length) {
+          const [topL3, topCount] = ranked[0];
+          const totalErr = ranked.reduce((s, [,c]) => s + c, 0);
+          const plain = (typeof rcamfPlainL3 === 'function' ? rcamfPlainL3(topL3) : null);
+          const actions = (typeof rcamfActionsFor === 'function' ? rcamfActionsFor(topL3) : []);
+          const id = 'opp-rca-' + (_oppRcaSeq++);
+          rcaBlock = `
+            <button type="button" class="opp-rca-toggle" onclick="document.getElementById('${id}').classList.toggle('opp-rca-open')" style="font-size:9px;font-weight:700;color:var(--purple);background:none;border:none;cursor:pointer;padding:2px 0;text-align:left;font-family:var(--f)">Why? (${totalErr} error${totalErr!==1?'s':''})</button>
+            <div id="${id}" class="opp-rca-detail" style="display:none;font-size:10px;line-height:1.5;color:var(--ts);background:var(--sa);border-left:3px solid var(--purple);border-radius:0 var(--r) var(--r) 0;padding:6px 10px;margin:2px 0 6px">
+              <div><strong>Root cause:</strong> ${topL3}${topCount!==totalErr?` (${topCount} of ${totalErr} errors)`:''}${plain?` — ${plain}`:''}</div>
+              ${actions.length?`<div style="margin-top:4px"><strong>Suggested action:</strong> ${actions[0]}</div>`:''}
+            </div>
+            <style>#${id}.opp-rca-open{display:block !important}</style>`;
+        }
+      }
+    }
+
+    return `<div class="opp-line" style="flex-direction:column;align-items:stretch">
+      <div style="display:flex;align-items:center">
+        <span class="opp-kpill ${f.band}">${f.metric}</span>
+        <span class="opp-sw">${f.sw}</span>
+        <span class="opp-val ${f.band}">${valStr}<span style="font-size:8px;color:var(--tm);font-weight:400">/${tgtStr}</span></span>
+      </div>
+      ${rcaBlock}
     </div>`;
   };
 
-  const qualHTML = qualFails.length  ? qualFails.map(renderLine).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No quality gaps</span></div>';
-  const ahtHTML  = ahtFails.length   ? ahtFails.map(renderLine).join('')   : '<div class="opp-line"><span class="snap-kpi-dim">No AHT gaps</span></div>';
+  const qualHTML = qualFails.length  ? qualFails.map(f=>renderLine(f, true)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No quality gaps</span></div>';
+  const ahtHTML  = ahtFails.length   ? ahtFails.map(f=>renderLine(f, false)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No AHT gaps</span></div>';
   // Passing SWs — all on one line as pills, readable size
   const passHTML = passing.length
     ? `<div class="opp-line" style="flex-wrap:wrap;gap:4px;padding:6px 10px">${passing.map(sw=>`<span class="opp-kpill ach" style="font-size:10px;padding:2px 7px">✓ ${sw}</span>`).join('')}</div>`
@@ -8670,6 +8985,24 @@ function switchPSPTable(tab) {
     renderPSPHistogram();
     if(document.getElementById('chart-expand-modal')?.classList.contains('open')) renderPSPHistogram('psp-hist-expand-wrap', 260);
     pspApplyBinFilterToDOM();
+}
+
+// ── Multi-select KPI view ──────────────────────────────────────────────────
+// The KPI checkboxes drive a single consolidated table (KPI > Reviewer),
+// rebuilt by renderPSP() with only the checked KPIs' rows included — so
+// toggling a checkbox re-renders rather than just hiding/showing a block.
+function getCheckedPSPKpis() {
+    return Array.from(document.querySelectorAll('.psp-kpi-check:checked')).map(cb => cb.value);
+}
+function togglePSPKpi(checkbox) {
+    // At least one KPI must stay visible — revert if this uncheck would
+    // leave zero selected, rather than showing an empty table silently.
+    if(!checkbox.checked && getCheckedPSPKpis().length === 0) {
+        checkbox.checked = true;
+        return;
+    }
+    PSP_HIST_BIN = null; // selection changed — any active bin filter is stale
+    renderPSP();
 }
 
 // ── PSP histogram (Average / Stdev / VSF / N + distribution bars) ──────────
@@ -8922,11 +9255,16 @@ window.openExpandPSPHistogram = function() {
 // cheap enough to run on every bar click.
 function pspApplyBinFilterToDOM() {
     const tab = window._pspActiveTab || 'acc';
-    const wrap = document.getElementById('psp-tbl-' + tab);
+    const wrap = document.getElementById('psp-tbl-consolidated');
     if(!wrap) return;
     const rows = wrap.querySelectorAll('tbody tr');
     let anyVisible = false;
     rows.forEach(tr => {
+        // The histogram/bin filter is scoped to one KPI's distribution at a
+        // time; rows belonging to other checked KPIs in the same
+        // consolidated table are left untouched (always visible) rather
+        // than being hidden by a bin range that doesn't apply to them.
+        if(tr.getAttribute('data-kpi') !== tab) { return; }
         if(!PSP_HIST_BIN) { tr.style.display = ''; anyVisible = true; return; }
         const raw = tr.getAttribute('data-cohortval');
         if(raw === null || raw === '') { tr.style.display = 'none'; return; }
@@ -8959,8 +9297,7 @@ function pspApplyBinFilterToDOM() {
 
 function pspExportXLSX() {
     if(typeof XLSX === 'undefined') { alert('SheetJS not loaded — check your connection.'); return; }
-    const tab = window._pspActiveTab || 'acc';
-    const wrap = document.getElementById('psp-tbl-' + tab);
+    const wrap = document.getElementById('psp-tbl-consolidated');
     if(!wrap) { alert('No PSP table to export. Make sure data is loaded first.'); return; }
     // Temporarily show hidden divs so getComputedStyle returns real colours
     const wasHidden = wrap.style.display === 'none';
@@ -9033,13 +9370,12 @@ function pspExportXLSX() {
     })) || [];
     ws['!cols'] = colWidths;
 
-    const sheetNames = { acc:'PSP Accuracy', prec:'PSP Adj Precision', rec:'PSP Adj Recall', aht:'PSP AHT', nht:'PSP NHT' };
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, sheetNames[tab] || 'PSP Tracker');
+    XLSX.utils.book_append_sheet(wb, ws, 'PSP Tracker');
 
     const cohortSel = document.getElementById('psp-cohort-month');
     const cohortLabel = cohortSel && cohortSel.value ? cohortSel.value.replace(/[^a-zA-Z0-9]/g,'') : new Date().toISOString().slice(0,10);
-    const fname = 'MVIO_PSP_Tracker_' + sheetNames[tab].replace(' ','_') + '_' + cohortLabel + '.xlsx';
+    const fname = 'MVIO_PSP_Tracker_' + cohortLabel + '.xlsx';
     if(wasHidden) wrap.style.display = 'none'; // restore visibility
     XLSX.writeFile(wb, fname);
 }
@@ -9098,11 +9434,16 @@ function renderPSP() {
 
     const cohortMonth = cohortSel ? cohortSel.value : allMonths[allMonths.length-1];
     const cohortMonthIdx = allMonths.indexOf(cohortMonth);
-    // Previous month = month before cohort month
+    // Previous month = month before cohort month (Status/PSP eligibility only)
     const preMonth = cohortMonthIdx > 0 ? allMonths[cohortMonthIdx-1] : null;
+    // Next month = month after cohort month (Cohort Status / Result — measures
+    // whether performance improved once the reviewer entered the cohort)
+    const nextMonth = cohortMonthIdx >= 0 && cohortMonthIdx < allMonths.length - 1
+        ? allMonths[cohortMonthIdx + 1]
+        : null;
 
     if(legEl) legEl.innerHTML = preMonth
-        ? `Status based on <strong>${fmtMonth(preMonth)}</strong> · Cohort status based on <strong>${fmtMonth(cohortMonth)}</strong> vs <strong>${fmtMonth(preMonth)}</strong>`
+        ? `Status based on <strong>${fmtMonth(preMonth)}</strong> · Cohort status based on <strong>${fmtMonth(cohortMonth)}</strong>${nextMonth ? ` vs <strong>${fmtMonth(nextMonth)}</strong>` : ''}`
         : `Cohort month: <strong>${fmtMonth(cohortMonth)}</strong> (no previous month available)`;
 
     // Aggregate per reviewer per month — use ALL months (no month filter) for historical columns
@@ -9119,11 +9460,12 @@ function renderPSP() {
         : null;
     allRows.forEach(r => {
         if(!rvMonthMap[r.reviewer]) rvMonthMap[r.reviewer] = {};
-        if(!rvMonthMap[r.reviewer][r.month]) rvMonthMap[r.reviewer][r.month] = {tpa:0,fpa:0,fna:0,tna:0,dht:0,nht:0,dec:0,sched:0,actual:0,supervisor:r.supervisor};
+        if(!rvMonthMap[r.reviewer][r.month]) rvMonthMap[r.reviewer][r.month] = {tpa:0,fpa:0,fna:0,tna:0,dht:0,nht:0,dec:0,sched:0,actual:0,supervisor:r.supervisor,tenure:r.tenure};
         const d = rvMonthMap[r.reviewer][r.month];
         d.tpa+=r.tpa; d.fpa+=r.fpa; d.fna+=r.fna; d.tna+=r.tna;
         d.dht+=r.dht; d.nht+=r.nht||0; d.dec+=r.decisions;
         d.supervisor=r.supervisor;
+        d.tenure=r.tenure;
     });
     // WFM (sched/actual): read from WFM_LOOKUP per reviewer per month
     Object.entries(rvMonthMap).forEach(([rv, monthMap]) => {
@@ -9147,7 +9489,14 @@ function renderPSP() {
     });
 
     const reviewers = Object.keys(rvMonthMap).sort();
-    const displayMonths = allMonths.slice(-6); // show up to last 6 months
+    // Default: show only the selected cohort month (first column) and the
+    // month immediately after it (second column, to measure results) — not
+    // the full history. "Show all months" checkbox overrides this and shows
+    // every month present in the data instead.
+    const showAllMonths = document.getElementById('psp-show-all-months')?.checked;
+    const displayMonths = showAllMonths
+        ? allMonths
+        : (nextMonth ? [cohortMonth, nextMonth] : [cohortMonth]);
 
     function getAcc(d) { const t=d.tpa+d.tna+d.fpa+d.fna; return t>0?(d.tpa+d.tna)/t:null; }
     function getPrec(d) { const t=d.tpa+d.fpa; return t>0?d.tpa/t:null; }
@@ -9166,18 +9515,27 @@ function renderPSP() {
 
     function cohortStatusBadge(status) {
         const map = {
-            'PSP-Within Goal':  {bg:'var(--gsec)', color:'var(--green)'},
-            'PSP-Improving':    {bg:'var(--asec)', color:'var(--amber)'},
-            'PSP-Regressing':   {bg:'var(--csec)', color:'var(--coral)'},
-            'Within Goal':      {bg:'var(--gsec)', color:'var(--green)'},
-            'Needs Improvement':{bg:'var(--csec)', color:'var(--coral)'},
-            '—':                {bg:'var(--sa)',   color:'var(--tm)'}
+            'PSP':     {bg:'var(--csec)', color:'var(--coral)'},
+            'Non-PSP': {bg:'var(--gsec)', color:'var(--green)'},
+            '—':       {bg:'var(--sa)',   color:'var(--tm)'}
         };
         const s = map[status] || map['—'];
         return `<span style="background:${s.bg};color:${s.color};border-radius:var(--pill);font-size:10px;font-weight:800;padding:3px 10px;white-space:nowrap">${status}</span>`;
     }
 
-    function calcCohortStatus(isPSP, preVal, postVal, tgt, dir) {
+    // Cohort Status = simple PSP / Non-PSP call based ONLY on the cohort
+    // month's own score vs target — not the next month, not the prior
+    // month. This is the "just two items" the table should show here.
+    function calcSimpleCohortStatus(cohortVal, tgt, dir) {
+        if(cohortVal === null || cohortVal === undefined) return '—';
+        const met = dir==='up' ? cohortVal>=tgt : cohortVal<=tgt;
+        return met ? 'Non-PSP' : 'PSP';
+    }
+
+    // Result = separate three-way Pass / Fail-Improving / Fail-Regressing
+    // call that DOES need the next-month comparison — kept as its own
+    // function so it no longer shares a name/shape with Cohort Status.
+    function calcResultStatus(isPSP, preVal, postVal, tgt, dir) {
         if(!postVal) return '—';
         const postMet = dir==='up' ? postVal>=tgt : postVal<=tgt;
         if(isPSP) {
@@ -9198,39 +9556,85 @@ function renderPSP() {
         return `<td style="text-align:center;background:${bg};font-family:var(--m);font-size:12px;font-weight:700;color:${color};padding:5px 8px">${fmtFn(val)}</td>`;
     }
 
-    function buildPSPTable(title, icon, color, bgColor, rows) {
+    // Maps the existing result-status values to a clean three-way Result
+    // label with fixed capitalization, reusing the pass/improving/regressing
+    // logic already computed in calcResultStatus rather than recalculating it.
+    function resultLabel(cohortStatus) {
+        switch(cohortStatus) {
+            case 'PSP-Within Goal':
+            case 'Within Goal':
+                return { text: 'Pass', bg: 'var(--gsec)', color: 'var(--green)' };
+            case 'PSP-Improving':
+                return { text: 'Fail - Improving', bg: 'var(--asec)', color: 'var(--amber)' };
+            case 'PSP-Regressing':
+            case 'Needs Improvement':
+                return { text: 'Fail - Regressing', bg: 'var(--csec)', color: 'var(--coral)' };
+            default:
+                return { text: '—', bg: 'var(--sa)', color: 'var(--tm)' };
+        }
+    }
+    function resultBadge(cohortStatus) {
+        const r = resultLabel(cohortStatus);
+        return `<span style="background:${r.bg};color:${r.color};border-radius:var(--pill);font-size:10px;font-weight:800;padding:3px 10px;white-space:nowrap">${r.text}</span>`;
+    }
+
+    function buildPSPConsolidatedTable(rowsByKpi) {
         const monthSubhdr = displayMonths.map(m=>`<th style="text-align:center;font-size:9px;min-width:70px">${fmtMonth(m)}</th>`).join('');
-        // Apply status filter
-        let displayRows = rows;
-        if(PSP_STATUS_FILTER !== 'all' && rows && !rows.includes('No data')) {
+        const checked = getCheckedPSPKpis();
+        const order = ['acc','prec','rec','aht','nht'];
+        // Concatenate rows KPI-then-reviewer, in fixed KPI order, for
+        // whichever KPIs are currently checked — this is what makes the
+        // table (and its export) show every selected KPI together instead
+        // of only whichever block happened to be visible first.
+        let allRows = order.filter(k => checked.includes(k)).map(k => rowsByKpi[k] || '').join('');
+        if(PSP_STATUS_FILTER !== 'all' && allRows) {
             const tmp = document.createElement('tbody');
-            tmp.innerHTML = rows;
+            tmp.innerHTML = allRows;
             const matching = Array.from(tmp.querySelectorAll('tr')).filter(tr => {
                 const cs = tr.getAttribute('data-cohort-status') || '';
-                const psp = tr.getAttribute('data-psp') || '';
-                if(PSP_STATUS_FILTER === 'PSP') return psp === 'true';
-                if(PSP_STATUS_FILTER === 'Non-PSP') return psp === 'false';
-                return cs === PSP_STATUS_FILTER;
+                if(PSP_STATUS_FILTER === 'PSP') return cs === 'PSP';
+                if(PSP_STATUS_FILTER === 'Non-PSP') return cs === 'Non-PSP';
+                return true;
             });
-            displayRows = matching.length
+            allRows = matching.length
                 ? matching.map(r=>r.outerHTML).join('')
-                : `<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No reviewers match this filter.</td></tr>`;
+                : '';
         }
+        // Append the Result column to every row, reading its OWN result
+        // status (data-result-status, the 5-state improving/regressing
+        // value) — kept separate from data-cohort-status, which now only
+        // carries the simple PSP/Non-PSP call shown in the Cohort Status
+        // column.
+        let displayRows = allRows;
+        if(displayRows) {
+            const tmp2 = document.createElement('tbody');
+            tmp2.innerHTML = displayRows;
+            displayRows = Array.from(tmp2.querySelectorAll('tr')).map(tr => {
+                const rs = tr.getAttribute('data-result-status') || '—';
+                const td = document.createElement('td');
+                td.innerHTML = resultBadge(rs);
+                tr.appendChild(td);
+                return tr.outerHTML;
+            }).join('');
+        }
+        displayRows = displayRows || `<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No reviewers match this filter.</td></tr>`;
         // NOTE: histogram bin filtering is applied afterward, directly on
         // the live DOM (see pspApplyBinFilterToDOM), not here — it needs to
         // toggle row visibility without a full re-render every time a bar is
         // clicked, and every row already carries data-cohortval for that.
         return `<div style="margin-bottom:2rem">
-            <div style="background:${color};color:#fff;padding:9px 16px;border-radius:var(--rl) var(--rl) 0 0;font-weight:800;font-size:13px">${icon} ${title}</div>
-            <div class="twrap" style="border-radius:0 0 var(--rl) var(--rl);margin-bottom:0"><table style="min-width:600px">
+            <div class="twrap" style="border-radius:var(--rl);margin-bottom:0"><table style="min-width:640px">
             <thead>
                 <tr>
+                    <th style="width:110px">KPI</th>
                     <th style="width:140px">Name</th>
                     <th>Supervisor</th>
+                    <th>Tenure</th>
                     <th>Status</th>
                     <th>Cohort Month</th>
                     ${monthSubhdr}
                     <th style="white-space:nowrap">Cohort Status</th>
+                    <th style="white-space:nowrap">Result</th>
                 </tr>
             </thead><tbody>${displayRows}</tbody></table></div></div>`;
     }
@@ -9239,28 +9643,35 @@ function renderPSP() {
     let accRows = '';
     const accVals = []; // cohort-month values, for histogram + stats strip
     reviewers.forEach(rv => {
-        const cohortData = rvMonthMap[rv][cohortMonth];  // current month data
-        const preData    = preMonth ? rvMonthMap[rv][preMonth] : null; // previous month data
+        const cohortData = rvMonthMap[rv][cohortMonth];  // cohort month data
+        const preData    = preMonth ? rvMonthMap[rv][preMonth] : null; // prior month data (PSP status only)
+        const nextData    = nextMonth ? rvMonthMap[rv][nextMonth] : null; // next month data (result only)
         if(!cohortData && !preData) return;
-        const currVal = cohortData ? getAcc(cohortData) : null;  // current month accuracy
-        const preVal  = preData    ? getAcc(preData)    : null;  // previous month accuracy
-        // STATUS = based on PREVIOUS month performance
+        const currVal = cohortData ? getAcc(cohortData) : null;  // cohort month accuracy
+        const preVal  = preData    ? getAcc(preData)    : null;  // prior month accuracy
+        const nextVal = nextData   ? getAcc(nextData)   : null;  // next month accuracy
+        // STATUS = based on PRIOR month performance (unchanged)
         const isPSP = preVal !== null ? preVal < overallAccTgt : (currVal !== null && currVal < overallAccTgt);
-        // COHORT STATUS = current month vs previous month
-        const status = calcCohortStatus(isPSP, preVal, currVal, overallAccTgt, 'up');
+        // COHORT STATUS = simple PSP/Non-PSP call on the cohort month score
+        // alone. RESULT = separate improving/regressing call comparing
+        // cohort month to next month — these are two different questions.
+        const cohortStatus = calcSimpleCohortStatus(currVal, overallAccTgt, 'up');
+        const resultStatus = calcResultStatus(isPSP, currVal, nextVal, overallAccTgt, 'up');
         const monthCells = displayMonths.map(m => {
             const d = rvMonthMap[rv][m];
             return d ? monthCell(getAcc(d), v=>p(v), overallAccTgt, 'up') : `<td style="text-align:center;color:var(--tm)">—</td>`;
         }).join('');
         const rowData = cohortData || preData;
         if(currVal !== null) accVals.push({ name: sn(rv), value: currVal });
-        accRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currVal !== null ? currVal : ''}">
+        accRows += `<tr data-cohort-status="${cohortStatus}" data-result-status="${resultStatus}" data-psp="${isPSP}" data-cohortval="${currVal !== null ? currVal : ''}" data-kpi="acc">
+            <td style="font-weight:800;font-size:10px;color:var(--blue);white-space:nowrap">🎯 Accuracy</td>
             <td style="font-weight:700;font-size:12px">${sn(rv)}</td>
             <td style="font-size:11px;color:var(--ts)">${stl(rowData.supervisor)}</td>
+            <td style="font-size:11px;color:var(--ts)">${(cohortData?.tenure || rowData.tenure) || '—'}</td>
             <td>${pspStatus(isPSP)}</td>
             <td style="font-size:11px;font-weight:600">${fmtMonth(cohortMonth)}</td>
             ${monthCells}
-            <td>${cohortStatusBadge(status)}</td>
+            <td>${cohortStatusBadge(cohortStatus)}</td>
         </tr>`;
     });
 
@@ -9270,24 +9681,29 @@ function renderPSP() {
     reviewers.forEach(rv => {
         const cohortData = rvMonthMap[rv][cohortMonth];
         const preData    = preMonth ? rvMonthMap[rv][preMonth] : null;
+        const nextData    = nextMonth ? rvMonthMap[rv][nextMonth] : null;
         if(!cohortData && !preData) return;
         const currVal = cohortData ? getPrec(cohortData) : null;
         const preVal  = preData    ? getPrec(preData)    : null;
+        const nextVal = nextData   ? getPrec(nextData)   : null;
         const isPSP = preVal !== null ? preVal < overallAccTgt : (currVal !== null && currVal < overallAccTgt);
-        const status = calcCohortStatus(isPSP, preVal, currVal, overallAccTgt, 'up');
+        const cohortStatus = calcSimpleCohortStatus(currVal, overallAccTgt, 'up');
+        const resultStatus = calcResultStatus(isPSP, currVal, nextVal, overallAccTgt, 'up');
         const monthCells = displayMonths.map(m => {
             const d = rvMonthMap[rv][m];
             return d ? monthCell(getPrec(d), v=>p(v), overallAccTgt, 'up') : `<td style="text-align:center;color:var(--tm)">—</td>`;
         }).join('');
         const rowData = cohortData || preData;
         if(currVal !== null) precVals.push({ name: sn(rv), value: currVal });
-        precRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currVal !== null ? currVal : ''}">
+        precRows += `<tr data-cohort-status="${cohortStatus}" data-result-status="${resultStatus}" data-psp="${isPSP}" data-cohortval="${currVal !== null ? currVal : ''}" data-kpi="prec">
+            <td style="font-weight:800;font-size:10px;color:var(--coral);white-space:nowrap">🎯 Adj Precision</td>
             <td style="font-weight:700;font-size:12px">${sn(rv)}</td>
             <td style="font-size:11px;color:var(--ts)">${stl(rowData.supervisor)}</td>
+            <td style="font-size:11px;color:var(--ts)">${(cohortData?.tenure || rowData.tenure) || '—'}</td>
             <td>${pspStatus(isPSP)}</td>
             <td style="font-size:11px;font-weight:600">${fmtMonth(cohortMonth)}</td>
             ${monthCells}
-            <td>${cohortStatusBadge(status)}</td>
+            <td>${cohortStatusBadge(cohortStatus)}</td>
         </tr>`;
     });
 
@@ -9297,24 +9713,29 @@ function renderPSP() {
     reviewers.forEach(rv => {
         const cohortData = rvMonthMap[rv][cohortMonth];
         const preData    = preMonth ? rvMonthMap[rv][preMonth] : null;
+        const nextData    = nextMonth ? rvMonthMap[rv][nextMonth] : null;
         if(!cohortData && !preData) return;
         const currVal = cohortData ? getRec(cohortData) : null;
         const preVal  = preData    ? getRec(preData)    : null;
+        const nextVal = nextData   ? getRec(nextData)   : null;
         const isPSP = preVal !== null ? preVal < overallAccTgt : (currVal !== null && currVal < overallAccTgt);
-        const status = calcCohortStatus(isPSP, preVal, currVal, overallAccTgt, 'up');
+        const cohortStatus = calcSimpleCohortStatus(currVal, overallAccTgt, 'up');
+        const resultStatus = calcResultStatus(isPSP, currVal, nextVal, overallAccTgt, 'up');
         const monthCells = displayMonths.map(m => {
             const d = rvMonthMap[rv][m];
             return d ? monthCell(getRec(d), v=>p(v), overallAccTgt, 'up') : `<td style="text-align:center;color:var(--tm)">—</td>`;
         }).join('');
         const rowData = cohortData || preData;
         if(currVal !== null) recVals.push({ name: sn(rv), value: currVal });
-        recRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currVal !== null ? currVal : ''}">
+        recRows += `<tr data-cohort-status="${cohortStatus}" data-result-status="${resultStatus}" data-psp="${isPSP}" data-cohortval="${currVal !== null ? currVal : ''}" data-kpi="rec">
+            <td style="font-weight:800;font-size:10px;color:var(--green);white-space:nowrap">🎯 Adj Recall</td>
             <td style="font-weight:700;font-size:12px">${sn(rv)}</td>
             <td style="font-size:11px;color:var(--ts)">${stl(rowData.supervisor)}</td>
+            <td style="font-size:11px;color:var(--ts)">${(cohortData?.tenure || rowData.tenure) || '—'}</td>
             <td>${pspStatus(isPSP)}</td>
             <td style="font-size:11px;font-weight:600">${fmtMonth(cohortMonth)}</td>
             ${monthCells}
-            <td>${cohortStatusBadge(status)}</td>
+            <td>${cohortStatusBadge(cohortStatus)}</td>
         </tr>`;
     });
 
@@ -9326,6 +9747,7 @@ function renderPSP() {
         Object.keys(swMap).sort().forEach(sw => {
             const cohortSWData = swMap[sw][cohortMonth];
             const preSWData    = preMonth ? swMap[sw][preMonth] : null;
+            const nextSWData    = nextMonth ? swMap[sw][nextMonth] : null;
             if(!cohortSWData && !preSWData) return;
             const activeData = cohortSWData || preSWData;
             const wf = activeData.workflow;
@@ -9334,10 +9756,13 @@ function renderPSP() {
             if(!ahtTgt) return;
             const currAHT = cohortSWData && cohortSWData.dec>0 ? (cohortSWData.dht+cohortSWData.nht)/cohortSWData.dec : null;
             const preAHT  = preSWData   && preSWData.dec>0    ? (preSWData.dht+preSWData.nht)/preSWData.dec           : null;
-            // STATUS = previous month AHT
+            const nextAHT = nextSWData  && nextSWData.dec>0   ? (nextSWData.dht+nextSWData.nht)/nextSWData.dec       : null;
+            // STATUS = previous month AHT (unchanged)
             const isPSP = preAHT !== null ? preAHT > ahtTgt : (currAHT !== null && currAHT > ahtTgt);
-            // COHORT STATUS = current vs previous
-            const status = calcCohortStatus(isPSP, preAHT, currAHT, ahtTgt, 'dn');
+            // COHORT STATUS = simple PSP/Non-PSP on cohort month alone.
+            // RESULT = separate improving/regressing call vs next month.
+            const cohortStatus = calcSimpleCohortStatus(currAHT, ahtTgt, 'dn');
+            const resultStatus = calcResultStatus(isPSP, currAHT, nextAHT, ahtTgt, 'dn');
             const rvData = rvMonthMap[rv][cohortMonth] || rvMonthMap[rv][preMonth];
             const supervisor = rvData ? rvData.supervisor : '';
             const monthCells = displayMonths.map(m => {
@@ -9345,13 +9770,15 @@ function renderPSP() {
                 return d && d.dec > 0 ? monthCell((d.dht+d.nht)/d.dec, v=>Number(v).toFixed(2)+'s', ahtTgt, 'dn') : `<td style="text-align:center;color:var(--tm)">—</td>`;
             }).join('');
             if(currAHT !== null) ahtVals.push({ name: sn(rv) + ' · ' + sw, value: currAHT, sw, swTarget: ahtTgt });
-            ahtRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currAHT !== null ? currAHT : ''}">
+            ahtRows += `<tr data-cohort-status="${cohortStatus}" data-result-status="${resultStatus}" data-psp="${isPSP}" data-cohortval="${currAHT !== null ? currAHT : ''}" data-kpi="aht">
+                <td style="font-weight:800;font-size:10px;color:var(--amber);white-space:nowrap">⏱ AHT</td>
                 <td style="font-weight:700;font-size:12px">${sn(rv)}<br><span style="font-size:10px;font-weight:500;color:var(--tm)">${sw}</span></td>
                 <td style="font-size:11px;color:var(--ts)">${stl(supervisor)}</td>
+                <td style="font-size:11px;color:var(--ts)">${(rvMonthMap[rv][cohortMonth]?.tenure || (rvData ? rvData.tenure : '')) || '—'}</td>
                 <td>${pspStatus(isPSP)}</td>
                 <td style="font-size:11px;font-weight:600">${fmtMonth(cohortMonth)}</td>
                 ${monthCells}
-                <td>${cohortStatusBadge(status)}</td>
+                <td>${cohortStatusBadge(cohortStatus)}</td>
             </tr>`;
         });
     });
@@ -9362,14 +9789,18 @@ function renderPSP() {
     reviewers.forEach(rv => {
         const cohortData = rvMonthMap[rv][cohortMonth];
         const preData    = preMonth ? rvMonthMap[rv][preMonth] : null;
+        const nextData    = nextMonth ? rvMonthMap[rv][nextMonth] : null;
         if(!cohortData && !preData) return;
         const getCurrNHT = (d) => d && (d.dht+d.nht)>0 ? d.nht/(d.dht+d.nht) : null;
         const currNHT = getCurrNHT(cohortData);
         const preNHT  = getCurrNHT(preData);
-        // STATUS = previous month NHT
+        const nextNHT = getCurrNHT(nextData);
+        // STATUS = previous month NHT (unchanged)
         const isPSP = preNHT !== null ? preNHT > nhtTgt : (currNHT !== null && currNHT > nhtTgt);
-        // COHORT STATUS = current vs previous
-        const status = calcCohortStatus(isPSP, preNHT, currNHT, nhtTgt, 'dn');
+        // COHORT STATUS = simple PSP/Non-PSP on cohort month alone.
+        // RESULT = separate improving/regressing call vs next month.
+        const cohortStatus = calcSimpleCohortStatus(currNHT, nhtTgt, 'dn');
+        const resultStatus = calcResultStatus(isPSP, currNHT, nextNHT, nhtTgt, 'dn');
         const monthCells = displayMonths.map(m => {
             const d = rvMonthMap[rv][m];
             if(!d) return `<td style="text-align:center;color:var(--tm)">—</td>`;
@@ -9378,56 +9809,66 @@ function renderPSP() {
         }).join('');
         const rowData = cohortData || preData;
         if(currNHT !== null) nhtVals.push({ name: sn(rv), value: currNHT });
-        nhtRows += `<tr data-cohort-status="${status}" data-psp="${isPSP}" data-cohortval="${currNHT !== null ? currNHT : ''}">
+        nhtRows += `<tr data-cohort-status="${cohortStatus}" data-result-status="${resultStatus}" data-psp="${isPSP}" data-cohortval="${currNHT !== null ? currNHT : ''}" data-kpi="nht">
+            <td style="font-weight:800;font-size:10px;color:var(--teal);white-space:nowrap">📋 NHT%</td>
             <td style="font-weight:700;font-size:12px">${sn(rv)}</td>
             <td style="font-size:11px;color:var(--ts)">${stl(rowData.supervisor)}</td>
+            <td style="font-size:11px;color:var(--ts)">${(cohortData?.tenure || rowData.tenure) || '—'}</td>
             <td>${pspStatus(isPSP)}</td>
             <td style="font-size:11px;font-weight:600">${fmtMonth(cohortMonth)}</td>
             ${monthCells}
-            <td>${cohortStatusBadge(status)}</td>
+            <td>${cohortStatusBadge(cohortStatus)}</td>
         </tr>`;
     });
 
-    // Build PSP diagnosis data — isPSP based on PREVIOUS month (mirrors table logic)
+    // Build PSP diagnosis data — isPSP based on PRIOR month (mirrors table
+    // Status column); improving/regressing/within-goal based on NEXT month
+    // vs cohort month (mirrors table Cohort Status / Result columns).
     const pspDiagData = { total: 0, onPSP: 0, regressing: 0, improving: 0, withinGoal: 0, nonPSPAtRisk: 0 };
     reviewers.forEach(rv => {
         const cohortData = rvMonthMap[rv][cohortMonth];
         if(!cohortData) return;
-        const postVal = getAcc(cohortData);
+        const cohortVal = getAcc(cohortData);
         const preData = preMonth ? rvMonthMap[rv][preMonth] : null;
         const preVal = preData ? getAcc(preData) : null;
-        if(postVal === null) return;
+        const nextData = nextMonth ? rvMonthMap[rv][nextMonth] : null;
+        const nextVal = nextData ? getAcc(nextData) : null;
+        if(cohortVal === null) return;
         pspDiagData.total++;
-        // STATUS = previous month (same as table rows)
-        const isPSP = preVal !== null ? preVal < overallAccTgt : (postVal !== null && postVal < overallAccTgt);
+        // STATUS = prior month (same as table rows)
+        const isPSP = preVal !== null ? preVal < overallAccTgt : (cohortVal !== null && cohortVal < overallAccTgt);
         if(isPSP) {
             pspDiagData.onPSP++;
-            const status = calcCohortStatus(true, preVal, postVal, overallAccTgt, 'up');
+            const status = calcResultStatus(true, cohortVal, nextVal, overallAccTgt, 'up');
             if(status === 'PSP-Regressing') pspDiagData.regressing++;
             else if(status === 'PSP-Improving') pspDiagData.improving++;
             else if(status === 'PSP-Within Goal') pspDiagData.withinGoal++;
         } else {
-            if(postVal < overallAccTgt + 0.02) pspDiagData.nonPSPAtRisk++;
+            if(cohortVal < overallAccTgt + 0.02) pspDiagData.nonPSPAtRisk++;
         }
     });
     diagPSP('psp-diag', pspDiagData, fmtMonth(cohortMonth));
 
-    // Status legend
-    const statusLegend = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
-        <span style="font-size:11px;font-weight:700;color:var(--ts)">Status:</span>
-        ${['PSP-Within Goal','PSP-Improving','PSP-Regressing','Within Goal','Needs Improvement'].map(s=>cohortStatusBadge(s)).join('')}
+    // Status legend — Cohort Status is now the simple 2-state PSP/Non-PSP
+    // call; Result (Pass/Fail-Improving/Fail-Regressing) gets its own line
+    // since it's a genuinely separate question (next month vs cohort month).
+    const statusLegend = `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1.5rem">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:11px;font-weight:700;color:var(--ts)">Cohort Status:</span>
+            ${['PSP','Non-PSP'].map(s=>cohortStatusBadge(s)).join('')}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:11px;font-weight:700;color:var(--ts)">Result:</span>
+            ${['PSP-Within Goal','PSP-Improving','PSP-Regressing'].map(s=>resultBadge(s)).join('')}
+        </div>
     </div>`;
 
     container.innerHTML = statusLegend
-        + '<div id="psp-tbl-acc">' + buildPSPTable('Accuracy', '🎯', 'var(--blue)', 'var(--bbg)', accRows || '<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No data.</td></tr>') + '</div>'
-        + '<div id="psp-tbl-prec" style="display:none">' + buildPSPTable('Adj Precision', '🎯', 'var(--coral)', 'var(--csec)', precRows || '<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No data.</td></tr>') + '</div>'
-        + '<div id="psp-tbl-rec" style="display:none">' + buildPSPTable('Adj Recall', '🎯', 'var(--green)', 'var(--gsec)', recRows || '<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No data.</td></tr>') + '</div>'
-        + '<div id="psp-tbl-aht" style="display:none">' + buildPSPTable('AHT per Subworkflow', '⏱', 'var(--amber)', 'var(--abg)', ahtRows || '<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No data.</td></tr>') + '</div>'
-        + '<div id="psp-tbl-nht" style="display:none">' + buildPSPTable('NHT%', '📋', 'var(--teal)', 'var(--tbg)', nhtRows || '<tr><td colspan="100" style="text-align:center;padding:1.5rem;color:var(--tm)">No data.</td></tr>') + '</div>';
+        + '<div id="psp-tbl-consolidated">' + buildPSPConsolidatedTable({acc:accRows, prec:precRows, rec:recRows, aht:ahtRows, nht:nhtRows}) + '</div>';
 
     // Stash per-KPI value arrays + display config for the histogram, so
-    // switchPSPTable() / bar clicks can redraw it and re-filter rows without
-    // needing to re-run all of renderPSP()'s data prep above.
+    // it can redraw and re-filter rows without needing to re-run all of
+    // renderPSP()'s data prep above.
     window._pspHistData = {
         acc:  { vals: accVals,  target: overallAccTgt, tgtDir: 'up', fmt: v => p(v),          unit: '%'  },
         prec: { vals: precVals, target: overallAccTgt, tgtDir: 'up', fmt: v => p(v),          unit: '%'  },
@@ -9438,8 +9879,14 @@ function renderPSP() {
     window._pspHistCohortMonth = cohortMonth;
     window._pspHistDateRange = cohortDateRange;
 
-    // Restore last active tab
-    switchPSPTable(window._pspActiveTab || 'acc');
+    // Set the histogram to follow the first checked KPI (fixed order), then
+    // draw it and reapply any active bin filter to the freshly-built table.
+    const _checkedNow = getCheckedPSPKpis();
+    const _histOrder = ['acc','prec','rec','aht','nht'];
+    window._pspActiveTab = _histOrder.find(t => _checkedNow.includes(t)) || 'acc';
+    renderPSPHistogram();
+    if(document.getElementById('chart-expand-modal')?.classList.contains('open')) renderPSPHistogram('psp-hist-expand-wrap', 260);
+    pspApplyBinFilterToDOM();
 }
 
 // ─── FORECAST ────────────────────────────────────────────────────────────────
@@ -20544,6 +20991,220 @@ document.addEventListener('DOMContentLoaded', () => {
         jdRenderColToggles();
         jdRenderJobTable();
     };
+
+})();
+
+// ─── RCA MASTERFILE (Reviewer Deep-Dive root-cause context) ──────────────────
+// Separate, isolated pipeline from the NRT "BMS Monitor" RCA import — this is
+// the "Quality Raw Data Export" schema (Name, Sub Workflow, four
+// Dispute.1.RCA_Level_N columns, Sum of Adjusted TP/FP/FN/TN per job row).
+// Joins to the Reviewer Deep-Dive tab on reviewer name (r.reviewer / RAW_ROWS
+// "Reviewer name") + Sub Workflow, matching the app's existing r.sw field.
+// Scoped to REVIEWER-caused errors only (RCA_Level_2 starting with
+// "Reviewer" — the controllable layer for reviewer-level coaching). Auditor-
+// caused RCA rows are parsed but excluded from lookup, since they are not
+// something a TL coaches the reviewer on.
+let RCAMF_ROWS = [];       // flat parsed rows, reviewer-caused only
+let RCAMF_BY_RV_SW = {};   // "reviewer||sw" -> [{l2,l3,l4,fp,fn,problemArea}, ...]
+
+(function(){
+
+    // RFC-4180 quoted-field parser — this file has commas/newlines embedded
+    // in the Dispute.1.Comment and Auditor Notes JSON-ish blobs, same problem
+    // as the Job Extract CSV, so it needs the same dedicated parser rather
+    // than the simpler nrtParseCSV used elsewhere.
+    function rcamfParseCSVRow(text) {
+        const ret = [];
+        let inQ = false, val = '', i = 0;
+        const len = text.length;
+        while (i < len) {
+            const c = text[i];
+            if (inQ) {
+                if (c === '"') {
+                    if (text[i + 1] === '"') { val += '"'; i += 2; continue; }
+                    inQ = false; i++; continue;
+                }
+                val += c; i++; continue;
+            } else {
+                if (c === '"') { inQ = true; i++; continue; }
+                if (c === ',') { ret.push(val); val = ''; i++; continue; }
+                val += c; i++; continue;
+            }
+        }
+        ret.push(val);
+        return ret;
+    }
+
+    // Normalizes the mojibake em-dash ("Reviewer – Missed Violation" often
+    // arrives as "Reviewer \uFFFD Missed Violation" or similar depending on
+    // export encoding) so the "Reviewer" prefix match is reliable regardless
+    // of which dash character survived the export/re-save round trip.
+    function rcamfCleanDash(s) {
+        return (s || '').replace(/[\u2013\u2014\uFFFD\uFFFD]/g, '-').trim();
+    }
+
+    function rcamfParseCSV(text) {
+        const norm = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const lines = norm.split('\n');
+        // This export has a few metadata rows before the real header
+        // ("Week Ending","All" / "year_fb","2026" / blank), then the header
+        // row itself starts with "Month". Find it rather than assuming a
+        // fixed row offset, since exports may vary.
+        let headerIdx = lines.findIndex(l => l.split(',')[0].trim() === 'Month');
+        if (headerIdx === -1) headerIdx = 0;
+        const hdrs = rcamfParseCSVRow(lines[headerIdx]).map(h => h.trim());
+        const out = [];
+        for (let i = headerIdx + 1; i < lines.length; i++) {
+            const raw = lines[i];
+            if (!raw || !raw.trim()) continue;
+            const vals = rcamfParseCSVRow(raw);
+            if (vals.length < hdrs.length - 2) continue; // skip clearly-ragged rows
+            const o = {};
+            hdrs.forEach((h, idx) => { o[h] = vals[idx] !== undefined ? vals[idx].trim() : ''; });
+            out.push(o);
+        }
+        return out;
+    }
+
+    function rcamfHandleUpload(input) {
+        const file = input.files[0]; if (!file) return;
+        const statusEl = document.getElementById('rcamf-load-status');
+        const okEl = document.getElementById('rcamf-up-ok');
+        const errEl = document.getElementById('rcamf-up-err');
+        if (okEl) okEl.style.display = 'none';
+        if (errEl) errEl.style.display = 'none';
+
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            if (statusEl) { statusEl.style.color = 'var(--coral)'; statusEl.textContent = '✗ Please upload a .csv file'; }
+            return;
+        }
+        if (statusEl) { statusEl.style.color = 'var(--tm)'; statusEl.textContent = '⏳ Reading ' + file.name + '…'; }
+
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const rows = rcamfParseCSV(e.target.result);
+                RCAMF_ROWS = [];
+                RCAMF_BY_RV_SW = {};
+                let reviewerCausedCount = 0;
+
+                rows.forEach(r => {
+                    const name = (r['Name'] || '').trim();
+                    const sw = (r['Sub Workflow'] || '').trim();
+                    if (!name || !sw) return;
+
+                    const l1 = rcamfCleanDash(r['Dispute.1.RCA_Level_1']);
+                    const l2 = rcamfCleanDash(r['Dispute.1.RCA_Level_2']);
+                    const l3 = rcamfCleanDash(r['Dispute.1.RCA_Level_3']);
+                    const l4 = rcamfCleanDash(r['Dispute.1.RCA_Level_4']);
+                    if (!l2) return; // no RCA attribution on this row — nothing to surface
+
+                    const fp = parseFloat(r['Sum of Adjusted FP']) || 0;
+                    const fn = parseFloat(r['Sum of Adjusted FN']) || 0;
+                    const problemArea = (r['New Problem Area'] || '').trim();
+
+                    const isReviewerCaused = /^reviewer\b/i.test(l2);
+                    const rec = { name, sw, l1, l2, l3, l4, fp, fn, problemArea, isReviewerCaused };
+                    RCAMF_ROWS.push(rec);
+
+                    if (isReviewerCaused) {
+                        reviewerCausedCount++;
+                        const key = name + '||' + sw;
+                        if (!RCAMF_BY_RV_SW[key]) RCAMF_BY_RV_SW[key] = [];
+                        RCAMF_BY_RV_SW[key].push(rec);
+                    }
+                });
+
+                if (statusEl) {
+                    statusEl.style.color = 'var(--teal)';
+                    statusEl.textContent = '✓ Loaded ' + RCAMF_ROWS.length.toLocaleString() + ' rows (' + reviewerCausedCount.toLocaleString() + ' reviewer-caused) from ' + file.name;
+                }
+                if (okEl) { okEl.style.display = ''; okEl.textContent = '✓ RCA context now available on Reviewer Deep-Dive'; }
+
+                // Re-render the Deep-Dive tab if it's currently open, so the
+                // Open Opportunities panel picks up RCA context immediately
+                // without requiring the user to re-pick the reviewer.
+                if (typeof renderDrillDown === 'function') {
+                    try { renderDrillDown(); } catch (e) { console.warn('[RCAMF] renderDrillDown refresh failed', e); }
+                }
+            } catch (err) {
+                console.error('[RCAMF Upload] error:', err);
+                if (statusEl) { statusEl.style.color = 'var(--coral)'; statusEl.textContent = '✗ Error reading file'; }
+                if (errEl) { errEl.style.display = ''; errEl.textContent = '✗ ' + err.message; }
+            }
+        };
+        reader.onerror = () => {
+            if (statusEl) { statusEl.style.color = 'var(--coral)'; statusEl.textContent = '✗ Could not read file — try re-downloading the CSV'; }
+        };
+        reader.readAsText(file, 'UTF-8');
+        input.value = '';
+    }
+    window.rcamfHandleUpload = rcamfHandleUpload;
+
+    // Returns reviewer-caused RCA records for a given reviewer + SW, or []
+    // if none loaded / none match. Never throws — safe to call unconditionally
+    // from the Open Opportunities panel regardless of upload state.
+    function rcamfLookup(reviewerName, sw) {
+        if (!reviewerName || !sw) return [];
+        return RCAMF_BY_RV_SW[reviewerName + '||' + sw] || [];
+    }
+    window.rcamfLookup = rcamfLookup;
+
+    // Plain-language translation of the RCA Level 3 failure mode — this is
+    // the piece that turns a taxonomy label into something a newer TL can
+    // read and immediately understand without prior QA training.
+    const RCAMF_L3_PLAIN = {
+        'policy comprehension failure': "didn't recognize this as a violation under policy",
+        'policy misapplication': 'applied the wrong policy or the wrong severity to a violation',
+        'review process failure': 'skipped or rushed a step in the review process',
+        'contextual misjudgment': 'misread the context surrounding the content',
+        'incomplete review of all job elements': "didn't review every element of the job before deciding"
+    };
+    function rcamfPlainL3(l3) {
+        const key = (l3 || '').toLowerCase().trim();
+        return RCAMF_L3_PLAIN[key] || null;
+    }
+    window.rcamfPlainL3 = rcamfPlainL3;
+
+    // Reviewer-coaching action bank, keyed by RCA Level 3 category. Distinct
+    // from TCM_ACTION_BANK (which coaches TL behaviors like MAP/TOPS) — this
+    // is written in "coach this reviewer" voice, matched to the documented
+    // failure mode rather than a generic Precision/Recall script.
+    const RCAMF_ACTION_BANK = {
+        'policy comprehension failure': [
+            'Walk through the specific policy clause together using CCVE and the Policy Bank',
+            'Have the reviewer explain in their own words what the violation threshold is',
+            'Pull 2-3 recent examples of this violation type and review the signals that made them violating'
+        ],
+        'policy misapplication': [
+            'Review the correct policy/sub-policy mapping for this content type together',
+            'Compare a correctly-applied case against this reviewer\u2019s decision side by side',
+            'Confirm the reviewer is using the current policy version, not an outdated one'
+        ],
+        'review process failure': [
+            'Walk through the full review checklist step by step on a recent job',
+            'Time a sample review together to check for steps being skipped under pace pressure',
+            'Confirm the reviewer understands every job element must be checked before deciding'
+        ],
+        'contextual misjudgment': [
+            'Review the specific contextual signals that changed the correct call on this job',
+            'Practice identifying context clues (captions, prior messages, profile signals) together',
+            'Discuss how to weigh ambiguous context against the stricter read'
+        ],
+        'incomplete review of all job elements': [
+            'Walk through the full review checklist step by step on a recent job',
+            'Confirm the reviewer is checking every attached element, not just the primary one',
+            'Time a sample review together to check for steps being skipped under pace pressure'
+        ]
+    };
+    function rcamfActionsFor(l3) {
+        const key = (l3 || '').toLowerCase().trim();
+        return RCAMF_ACTION_BANK[key] || [
+            'Review recent flagged decisions on this sub-workflow together',
+            'Confirm the reviewer has current policy guidance for this content type'
+        ];
+    }
+    window.rcamfActionsFor = rcamfActionsFor;
 
 })();
 
