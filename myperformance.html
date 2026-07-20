@@ -1173,7 +1173,7 @@ tr:hover td{background:#F8F9FB}
 
       <!-- No-data state -->
       <div id="rca-no-data" style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:2rem;text-align:center;color:var(--tm);font-size:13px">
-        No RCA data loaded. Go to <strong>Load Dataset</strong> and upload the RCA Masterfile CSV.
+        No RCA data loaded. Go to <strong>Load Dataset</strong> and upload the QA RCA Masterfile CSV.
         <div style="margin-top:12px">
           <button onclick="showTab('upload', document.querySelector('.t-up'))" style="font-size:12px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);padding:6px 18px;cursor:pointer;font-family:var(--f)">Go to Load Dataset →</button>
         </div>
@@ -1242,7 +1242,7 @@ tr:hover td{background:#F8F9FB}
 
         <!-- Row 3: Reviewer table (full width) -->
         <!-- Row 3: Job Log — moved here from the standalone Job Log tab. Same
-             RCA Masterfile data as the rest of this page (window.RCA_ROWS),
+             Job Log data as the rest of this page (window.RCA_ROWS),
              with its own richer filter set (TL/Reviewer/SW/Policy/Type/NC/
              RCA L1-4/Month/Week/Search) kept exactly as designed. -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;box-shadow:var(--shadow-card);margin-bottom:1.25rem">
@@ -1256,7 +1256,7 @@ tr:hover td{background:#F8F9FB}
 
           <!-- No-data state — shown when MISC_ROWS is empty -->
           <div id="misc-no-data" style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:2rem;text-align:center;color:var(--tm);font-size:13px">
-            No Job Log data loaded. Go to <strong>Load Dataset</strong> and upload the RCA Masterfile CSV.
+            No Job Log data loaded. Go to <strong>Load Dataset</strong> and upload the QA RCA Masterfile CSV.
             <div style="margin-top:12px">
               <button onclick="showTab('upload', document.querySelector('.t-up'))" style="font-size:12px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);padding:6px 18px;cursor:pointer;font-family:var(--f)">Go to Load Dataset →</button>
             </div>
@@ -1812,7 +1812,7 @@ tr:hover td{background:#F8F9FB}
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
           <h1>📌 Outlier Review</h1>
-          <p>Weekly DSM outlier tracker rows — P&amp;R outliers (reviewer-level, ≥5 audits) and AHT outliers (org-wide top-3 SW by volume, ≥3 audits per SW). One row per TL per category. Copy straight into the DSM tracker.</p>
+          <p>Month-to-date DSM outlier tracker rows — P&amp;R outliers (reviewer-level, ≥5 audits, cumulative for the month) and AHT outliers (org-wide top-3 SW by volume that month, ≥3 audits per SW). One row per TL per category. Copy straight into the DSM tracker.</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button onclick="copyTabToHTML('tab-outlier','Outlier Review',this)" style="flex-shrink:0;font-size:11px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">📋 Copy as HTML</button>
@@ -1821,7 +1821,7 @@ tr:hover td{background:#F8F9FB}
 
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:1.25rem;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">Log Date (Week Ending)</label>
+          <label style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.05em">MTD Through Week Ending</label>
           <select id="outlier-week" onchange="renderOutlierReview()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:var(--f);min-width:150px">
           </select>
         </div>
@@ -2231,7 +2231,7 @@ tr:hover td{background:#F8F9FB}
           <div style="display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--ts);margin-bottom:7px"><span style="background:var(--blue);color:#fff;border-radius:50%;width:17px;height:17px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;margin-top:1px">2</span><span>Go to the <strong>raw_data</strong> sheet tab</span></div>
           <div style="display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--ts);margin-bottom:12px"><span style="background:var(--blue);color:#fff;border-radius:50%;width:17px;height:17px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;margin-top:1px">3</span><span><strong>File &rarr; Download &rarr; CSV</strong></span></div>
           <div style="height:0.5px;background:var(--bbd);margin-bottom:12px"></div>
-          <div style="font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">&#128203; Job log &mdash; RCA masterfile</div>
+          <div style="font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">&#128203; QA RCA Masterfile</div>
           <div style="display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--ts);margin-bottom:7px"><span style="background:var(--blue);color:#fff;border-radius:50%;width:17px;height:17px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;margin-top:1px">1</span><span>Open <strong>RCA Masterfile</strong> in Google Sheets</span></div>
           <div style="display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--ts)"><span style="background:var(--blue);color:#fff;border-radius:50%;width:17px;height:17px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;margin-top:1px">2</span><span><strong>File &rarr; Download &rarr; CSV</strong></span></div>
         </div>
@@ -2247,10 +2247,13 @@ tr:hover td{background:#F8F9FB}
           <div id="up-err" style="margin-top:10px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
         </div>
 
-        <!-- JOB LOG UPLOAD -->
+        <!-- QA RCA MASTERFILE (job-level, drives both RCA Explorer AND Reviewer
+             Deep-Dive RCA context — the reviewer/SW rollup is now derived
+             automatically from these rows, see deriveRcamfFromMisc()) -->
         <div class="up-panel" id="misc-dropzone" onclick="document.getElementById('misc-file-input').click()" style="margin-bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px">
           <div style="font-size:24px;margin-bottom:6px">&#128269;</div>
-          <div style="font-size:13px;font-weight:800;color:var(--text)">Drop RCA masterfile here</div>
+          <div style="font-size:13px;font-weight:800;color:var(--text)">Drop QA RCA Masterfile CSV here</div>
+          <div style="font-size:11px;color:var(--tm);margin-top:3px;text-align:center">Job-level RCA export &middot; feeds RCA Explorer + Reviewer Deep-Dive RCA context</div>
           <div id="misc-load-status" style="margin-top:6px;font-size:11px;color:var(--tm)">No file loaded</div>
           <input type="file" id="misc-file-input" accept=".csv" onchange="miscHandleUpload(this)" style="display:none">
           <div id="misc-up-ok"  style="margin-top:8px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
@@ -2266,17 +2269,6 @@ tr:hover td{background:#F8F9FB}
           <input type="file" id="jobdetail-file-input" accept=".csv" onchange="jobDetailHandleUpload(this)" style="display:none">
           <div id="jobdetail-up-ok"  style="margin-top:8px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
           <div id="jobdetail-up-err" style="margin-top:8px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
-        </div>
-
-        <!-- RCA MASTERFILE (Reviewer Deep-Dive root-cause context) UPLOAD -->
-        <div class="up-panel" id="rcamf-dropzone" onclick="document.getElementById('rcamf-file-input').click()" style="margin-bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;border-color:#c4b5fd">
-          <div style="font-size:24px;margin-bottom:6px">&#128300;</div>
-          <div style="font-size:13px;font-weight:800;color:var(--text)">Drop RCA Masterfile CSV here</div>
-          <div style="font-size:11px;color:var(--tm);margin-top:3px;text-align:center">Quality Raw Data export &middot; Name, Sub Workflow, Dispute.1.RCA_Level_1&ndash;4</div>
-          <div id="rcamf-load-status" style="margin-top:6px;font-size:11px;color:var(--tm)">No file loaded</div>
-          <input type="file" id="rcamf-file-input" accept=".csv" onchange="rcamfHandleUpload(this)" style="display:none">
-          <div id="rcamf-up-ok"  style="margin-top:8px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
-          <div id="rcamf-up-err" style="margin-top:8px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
         </div>
 
       </div>
@@ -3693,9 +3685,15 @@ function renderOutlierReview() {
     const week = weekSel.value;
     const logDate = fmtOutlierLogDate(week);
 
-    // Quality rows only (SW present) for this week — WFM-only rows have no
+    // MTD scope: the month containing the selected week, cumulative across
+    // every week in that month — matches the MTD convention used elsewhere
+    // in the app (see renderPrioritySurface). Reviewer/SW audit totals below
+    // are therefore month-to-date sums, not single-week totals.
+    const mtdMonth = week.slice(0, 7);
+
+    // Quality rows only (SW present) for this month — WFM-only rows have no
     // tp/fp/fn/tn/sw and would corrupt the audit-count math.
-    const wkRows = qaFilter(RAW_ROWS).filter(r => r.week === week && r.sw);
+    const wkRows = qaFilter(RAW_ROWS).filter(r => r.month === mtdMonth && r.sw);
 
     // ── Step 1: reviewer-level P&R roll-up (summed across all SWs) ──────────
     const rvAgg = {}; // reviewer -> {tp,fp,fn,tn,dht,nht,decisions,supervisor,swMap:{sw:{tp,fp,fn,tn}}}
@@ -3779,12 +3777,12 @@ function renderOutlierReview() {
 
     if(noteEl) {
         noteEl.textContent = top3SW.length
-            ? `AHT scope this week — top 3 SW by volume: ${top3SW.join(', ')}`
-            : 'No SW volume found for this week.';
+            ? `MTD (${fmtMonth(mtdMonth)}) — AHT scope: top 3 SW by volume: ${top3SW.join(', ')}`
+            : `No SW volume found for ${fmtMonth(mtdMonth)}.`;
     }
 
     if(!allTLs.length) {
-        container.innerHTML = `<div class="twrap"><div style="padding:2rem;text-align:center;color:var(--tm)">No P&amp;R or AHT outliers found for ${fmtW(week)}. 🎉</div></div>`;
+        container.innerHTML = `<div class="twrap"><div style="padding:2rem;text-align:center;color:var(--tm)">No P&amp;R or AHT outliers found MTD (${fmtMonth(mtdMonth)}). 🎉</div></div>`;
         return;
     }
 
@@ -3826,36 +3824,46 @@ function renderOutlierReview() {
         if(prList && prList.length) {
             const names = prList.map(o=>sn(o.reviewer)).join(', ');
             const actionItem = `Conduct targeted P&amp;R coaching sessions for: ${names}. Focus on missed violation patterns and policy clause application. Complete calibration using CCVE for each flagged reviewer.`;
-            const actionDetail = `${prList.length} reviewer(s) below 96% P&amp;R threshold this week under ${sn(tl)}. TL to conduct targeted coaching, document RCA per reviewer, and monitor P&amp;R daily until metrics recover.`;
+            const actionDetail = `${prList.length} reviewer(s) below 96% P&amp;R threshold MTD under ${sn(tl)}. TL to conduct targeted coaching, document RCA per reviewer, and monitor P&amp;R daily until metrics recover.`;
             rowsHtml += `<tr style="background:#FCE4D6">
-                <td style="white-space:nowrap;font-weight:700">${logDate}</td>
-                <td style="white-space:nowrap">Outlier Review</td>
-                <td style="min-width:320px">${prNotes(prList)}</td>
-                <td></td>
-                <td style="white-space:nowrap;font-weight:700">Yes</td>
-                <td style="min-width:220px">${actionItem}</td>
-                <td style="min-width:240px">${actionDetail}</td>
-                <td style="white-space:nowrap">${sn(tl)}</td>
+                <td style="padding:8px 10px;white-space:nowrap;font-weight:700;vertical-align:top">${logDate}</td>
+                <td style="padding:8px 10px;white-space:nowrap;vertical-align:top">Outlier Review</td>
+                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${prNotes(prList)}</td>
+                <td style="padding:8px 10px;vertical-align:top"></td>
+                <td style="padding:8px 10px;white-space:nowrap;font-weight:700;vertical-align:top">Yes</td>
+                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${actionItem}</td>
+                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${actionDetail}</td>
+                <td style="padding:8px 10px;white-space:nowrap;vertical-align:top">${sn(tl)}</td>
             </tr>`;
         }
         if(ahtList && ahtList.length) {
             const names = ahtList.map(o=>sn(o.reviewer)).join(', ');
             const actionItem = `Conduct targeted AHT coaching for: ${names}. Review job-handling patterns, identify time-sink sub-workflows, and coach on efficient CCVE navigation and decision speed.`;
-            const actionDetail = `${ahtList.length} reviewer(s) above AHT target this week under ${sn(tl)} (top-3 volume SW: ${top3SW.join(', ')}). TL to identify top AHT driver per reviewer, coach on speed-accuracy balance, and monitor AHT daily.`;
+            const actionDetail = `${ahtList.length} reviewer(s) above AHT target MTD under ${sn(tl)} (top-3 volume SW: ${top3SW.join(', ')}). TL to identify top AHT driver per reviewer, coach on speed-accuracy balance, and monitor AHT daily.`;
             rowsHtml += `<tr style="background:#FFF2CC">
-                <td style="white-space:nowrap;font-weight:700">${logDate}</td>
-                <td style="white-space:nowrap">Outlier Review</td>
-                <td style="min-width:320px">${ahtNotes(ahtList)}</td>
-                <td></td>
-                <td style="white-space:nowrap;font-weight:700">Yes</td>
-                <td style="min-width:220px">${actionItem}</td>
-                <td style="min-width:240px">${actionDetail}</td>
-                <td style="white-space:nowrap">${sn(tl)}</td>
+                <td style="padding:8px 10px;white-space:nowrap;font-weight:700;vertical-align:top">${logDate}</td>
+                <td style="padding:8px 10px;white-space:nowrap;vertical-align:top">Outlier Review</td>
+                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${ahtNotes(ahtList)}</td>
+                <td style="padding:8px 10px;vertical-align:top"></td>
+                <td style="padding:8px 10px;white-space:nowrap;font-weight:700;vertical-align:top">Yes</td>
+                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${actionItem}</td>
+                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${actionDetail}</td>
+                <td style="padding:8px 10px;white-space:nowrap;vertical-align:top">${sn(tl)}</td>
             </tr>`;
         }
     });
 
-    container.innerHTML = `<div class="twrap"><table style="min-width:1100px;border-collapse:collapse">
+    container.innerHTML = `<div class="twrap" style="overflow-x:auto"><table style="width:100%;table-layout:fixed;border-collapse:collapse">
+        <colgroup>
+            <col style="width:70px">
+            <col style="width:100px">
+            <col style="width:28%">
+            <col style="width:70px">
+            <col style="width:90px">
+            <col style="width:20%">
+            <col style="width:20%">
+            <col style="width:110px">
+        </colgroup>
         <thead><tr style="background:var(--sa)">
             <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Log Date</th>
             <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--tm)">Category</th>
@@ -19710,12 +19718,26 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = function(e) {
             try {
                 const rows = parseMiscCSV(e.target.result);
-                if (!rows.length) throw new Error('No rows found. Check that the file is the RCA Masterfile CSV.');
+                if (!rows.length) throw new Error('No rows found. Check that the file is the QA RCA Masterfile CSV.');
                 MISC_ROWS = rows;
                 window.RCA_ROWS = rows; // expose globally for RCA Explorer
                 MISC_PAGE = 1;
                 populateBaseFilters(rows);
                 if(window.renderRCAExplorer) window.renderRCAExplorer();
+                // Derive the reviewer/SW RCA rollup (RCAMF_ROWS / RCAMF_BY_RV_SW)
+                // straight from these same rows — Reviewer Deep-Dive's RCA
+                // context no longer needs a separate upload. See
+                // deriveRcamfFromMisc() near the old rcamfHandleUpload code.
+                let rcamfSummary = '';
+                if (typeof window.deriveRcamfFromMisc === 'function') {
+                    try {
+                        const rcamfResult = window.deriveRcamfFromMisc(rows);
+                        rcamfSummary = ` \u00b7 ${rcamfResult.reviewerCausedCount.toLocaleString()} reviewer-caused RCA record${rcamfResult.reviewerCausedCount!==1?'s':''} available on Reviewer Deep-Dive`;
+                        if (typeof renderDrillDown === 'function') {
+                            try { renderDrillDown(); } catch(e2) { console.warn('[RCAMF] renderDrillDown refresh failed', e2); }
+                        }
+                    } catch(e3) { console.warn('[RCAMF] derive-from-Job-Log failed', e3); }
+                }
                 // Show table, hide no-data panel
                 document.getElementById('misc-no-data').style.display    = 'none';
                 document.getElementById('misc-filters').style.display    = 'block';
@@ -19723,7 +19745,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update load status in Load Dataset tab
                 const statusEl = document.getElementById('misc-load-status');
                 if(statusEl) statusEl.innerHTML = `<span style="color:var(--teal);font-weight:700">\u2713 ${rows.length.toLocaleString()} job${rows.length!==1?'s':''} loaded</span>`;
-                okEl.textContent = `\u2713 Loaded ${rows.length.toLocaleString()} job${rows.length!==1?'s':''} \u00b7 sorted newest first`;
+                okEl.textContent = `\u2713 Loaded ${rows.length.toLocaleString()} job${rows.length!==1?'s':''} \u00b7 sorted newest first${rcamfSummary}`;
                 okEl.style.display = 'block';
                 miscRenderTable(rows);
             } catch(err) {
@@ -19735,10 +19757,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.miscReset = function() {
-        if(MISC_ROWS.length && !confirm('Reset Job Log? This will clear all loaded data. You will need to re-upload the RCA Masterfile CSV from Load Dataset.')) return;
+        if(MISC_ROWS.length && !confirm('Reset QA RCA Masterfile? This will clear all loaded data, including RCA context on Reviewer Deep-Dive. You will need to re-upload the QA RCA Masterfile CSV from Load Dataset.')) return;
         // Clear data
         MISC_ROWS = [];
         MISC_PAGE = 1;
+        // Clear the derived reviewer/SW RCA rollup too — it comes from the
+        // same upload now, so it shouldn't outlive a Job Log reset.
+        RCAMF_ROWS = [];
+        RCAMF_BY_RV_SW = {};
+        if (typeof renderDrillDown === 'function') {
+            try { renderDrillDown(); } catch(e) { console.warn('[RCAMF] renderDrillDown refresh failed on reset', e); }
+        }
         // Reset file input so same file can be re-uploaded
         const fi = document.getElementById('misc-file-input');
         if(fi) fi.value = '';
@@ -20995,9 +21024,17 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 
 // ─── RCA MASTERFILE (Reviewer Deep-Dive root-cause context) ──────────────────
-// Separate, isolated pipeline from the NRT "BMS Monitor" RCA import — this is
-// the "Quality Raw Data Export" schema (Name, Sub Workflow, four
-// Dispute.1.RCA_Level_N columns, Sum of Adjusted TP/FP/FN/TN per job row).
+// Separate, isolated pipeline from the NRT "BMS Monitor" RCA import.
+// Previously ingested via its own "RCA Masterfile CSV" upload (the "Quality
+// Raw Data Export" schema: Name, Sub Workflow, four Dispute.1.RCA_Level_N
+// columns, Sum of Adjusted TP/FP/FN/TN). That schema is a reviewer/SW rollup
+// of the SAME RCA taxonomy already present in the QA RCA Masterfile / Job Log
+// upload (parseMiscCSV / MISC_ROWS) at job-level granularity — having two
+// separate uploads for the same underlying RCA data was confusing (two boxes
+// both wanting "the RCA masterfile"). RCAMF_ROWS / RCAMF_BY_RV_SW are now
+// derived automatically from MISC_ROWS once, right after Job Log loads —
+// see deriveRcamfFromMisc() below, called from miscHandleUpload().
+//
 // Joins to the Reviewer Deep-Dive tab on reviewer name (r.reviewer / RAW_ROWS
 // "Reviewer name") + Sub Workflow, matching the app's existing r.sw field.
 // Scoped to REVIEWER-caused errors only (RCA_Level_2 starting with
@@ -21009,137 +21046,53 @@ let RCAMF_BY_RV_SW = {};   // "reviewer||sw" -> [{l2,l3,l4,fp,fn,problemArea}, .
 
 (function(){
 
-    // RFC-4180 quoted-field parser — this file has commas/newlines embedded
-    // in the Dispute.1.Comment and Auditor Notes JSON-ish blobs, same problem
-    // as the Job Extract CSV, so it needs the same dedicated parser rather
-    // than the simpler nrtParseCSV used elsewhere.
-    function rcamfParseCSVRow(text) {
-        const ret = [];
-        let inQ = false, val = '', i = 0;
-        const len = text.length;
-        while (i < len) {
-            const c = text[i];
-            if (inQ) {
-                if (c === '"') {
-                    if (text[i + 1] === '"') { val += '"'; i += 2; continue; }
-                    inQ = false; i++; continue;
-                }
-                val += c; i++; continue;
-            } else {
-                if (c === '"') { inQ = true; i++; continue; }
-                if (c === ',') { ret.push(val); val = ''; i++; continue; }
-                val += c; i++; continue;
+    // Derives RCAMF_ROWS / RCAMF_BY_RV_SW directly from Job Log rows
+    // (MISC_ROWS, produced by parseMiscCSV). Job Log rows already carry
+    // rca1-rca4 (clean()-normalized, same taxonomy as the old Dispute.1.RCA_
+    // Level_1-4 columns), fp/fn (Sum of Adjusted FP/FN equivalents), pol
+    // (New Problem Area / Policy), rv (reviewer "Last, First" — confirmed
+    // same format as the old RCA Masterfile's Name column), and sw. No
+    // separate parse or upload needed — this just re-shapes what's already
+    // been read. Returns {reviewerCausedCount} for the caller's status text.
+    function deriveRcamfFromMisc(miscRows) {
+        RCAMF_ROWS = [];
+        RCAMF_BY_RV_SW = {};
+        let reviewerCausedCount = 0;
+
+        (miscRows || []).forEach(r => {
+            const name = (r.rv || '').trim();
+            const sw = (r.sw || '').trim();
+            if (!name || !sw) return;
+
+            // rca1-4 are already clean()-normalized (dash variants -> —) by
+            // parseMiscCSV, unlike the old rcamfCleanDash (-> plain "-").
+            // Neither the isReviewerCaused regex nor display rendering below
+            // cares which dash character is used, so no re-normalization here.
+            const l1 = r.rca1 || '';
+            const l2 = r.rca2 || '';
+            const l3 = r.rca3 || '';
+            const l4 = r.rca4 || '';
+            if (!l2) return; // no RCA attribution on this row — nothing to surface
+
+            const fp = r.fp || 0;
+            const fn = r.fn || 0;
+            const problemArea = r.pol || '';
+
+            const isReviewerCaused = /^reviewer\b/i.test(l2);
+            const rec = { name, sw, l1, l2, l3, l4, fp, fn, problemArea, isReviewerCaused };
+            RCAMF_ROWS.push(rec);
+
+            if (isReviewerCaused) {
+                reviewerCausedCount++;
+                const key = name + '||' + sw;
+                if (!RCAMF_BY_RV_SW[key]) RCAMF_BY_RV_SW[key] = [];
+                RCAMF_BY_RV_SW[key].push(rec);
             }
-        }
-        ret.push(val);
-        return ret;
+        });
+
+        return { reviewerCausedCount, totalCount: RCAMF_ROWS.length };
     }
-
-    // Normalizes the mojibake em-dash ("Reviewer – Missed Violation" often
-    // arrives as "Reviewer \uFFFD Missed Violation" or similar depending on
-    // export encoding) so the "Reviewer" prefix match is reliable regardless
-    // of which dash character survived the export/re-save round trip.
-    function rcamfCleanDash(s) {
-        return (s || '').replace(/[\u2013\u2014\uFFFD\uFFFD]/g, '-').trim();
-    }
-
-    function rcamfParseCSV(text) {
-        const norm = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-        const lines = norm.split('\n');
-        // This export has a few metadata rows before the real header
-        // ("Week Ending","All" / "year_fb","2026" / blank), then the header
-        // row itself starts with "Month". Find it rather than assuming a
-        // fixed row offset, since exports may vary.
-        let headerIdx = lines.findIndex(l => l.split(',')[0].trim() === 'Month');
-        if (headerIdx === -1) headerIdx = 0;
-        const hdrs = rcamfParseCSVRow(lines[headerIdx]).map(h => h.trim());
-        const out = [];
-        for (let i = headerIdx + 1; i < lines.length; i++) {
-            const raw = lines[i];
-            if (!raw || !raw.trim()) continue;
-            const vals = rcamfParseCSVRow(raw);
-            if (vals.length < hdrs.length - 2) continue; // skip clearly-ragged rows
-            const o = {};
-            hdrs.forEach((h, idx) => { o[h] = vals[idx] !== undefined ? vals[idx].trim() : ''; });
-            out.push(o);
-        }
-        return out;
-    }
-
-    function rcamfHandleUpload(input) {
-        const file = input.files[0]; if (!file) return;
-        const statusEl = document.getElementById('rcamf-load-status');
-        const okEl = document.getElementById('rcamf-up-ok');
-        const errEl = document.getElementById('rcamf-up-err');
-        if (okEl) okEl.style.display = 'none';
-        if (errEl) errEl.style.display = 'none';
-
-        if (!file.name.toLowerCase().endsWith('.csv')) {
-            if (statusEl) { statusEl.style.color = 'var(--coral)'; statusEl.textContent = '✗ Please upload a .csv file'; }
-            return;
-        }
-        if (statusEl) { statusEl.style.color = 'var(--tm)'; statusEl.textContent = '⏳ Reading ' + file.name + '…'; }
-
-        const reader = new FileReader();
-        reader.onload = e => {
-            try {
-                const rows = rcamfParseCSV(e.target.result);
-                RCAMF_ROWS = [];
-                RCAMF_BY_RV_SW = {};
-                let reviewerCausedCount = 0;
-
-                rows.forEach(r => {
-                    const name = (r['Name'] || '').trim();
-                    const sw = (r['Sub Workflow'] || '').trim();
-                    if (!name || !sw) return;
-
-                    const l1 = rcamfCleanDash(r['Dispute.1.RCA_Level_1']);
-                    const l2 = rcamfCleanDash(r['Dispute.1.RCA_Level_2']);
-                    const l3 = rcamfCleanDash(r['Dispute.1.RCA_Level_3']);
-                    const l4 = rcamfCleanDash(r['Dispute.1.RCA_Level_4']);
-                    if (!l2) return; // no RCA attribution on this row — nothing to surface
-
-                    const fp = parseFloat(r['Sum of Adjusted FP']) || 0;
-                    const fn = parseFloat(r['Sum of Adjusted FN']) || 0;
-                    const problemArea = (r['New Problem Area'] || '').trim();
-
-                    const isReviewerCaused = /^reviewer\b/i.test(l2);
-                    const rec = { name, sw, l1, l2, l3, l4, fp, fn, problemArea, isReviewerCaused };
-                    RCAMF_ROWS.push(rec);
-
-                    if (isReviewerCaused) {
-                        reviewerCausedCount++;
-                        const key = name + '||' + sw;
-                        if (!RCAMF_BY_RV_SW[key]) RCAMF_BY_RV_SW[key] = [];
-                        RCAMF_BY_RV_SW[key].push(rec);
-                    }
-                });
-
-                if (statusEl) {
-                    statusEl.style.color = 'var(--teal)';
-                    statusEl.textContent = '✓ Loaded ' + RCAMF_ROWS.length.toLocaleString() + ' rows (' + reviewerCausedCount.toLocaleString() + ' reviewer-caused) from ' + file.name;
-                }
-                if (okEl) { okEl.style.display = ''; okEl.textContent = '✓ RCA context now available on Reviewer Deep-Dive'; }
-
-                // Re-render the Deep-Dive tab if it's currently open, so the
-                // Open Opportunities panel picks up RCA context immediately
-                // without requiring the user to re-pick the reviewer.
-                if (typeof renderDrillDown === 'function') {
-                    try { renderDrillDown(); } catch (e) { console.warn('[RCAMF] renderDrillDown refresh failed', e); }
-                }
-            } catch (err) {
-                console.error('[RCAMF Upload] error:', err);
-                if (statusEl) { statusEl.style.color = 'var(--coral)'; statusEl.textContent = '✗ Error reading file'; }
-                if (errEl) { errEl.style.display = ''; errEl.textContent = '✗ ' + err.message; }
-            }
-        };
-        reader.onerror = () => {
-            if (statusEl) { statusEl.style.color = 'var(--coral)'; statusEl.textContent = '✗ Could not read file — try re-downloading the CSV'; }
-        };
-        reader.readAsText(file, 'UTF-8');
-        input.value = '';
-    }
-    window.rcamfHandleUpload = rcamfHandleUpload;
+    window.deriveRcamfFromMisc = deriveRcamfFromMisc;
 
     // Returns reviewer-caused RCA records for a given reviewer + SW, or []
     // if none loaded / none match. Never throws — safe to call unconditionally
