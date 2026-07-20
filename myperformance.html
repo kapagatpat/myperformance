@@ -8783,6 +8783,13 @@ function renderSmeTab(){
 function renderDrillOppPanel(rows, rv, el) {
   if(!el) return;
 
+  // Month scope for RCA context — matches whatever period `rows` was
+  // filtered to by the caller (MTD, month-pill selection, etc.), so the
+  // "Why? (N errors)" count stays aligned with the same period as the
+  // Quality Gap % it's attached to, instead of summing the reviewer's
+  // entire RCA history on that SW (see rcamfLookup's monthKeys param).
+  const oppMonthKeys = [...new Set(rows.map(r => r.month).filter(Boolean))];
+
   // Group rows by SW, compute per-SW metrics
   const swMap = {};
   rows.forEach(r => {
@@ -8862,7 +8869,7 @@ function renderDrillOppPanel(rows, rv, el) {
     // quality misses (FP/FN causes), not speed.
     let rcaBlock = '';
     if (allowRCA && typeof rcamfLookup === 'function') {
-      const recs = rcamfLookup(rv, f.sw);
+      const recs = rcamfLookup(rv, f.sw, oppMonthKeys);
       if (recs.length) {
         // Dominant RCA Level 3 cause by count of errors it's tied to
         // (FP for Precision misses, FN for Recall misses, both for Accuracy).
@@ -21077,9 +21084,15 @@ let RCAMF_BY_RV_SW = {};   // "reviewer||sw" -> [{l2,l3,l4,fp,fn,problemArea}, .
             const fp = r.fp || 0;
             const fn = r.fn || 0;
             const problemArea = r.pol || '';
+            // Carry the row's month through so lookups can be scoped to
+            // whatever period the caller is looking at (e.g. the Reviewer
+            // Deep-Dive month-pill selection) instead of always summing
+            // every month the reviewer has ever had RCA-tagged errors on
+            // this SW — see rcamfLookup's optional monthKeys filter below.
+            const monthKey = r.monthKey || '';
 
             const isReviewerCaused = /^reviewer\b/i.test(l2);
-            const rec = { name, sw, l1, l2, l3, l4, fp, fn, problemArea, isReviewerCaused };
+            const rec = { name, sw, l1, l2, l3, l4, fp, fn, problemArea, isReviewerCaused, monthKey };
             RCAMF_ROWS.push(rec);
 
             if (isReviewerCaused) {
@@ -21097,9 +21110,19 @@ let RCAMF_BY_RV_SW = {};   // "reviewer||sw" -> [{l2,l3,l4,fp,fn,problemArea}, .
     // Returns reviewer-caused RCA records for a given reviewer + SW, or []
     // if none loaded / none match. Never throws — safe to call unconditionally
     // from the Open Opportunities panel regardless of upload state.
-    function rcamfLookup(reviewerName, sw) {
+    //
+    // monthKeys (optional): array of 'YYYY-MM' strings. When provided, only
+    // records whose monthKey is in this list are returned — this is what
+    // keeps the "Why? (N errors)" count aligned with whatever period the
+    // Quality Gap % itself is scoped to (e.g. the selected month pill),
+    // rather than silently summing the reviewer's entire RCA history on
+    // that SW. Omit/pass [] to get all-time records (existing behavior).
+    function rcamfLookup(reviewerName, sw, monthKeys) {
         if (!reviewerName || !sw) return [];
-        return RCAMF_BY_RV_SW[reviewerName + '||' + sw] || [];
+        const all = RCAMF_BY_RV_SW[reviewerName + '||' + sw] || [];
+        if (!monthKeys || !monthKeys.length) return all;
+        const keep = new Set(monthKeys);
+        return all.filter(r => keep.has(r.monthKey));
     }
     window.rcamfLookup = rcamfLookup;
 
