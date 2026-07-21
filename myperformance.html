@@ -3787,33 +3787,40 @@ function renderOutlierReview() {
     }
 
     // ── Step 4: render rows ──────────────────────────────────────────────────
+    // Notes collapse to a single continuous line for the whole row: each
+    // reviewer's name + metrics, with their SW drivers folded into brackets
+    // right after, separated from the next reviewer by "; ". Combined with
+    // overflow-wrap:anywhere on the cell, this wraps naturally within the
+    // column instead of stacking as separate blocks.
     function prNotes(list) {
         return list.map(o => {
             const metricStr = [
                 o.precFail ? `P: ${p(o.prec)}` : `P: ${o.prec!==null?p(o.prec):'—'}`,
                 o.recFail  ? `R: ${p(o.rec)}`  : `R: ${o.rec!==null?p(o.rec):'—'}`
             ].join(', ');
-            let line = `${sn(o.reviewer)} — ${metricStr} (n=${o.audits})`;
+            let line = `<strong>${sn(o.reviewer)}</strong> — ${metricStr} (n=${o.audits})`;
             if(o.swDrivers.length) {
-                line += '<br>' + o.swDrivers.map(d => {
+                const driverStr = o.swDrivers.map(d => {
                     const dm = [d.precFail?`P ${p(d.prec)}`:null, d.recFail?`R ${p(d.rec)}`:null].filter(Boolean).join(', ');
-                    return `&nbsp;&nbsp;&nbsp;&nbsp;↳ ${d.sw} — ${dm} (n=${d.audits})`;
-                }).join('<br>');
+                    return `${d.sw} ${dm} (n=${d.audits})`;
+                }).join(', ');
+                line += ` [${driverStr}]`;
             }
             return line;
-        }).join('<br><br>');
+        }).join('; ');
     }
     function ahtNotes(list) {
         return list.map(o => {
             const worst = o.drivers[0];
-            let line = `${sn(o.reviewer)} — AHT ${Math.round(worst.aht)}s on ${worst.sw} (target ≤${worst.target}s, n=${worst.decisions} dec)`;
+            let line = `<strong>${sn(o.reviewer)}</strong> — AHT ${Math.round(worst.aht)}s on ${worst.sw} (target ≤${worst.target}s, n=${worst.decisions} dec)`;
             if(o.drivers.length > 1) {
-                line += '<br>' + o.drivers.slice(1).map(d =>
-                    `&nbsp;&nbsp;&nbsp;&nbsp;↳ ${d.sw} — ${Math.round(d.aht)}s (target ≤${d.target}s, n=${d.decisions} dec)`
-                ).join('<br>');
+                const driverStr = o.drivers.slice(1).map(d =>
+                    `${d.sw} ${Math.round(d.aht)}s (target ≤${d.target}s, n=${d.decisions} dec)`
+                ).join(', ');
+                line += ` [${driverStr}]`;
             }
             return line;
-        }).join('<br><br>');
+        }).join('; ');
     }
 
     let rowsHtml = '';
@@ -3826,14 +3833,14 @@ function renderOutlierReview() {
             const actionItem = `Conduct targeted P&amp;R coaching sessions for: ${names}. Focus on missed violation patterns and policy clause application. Complete calibration using CCVE for each flagged reviewer.`;
             const actionDetail = `${prList.length} reviewer(s) below 96% P&amp;R threshold MTD under ${sn(tl)}. TL to conduct targeted coaching, document RCA per reviewer, and monitor P&amp;R daily until metrics recover.`;
             rowsHtml += `<tr style="background:#FCE4D6">
-                <td style="padding:8px 10px;white-space:nowrap;font-weight:700;vertical-align:top">${logDate}</td>
-                <td style="padding:8px 10px;white-space:nowrap;vertical-align:top">Outlier Review</td>
-                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${prNotes(prList)}</td>
-                <td style="padding:8px 10px;vertical-align:top"></td>
-                <td style="padding:8px 10px;white-space:nowrap;font-weight:700;vertical-align:top">Yes</td>
-                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${actionItem}</td>
-                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${actionDetail}</td>
-                <td style="padding:8px 10px;white-space:nowrap;vertical-align:top">${sn(tl)}</td>
+                <td style="padding:6px 10px;white-space:nowrap;font-weight:700;vertical-align:top;line-height:1.3">${logDate}</td>
+                <td style="padding:6px 10px;white-space:nowrap;vertical-align:top;line-height:1.3">Outlier Review</td>
+                <td style="padding:6px 10px;vertical-align:top;line-height:1.35;font-size:11px;overflow-wrap:anywhere">${prNotes(prList)}</td>
+                <td style="padding:6px 10px;vertical-align:top"></td>
+                <td style="padding:6px 10px;white-space:nowrap;font-weight:700;vertical-align:top;line-height:1.3">Yes</td>
+                <td style="padding:6px 10px;vertical-align:top;line-height:1.35;font-size:11px;overflow-wrap:anywhere">${actionItem}</td>
+                <td style="padding:6px 10px;vertical-align:top;line-height:1.35;font-size:11px;overflow-wrap:anywhere">${actionDetail}</td>
+                <td style="padding:6px 10px;white-space:nowrap;vertical-align:top;line-height:1.3">${sn(tl)}</td>
             </tr>`;
         }
         if(ahtList && ahtList.length) {
@@ -3841,14 +3848,14 @@ function renderOutlierReview() {
             const actionItem = `Conduct targeted AHT coaching for: ${names}. Review job-handling patterns, identify time-sink sub-workflows, and coach on efficient CCVE navigation and decision speed.`;
             const actionDetail = `${ahtList.length} reviewer(s) above AHT target MTD under ${sn(tl)} (top-3 volume SW: ${top3SW.join(', ')}). TL to identify top AHT driver per reviewer, coach on speed-accuracy balance, and monitor AHT daily.`;
             rowsHtml += `<tr style="background:#FFF2CC">
-                <td style="padding:8px 10px;white-space:nowrap;font-weight:700;vertical-align:top">${logDate}</td>
-                <td style="padding:8px 10px;white-space:nowrap;vertical-align:top">Outlier Review</td>
-                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${ahtNotes(ahtList)}</td>
-                <td style="padding:8px 10px;vertical-align:top"></td>
-                <td style="padding:8px 10px;white-space:nowrap;font-weight:700;vertical-align:top">Yes</td>
-                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${actionItem}</td>
-                <td style="padding:8px 10px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word">${actionDetail}</td>
-                <td style="padding:8px 10px;white-space:nowrap;vertical-align:top">${sn(tl)}</td>
+                <td style="padding:6px 10px;white-space:nowrap;font-weight:700;vertical-align:top;line-height:1.3">${logDate}</td>
+                <td style="padding:6px 10px;white-space:nowrap;vertical-align:top;line-height:1.3">Outlier Review</td>
+                <td style="padding:6px 10px;vertical-align:top;line-height:1.35;font-size:11px;overflow-wrap:anywhere">${ahtNotes(ahtList)}</td>
+                <td style="padding:6px 10px;vertical-align:top"></td>
+                <td style="padding:6px 10px;white-space:nowrap;font-weight:700;vertical-align:top;line-height:1.3">Yes</td>
+                <td style="padding:6px 10px;vertical-align:top;line-height:1.35;font-size:11px;overflow-wrap:anywhere">${actionItem}</td>
+                <td style="padding:6px 10px;vertical-align:top;line-height:1.35;font-size:11px;overflow-wrap:anywhere">${actionDetail}</td>
+                <td style="padding:6px 10px;white-space:nowrap;vertical-align:top;line-height:1.3">${sn(tl)}</td>
             </tr>`;
         }
     });
@@ -14091,17 +14098,6 @@ function renderStackRank() {
                     <td style="text-align:center;padding:8px;font-family:var(--m);font-size:12px;color:var(--ts)">${m.rvCount}</td>
                 </tr>`;
             });
-            const svLvExcl = (result?.excluded||[]).filter(e => e.lowVolume);
-            if(svLvExcl.length) {
-                html += `<tr><td colspan="12" style="padding:10px 10px 4px;background:var(--asec)"><span style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#92400E">⚠ Low Volume — below min job threshold (${Math.ceil(result?.svMinJobThresh||0).toLocaleString()} jobs) — not ranked</span></td></tr>`;
-                svLvExcl.forEach(m => {
-                    html += `<tr style="background:var(--asec);border-bottom:1px solid var(--divider);opacity:.8">
-                        <td style="text-align:center;padding:8px 6px"><span style="font-size:11px;color:var(--tm);font-family:var(--m)">—</span></td>
-                        <td style="padding:8px 10px;font-weight:700;color:var(--ts)">${stl(m.name)}</td>
-                        <td colspan="9" style="text-align:center;padding:8px;color:var(--tm)">—</td>
-                    </tr>`;
-                });
-            }
         } else {
             // ── PRE-MARCH 2026: original throughput formula ───────────────────
             html = `<div style="font-size:11px;color:var(--ts);margin-bottom:6px"><strong style="color:var(--text)">${ranked.length} supervisors</strong> · Quality 70% (Team Adj Accuracy) · Efficiency 30% (Team Throughput) · Aggregated from all reviewers under each supervisor</div>
@@ -17040,15 +17036,22 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         const mcdFABlock = (badgeColor, badgeBg, label, title, rvKey, tlKey, commitRows, curVal, commitVal, ahtRows) => {
             const rvActs = mcdConfig.actions[rvKey]||[];
             const tlActs = mcdConfig.actions[tlKey]||[];
-            // Build commit table rows
+            // Build commit table rows — Quality now passes a single overall
+            // row ({pr, pol, commit}) instead of one row per SW, per Karl's
+            // request to simplify the Focus Area card to one P&R score
+            // followed by the policy error breakdown.
             let commitHtml = '';
             if(commitRows && Array.isArray(commitRows) && commitRows.length){
-                commitHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px">` + commitRows.map(cr=>{
-                  const prStr=cr.prec&&cr.rec?` · P:${mcdEsc(cr.prec)} R:${mcdEsc(cr.rec)}`:'';
-                  return`<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:${lightGray};border-radius:999px;border:1px solid ${borderColor};font-size:11px;white-space:nowrap">
-                  <span style="color:${textSec}">${mcdEsc(cr.sw)} · ${mcdEsc(cr.errors)+' error'+(cr.errors!==1?'s':'')} · ${mcdEsc(cr.acc)}${prStr}</span>
-                  <span style="font-weight:700;font-family:${mono};color:${blue}">→ ${mcdEsc(cr.commit)}</span>
-                </div>`}).join('') + `</div>`;
+                commitHtml = commitRows.map(cr=>{
+                  const polLine = cr.pol ? `<div style="font-size:11px;color:${textMuted};margin-top:2px">${mcdEsc(cr.pol)}</div>` : '';
+                  return `<div style="padding:7px 11px;background:${lightGray};border-radius:7px;border:1px solid ${borderColor}">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="font-size:11px;color:${textSec};flex:1">P&amp;R: ${mcdEsc(cr.pr)}</span>
+                      <span style="font-size:13px;font-weight:700;font-family:${mono};color:${blue}">→ ${mcdEsc(cr.commit)}</span>
+                    </div>
+                    ${polLine}
+                  </div>`;
+                }).join('');
             } else if(ahtRows && Array.isArray(ahtRows) && ahtRows.length){
                 commitHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px">` + ahtRows.map(ar=>`<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:${lightGray};border-radius:999px;border:1px solid ${borderColor};font-size:11px;white-space:nowrap">
                   <span style="color:${textSec}">${mcdEsc(ar.sw)} · ${ar.actual}s → ${ar.target}s</span>
@@ -17445,10 +17448,10 @@ function _generateCoachingDocInner(mcdConfig) {
     const currMonth = allMonths[allMonths.length-1];
     const swMapCurr = {};
     allRvRows.filter(r => r.month === currMonth).forEach(r => {
-        if(!swMapCurr[r.sw]) swMapCurr[r.sw]={tpa:0,fpa:0,fna:0,tna:0,dec:0};
+        if(!swMapCurr[r.sw]) swMapCurr[r.sw]={tpa:0,fpa:0,fna:0,tna:0,dec:0,dht:0,nht:0};
         const s=swMapCurr[r.sw];
         s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0;
-        s.dec+=r.decisions||0;
+        s.dec+=r.decisions||0; s.dht+=r.dht||0; s.nht+=r.nht||0;
     });
 
     // Build swStats — show if dec≥5 OR errors>0 in last 60 days
@@ -17854,31 +17857,69 @@ function _generateCoachingDocInner(mcdConfig) {
         const ahtCFn  = (aht,tgt) => { if(!aht||!tgt) return textMuted; if(aht<=tgt) return green; if(aht<=tgt*1.05) return amber; return red; };
 
         // ── Wins block ────────────────────────────────────────────────────────
-        let accStreak=0;
-        weekTrend.forEach((w,i,arr)=>{ if(i===arr.length-1-(accStreak)||w.acc>=ACC_TARGET) accStreak++; else accStreak=0; });
-        accStreak=0;
-        for(let i=weekTrend.length-1;i>=0;i--){ if(weekTrend[i]&&weekTrend[i].acc>=ACC_TARGET) accStreak++; else break; }
+        // Overall MTD quality score — AR-gated same as rest of tool: AR<10% -> Accuracy, AR>=10% -> P&R
+        const mtdAR   = safeAR(mtd.tpa,mtd.fpa,mtd.fna,mtd.tna);
+        const mtdAcc  = safeAcc(mtd.tpa,mtd.fpa,mtd.fna,mtd.tna);
+        const mtdPrec = safePrec(mtd.tpa,mtd.fpa);
+        const mtdRec  = safeRec(mtd.tpa,mtd.fna);
+        const mtdUsesPR = mtdAR!==null && mtdAR>=0.10;
+        const mtdQualityWin = (() => {
+            if(mtdUsesPR) {
+                if(mtdPrec===null && mtdRec===null) return null;
+                const parts=[];
+                if(mtdPrec!==null) parts.push(`Precision <strong>${(mtdPrec*100).toFixed(1)}%</strong>`);
+                if(mtdRec!==null)  parts.push(`Recall <strong>${(mtdRec*100).toFixed(1)}%</strong>`);
+                return `${parts.join(' · ')} MTD.`;
+            }
+            if(mtdAcc===null) return null;
+            return `Adj Accuracy <strong>${(mtdAcc*100).toFixed(1)}%</strong> MTD.`;
+        })();
+
+        // Per-SW MTD quality pass, same AR-gating logic (Accuracy if AR<10%, else P&R both >=96%), min 5 decisions
+        const swsMeetingQualityGoal = Object.entries(swMapCurr||{}).filter(([sw,d])=>{
+            if(!d || d.dec<5) return false;
+            const tot=d.tpa+d.fpa+d.fna+d.tna; if(!tot) return false;
+            const arSw=(d.tpa+d.fpa)/tot;
+            if(arSw>=0.10) {
+                const p=(d.tpa+d.fpa)>0?d.tpa/(d.tpa+d.fpa):null;
+                const r=(d.tpa+d.fna)>0?d.tpa/(d.tpa+d.fna):null;
+                return p!==null && r!==null && p>=ACC_TARGET && r>=ACC_TARGET;
+            }
+            const acc=(d.tpa+d.tna)/tot;
+            return acc>=ACC_TARGET;
+        }).map(([sw])=>sw);
+
         const winErrRecovery2 = (() => {
             const polsSeen={}, latestWkR=WEEKS.length?WEEKS[WEEKS.length-1]:allRvRows.map(r=>r.week).sort().pop(), msD=86400000;
             allRvRows.forEach(r=>{ if(!r.pol||(r.fpa+r.fna)===0) return; const days=(new Date(latestWkR)-new Date(r.week))/msD; if(!polsSeen[r.pol]) polsSeen[r.pol]={recentErr:0,oldErr:0}; if(days<=35) polsSeen[r.pol].recentErr++; else if(days<=120) polsSeen[r.pol].oldErr++; });
             return Object.entries(polsSeen).filter(([,v])=>v.recentErr===0&&v.oldErr>0).map(([pol])=>pol);
         })();
+        // # SWs meeting AHT goal — MTD, min 5 decisions per SW (matches AHT bonus gate)
+        const swsMeetingAHTGoal = Object.entries(swMapCurr||{}).filter(([sw,d])=>{
+            if(!d || d.dec<5) return false;
+            const tgt=SW_TARGETS[sw]?.aht; if(!tgt) return false;
+            return Math.round((d.dht+d.nht)/d.dec) <= tgt;
+        }).map(([sw])=>sw);
+        // SW(s) that improved AHT week over week (latest week vs prior week, min 3 decisions each)
         const winAHTImp2 = (() => {
             const res=[];
             Object.keys(swWeekAHT).forEach(sw=>{
                 const wks=last6W.filter(wk=>swWeekAHT[sw]?.[wk]?.dec>=3);
-                if(wks.length<3) return;
-                const last3=wks.slice(-3).map(wk=>{const d=swWeekAHT[sw][wk]; return Math.round((d.dht+d.nht)/d.dec);});
-                const drop=last3[0]-last3[last3.length-1];
-                if(drop>=15) res.push({sw,drop});
+                if(wks.length<2) return;
+                const d1=swWeekAHT[sw][wks[wks.length-2]], d2=swWeekAHT[sw][wks[wks.length-1]];
+                const aht1=Math.round((d1.dht+d1.nht)/d1.dec), aht2=Math.round((d2.dht+d2.nht)/d2.dec);
+                const drop=aht1-aht2;
+                if(drop>0) res.push({sw,drop});
             });
             return res.sort((a,b)=>b.drop-a.drop);
         })();
 
         const winLines=[];
-        if(accStreak>=3) winLines.push({area:'Quality',txt:`Accuracy on target for <strong>${accStreak} straight week${accStreak!==1?'s':''}</strong> — no cap, keep it locked.`});
+        if(mtdQualityWin) winLines.push({area:'Quality',txt:mtdQualityWin});
+        if(swsMeetingQualityGoal.length>0) winLines.push({area:'Quality',txt:`<strong>${swsMeetingQualityGoal.length} sub-workflow${swsMeetingQualityGoal.length!==1?'s':''}</strong> meeting quality goal this month (${swsMeetingQualityGoal.join(', ')}).`});
         if(winErrRecovery2.length>0) winLines.push({area:'Quality',txt:`Zero new <strong>${winErrRecovery2.slice(0,2).join(', ')}</strong> errors in 5 weeks. Great recovery.`});
-        if(winAHTImp2.length>0) winLines.push({area:'AHT',txt:`<strong>${winAHTImp2[0].sw}</strong> AHT dropped ${winAHTImp2[0].drop}s over 3 weeks. Great momentum.`});
+        if(swsMeetingAHTGoal.length>0) winLines.push({area:'AHT',txt:`<strong>${swsMeetingAHTGoal.length} sub-workflow${swsMeetingAHTGoal.length!==1?'s':''}</strong> meeting AHT goal this month (${swsMeetingAHTGoal.join(', ')}).`});
+        if(winAHTImp2.length>0) winLines.push({area:'AHT',txt:`<strong>${winAHTImp2.slice(0,2).map(w=>w.sw).join(', ')}</strong> improved AHT week over week (down ${winAHTImp2[0].drop}s).`});
 
         const winsBlock2 = winLines.length===0
             ? `<div style="padding:10px 14px;border-radius:8px;border:1px solid ${borderColor};font-size:12px;color:${textMuted};font-style:italic">No standout wins to highlight this period — focus areas below.</div>`
@@ -18039,7 +18080,35 @@ function _generateCoachingDocInner(mcdConfig) {
         });
 
         // SWs with any QA or AHT data in last 5 weeks or MTD
-        const swsAll = [...new Set([...Object.keys(swWkQA),...Object.keys(swWkAHT2),...Object.keys(swMTDQA)])].sort();
+        const swsAllRaw = [...new Set([...Object.keys(swWkQA),...Object.keys(swWkAHT2),...Object.keys(swMTDQA)])].sort();
+
+        // Only keep SWs that FAILED on MTD — Precision, Recall, or Accuracy (AR-gated same as
+        // rest of tool), OR AHT over target — per Karl. Passing SWs are dropped from this table.
+        const swsAll = swsAllRaw.filter(sw => {
+            const swTgt = SW_TARGETS[sw];
+            const qM = swMTDQA[sw], aM = swMTDAHT[sw];
+            const mtdTot = qM ? qM.tpa+qM.fpa+qM.fna+qM.tna : 0;
+            let qualFailed = false;
+            if(mtdTot > 0) {
+                const mtdARv = safeAR(qM.tpa,qM.fpa,qM.fna,qM.tna);
+                const mtdHighAR = mtdARv!==null && mtdARv>=0.10;
+                const accTgt2 = swTgt?.acc||ACC_TARGET, precTgt2 = swTgt?.prec||ACC_TARGET, recTgt2 = swTgt?.rec||ACC_TARGET;
+                if(mtdHighAR) {
+                    const prec2 = safePrec(qM.tpa,qM.fpa), rec2 = safeRec(qM.tpa,qM.fna);
+                    if((prec2!==null && prec2<precTgt2) || (rec2!==null && rec2<recTgt2)) qualFailed = true;
+                } else {
+                    const acc2 = safeAcc(qM.tpa,qM.fpa,qM.fna,qM.tna);
+                    if(acc2!==null && acc2<accTgt2) qualFailed = true;
+                }
+            }
+            let ahtFailed = false;
+            const mtdAHTtgt = swTgt?.aht||null;
+            if(aM && aM.dec>=5 && mtdAHTtgt) {
+                const mtdAHTv = Math.round((aM.dht+aM.nht)/aM.dec);
+                if(mtdAHTv > mtdAHTtgt) ahtFailed = true;
+            }
+            return qualFailed || ahtFailed;
+        });
 
         // sw→workflow map
         const swToWfWPR = {};
@@ -18159,7 +18228,7 @@ function _generateCoachingDocInner(mcdConfig) {
         };
 
         const swTable2 = (swsAll.length===0)
-            ? `<div style="padding:10px 14px;border-radius:8px;border:1px solid ${borderColor};font-size:12px;color:${textMuted};font-style:italic">No sub-workflow data in the last 5 weeks.</div>`
+            ? `<div style="padding:10px 14px;border-radius:8px;border:1px solid ${borderColor};font-size:12px;color:${textMuted};font-style:italic">All sub-workflows meeting goal MTD — no gaps to show.</div>`
             : `<div style="overflow-x:auto;border-radius:8px;border:1px solid ${borderColor}">
               <table style="width:100%;min-width:680px;border-collapse:collapse;font-size:9px">
                 <colgroup>
@@ -18234,7 +18303,7 @@ function _generateCoachingDocInner(mcdConfig) {
                     const dt  = typeof act === 'object' && act.date ? ` <span style="font-size:10px;color:${textMuted}">(by ${act.date})</span>` : '';
                     return `<div style="font-size:11px;color:${textPri};line-height:1.5;padding:5px 9px;background:${lightGray};border-radius:5px;border-left:2px solid ${accentColor};margin-bottom:3px">${txt}${dt}</div>`;
                 };
-                const commitBlock = commitRows && commitRows.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:3px">` + commitRows.map(r=>`<div style="font-size:10px;color:${accentColor};padding:3px 8px;border:1px solid ${accentColor};border-radius:999px;font-style:italic;white-space:nowrap">${r.sw||'Overall'}: ${r.commit}</div>`).join('') + `</div>` : commitTxt ? `<div style="font-size:10px;color:${accentColor};padding:3px 9px;border-left:2px solid ${accentColor};margin-top:2px;font-style:italic">Commit: ${commitTxt}</div>` : '';
+                const commitBlock = commitRows && commitRows.length ? commitRows.map(r=>`<div style="font-size:10px;color:${accentColor};margin-top:3px"><span style="font-style:italic">P&amp;R: ${mcdEsc(r.pr)}${r.pol?' · '+mcdEsc(r.pol):''}</span> → <strong>${mcdEsc(r.commit)}</strong></div>`).join('') : commitTxt ? `<div style="font-size:10px;color:${accentColor};padding:3px 9px;border-left:2px solid ${accentColor};margin-top:2px;font-style:italic">Commit: ${commitTxt}</div>` : '';
                 return `<div style="margin-bottom:10px">
                   <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${accentColor};margin-bottom:5px">${label}</div>
                   ${rvActs.length ? `<div style="font-size:8px;font-weight:600;text-transform:uppercase;color:${textMuted};margin-bottom:3px">Reviewer actions</div>${rvActs.map(actLine).join('')}` : ''}
@@ -25786,8 +25855,23 @@ function gpDecReqExpand(open) {
   function isWrvrBonusActiveMonth(month) {
     return month === '2026-07';
   }
-  function calcWrvrBonus(reviewerRows, absRate) {
-    // absRate null (no WFM data) is treated as not-eligible, same spirit as absBonus.
+  function calcWrvrAttendance(reviewerName) {
+    // Gatekeeper for World Review / Video Review bonus pts: attendance ONLY for
+    // 11-24 Jul 2026 (not the full selected month), per Karl. Pulls from the
+    // daily WFM lookup so we can bound the exact date window.
+    let s = 0, a = 0, any = false;
+    for (let d = new Date(WRVR_BONUS_START); d <= new Date(WRVR_BONUS_END); d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().slice(0, 10);
+      const w = WFM_LOOKUP_DAILY[(reviewerName.trim()) + '|' + dateStr];
+      if (w) { any = true; s += w.sched || 0; a += w.actual || 0; }
+    }
+    if (!any || s <= 0) return null;
+    return Math.max(0, (s - a) / s);
+  }
+  function calcWrvrBonus(reviewerRows, reviewerName) {
+    // Attendance gate is scoped to 11-24 Jul only — independent of the base
+    // absenteeism bonus, which still covers the full selected month.
+    const absRate = calcWrvrAttendance(reviewerName);
     const absOk = absRate !== null && absRate <= 0.05;
     const bySw = {};
     let totalPts = 0;
@@ -25856,7 +25940,7 @@ function gpDecReqExpand(open) {
       const _pb=_prec!==null?Math.min(_prec,1)*0.01:null;
       const _rb=_rec!==null?Math.min(_rec,1)*0.01:null;
       const _ab=_ahtB.bonus!==null?Math.min(_ahtB.bonus,1)*0.01:null;
-      const _wrvrB = wrvrActive ? calcWrvrBonus(rows, _abs).totalPts * 0.01 : 0;
+      const _wrvrB = wrvrActive ? calcWrvrBonus(rows, rv).totalPts * 0.01 : 0;
       const comps=[_acc,_pb,_rb,_ab,_absB];
       _rvTotals[rv]=comps.every(v=>v!==null)?_acc+_pb+_rb+_ab+_absB+_wrvrB:null;
     });
@@ -25942,7 +26026,9 @@ function gpDecReqExpand(open) {
       const absBonus = absRate !== null ? (absRate <= 0.05 ? 0.01 : 0) : null;
 
       // Special World Review / Video Review bonus (11-24 Jul only, gated on July 2026 month)
-      const wrvr = wrvrActive ? calcWrvrBonus(rows, absRate) : null;
+      // NOTE: absRate here still reflects the full selected month (used for the base
+      // absenteeism bonus below); the WRVR gate computes its own 11-24 Jul window internally.
+      const wrvr = wrvrActive ? calcWrvrBonus(rows, rv) : null;
 
       // Total — base acc is fraction (0–1), each bonus converts: fraction * 0.01 = max +1%
       const precBonus = prec !== null ? Math.min(prec, 1) * 0.01 : null;
@@ -26292,7 +26378,7 @@ function gpDecReqExpand(open) {
         const pb=prec!==null?Math.min(prec,1)*0.01:null;
         const rb=rec!==null?Math.min(rec,1)*0.01:null;
         const ab=ahtB.bonus!==null?Math.min(ahtB.bonus,1)*0.01:null;
-        const wrvrExp = wrvrActiveExp ? calcWrvrBonus(rows, absRate) : null;
+        const wrvrExp = wrvrActiveExp ? calcWrvrBonus(rows, rv) : null;
         const wrvrB = wrvrActiveExp ? wrvrExp.totalPts * 0.01 : 0;
         const comps=[acc,pb,rb,ab,absBonus];
         const total=comps.every(v=>v!==null)?acc+pb+rb+ab+absBonus+wrvrB:null;
@@ -26957,6 +27043,11 @@ function openMonthlyCoachingModal(){
   var totalErrors=fpa+fna;
   var accPct=acc!==null?acc*100:null;
   var isPSP=accPct!==null&&accPct<96;
+  // Overall reviewer-level Precision/Recall (across all SWs combined) — used
+  // for the simplified Quality Focus Area card: one P&R line instead of a
+  // per-SW breakdown, per Karl's request.
+  var overallPrec=(tpa+fpa)>0?tpa/(tpa+fpa):null;
+  var overallRec=(tpa+fna)>0?tpa/(tpa+fna):null;
 
   // ── Per-SW quality (commit rows) ─────────────────────────────────────────
   var swList=[...new Set(currRows.map(function(r){return r.sw}).filter(Boolean))];
@@ -27020,12 +27111,17 @@ function openMonthlyCoachingModal(){
   currRows.forEach(function(r){if(r.pol&&(r.fpa+r.fna)>0){if(!polC[r.pol])polC[r.pol]={fp:0,fn:0};polC[r.pol].fp+=r.fpa||0;polC[r.pol].fn+=r.fna||0;}});
   var topPols=Object.entries(polC).map(function(e){return{pol:e[0],total:e[1].fp+e[1].fn,type:e[1].fn>=e[1].fp?'FN':'FP'}}).sort(function(a,b){return b.total-a.total});
   var topPolStr=topPols.length?topPols.slice(0,2).map(function(p){return p.pol+' ('+p.type+'\xd7'+p.total+')'}).join(', '):'No active errors';
+  // Full "Policy: Count" list (every policy with errors, not just top 2) —
+  // used by the simplified Quality Focus Area card in place of the old
+  // per-SW P/R breakdown, per Karl's request.
+  var allPolStr=topPols.length?topPols.map(function(p){return p.pol+': '+p.total}).join(', '):'';
 
   // ── Store state ───────────────────────────────────────────────────────────
   _mcd.rv=rv;_mcd.month=currMonth;_mcd.sw=swList.join(', ')||'All SWs';
   _mcd.accPct=accPct;_mcd.accStr=accPct!==null?accPct.toFixed(2)+'%':'\u2014';
   _mcd.totalErrors=totalErrors;_mcd.isPSP=isPSP;_mcd.pspTraj=pspTraj;_mcd.projStr=projStr;
   _mcd.absStr=absStr;_mcd.absFailing=absFailing;_mcd.overAHT=overAHT;_mcd.swQuality=swQuality;
+  _mcd.overallPrec=overallPrec;_mcd.overallRec=overallRec;_mcd.allPolStr=allPolStr;
 
   var fmtM=typeof fmtMonth==='function'?fmtMonth(currMonth):currMonth;
   var rvShort=typeof sn==='function'?sn(rv):rv;
@@ -27043,15 +27139,14 @@ function openMonthlyCoachingModal(){
   }else{document.getElementById('mcd-psp-banner').style.display='none';}
 
   // ── Quality card ──────────────────────────────────────────────────────────
-  var swPRStr='';
-  if(swQuality.length>0){
-    swPRStr=swQuality.map(function(sq){
-      var p=sq.prec!==null?(sq.prec*100).toFixed(1)+'%':'—';
-      var r=sq.rec!==null?(sq.rec*100).toFixed(1)+'%':'—';
-      return sq.sw+' P:'+p+' R:'+r;
-    }).join(' · ');
-  }
-  var qTitle=totalErrors>0?((swPRStr?swPRStr+' \xb7 ':'')+topPolStr+' \xb7 '+totalErrors+' total error'+(totalErrors!==1?'s':'')+' \xb7 '+_mcd.accStr+' vs 96% target'):('No active errors \u2014 '+_mcd.accStr+' on target');
+  // Overall Precision/Recall (across all SWs this month) instead of a
+  // per-SW breakdown — kept simple: one P/R score, then the top policy.
+  var overallPrec=tpa+fpa>0?tpa/(tpa+fpa):null;
+  var overallRec=tpa+fna>0?tpa/(tpa+fna):null;
+  var overallPRStr=(overallPrec!==null||overallRec!==null)
+    ?('P:'+(overallPrec!==null?(overallPrec*100).toFixed(1)+'%':'—')+' R:'+(overallRec!==null?(overallRec*100).toFixed(1)+'%':'—'))
+    :'';
+  var qTitle=totalErrors>0?((overallPRStr?overallPRStr+' \xb7 ':'')+topPolStr+' \xb7 '+totalErrors+' total error'+(totalErrors!==1?'s':'')+' \xb7 '+_mcd.accStr+' vs 96% target'):('No active errors \u2014 '+_mcd.accStr+' on target');
   document.getElementById('mcd-q-title').textContent=qTitle;
 
   // Lock quality toggle when failing
@@ -27067,28 +27162,18 @@ function openMonthlyCoachingModal(){
     qTrack.onclick=function(){mcdToggle('q');};qLockNote.style.display='none';
   }
 
-  // Per-SW quality committed score rows
+  // Overall quality committed score — single P&R line + policy error
+  // breakdown, replacing the old per-SW pill list (per Karl's request to
+  // keep this simple: one overall PR score, then Policy).
   var qRowsEl=document.getElementById('mcd-commit-q-rows');
   if(qRowsEl){
-    var qRowsHtml='';
-    if(swQuality.length>0){
-      swQuality.forEach(function(sq,i){
-        var p=sq.prec!==null?(sq.prec*100).toFixed(1)+'%':'—';
-        var r=sq.rec!==null?(sq.rec*100).toFixed(1)+'%':'—';
-        qRowsHtml+='<div style="display:flex;align-items:center;gap:6px;padding:2px 0">'
-          +'<div class="mcd-commit-dot" style="background:var(--text-danger);flex-shrink:0"></div>'
-          +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+mcdEsc(sq.sw)+' <span style="color:var(--tm)">('+sq.errors+' err · '+(sq.acc*100).toFixed(1)+'% · P:'+p+' R:'+r+')</span></span>'
-          +'<input class="mcd-commit-inp" type="text" id="mcd-commit-q-'+i+'" value="0 errors" style="width:64px" />'
-          +'</div>';
-      });
-    }else{
-      qRowsHtml='<div class="mcd-commit-row">'
-        +'<div class="mcd-commit-dot" style="background:var(--green)"></div>'
-        +'<span class="mcd-commit-lbl">Maintain zero errors across all SWs</span>'
-        +'<span class="mcd-commit-arr">\u2192</span>'
-        +'<input class="mcd-commit-inp" type="text" id="mcd-commit-q-0" value="0 errors" />'
-        +'</div>';
-    }
+    var pStr=overallPrec!==null?(overallPrec*100).toFixed(1)+'%':'—';
+    var rStr=overallRec!==null?(overallRec*100).toFixed(1)+'%':'—';
+    var qRowsHtml='<div style="display:flex;align-items:center;gap:6px;padding:2px 0">'
+      +'<div class="mcd-commit-dot" style="background:'+(totalErrors>0?'var(--text-danger)':'var(--green)')+';flex-shrink:0"></div>'
+      +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0">P&amp;R: '+pStr+' / '+rStr+(allPolStr?'<br><span style="color:var(--tm)">'+mcdEsc(allPolStr)+'</span>':'')+'</span>'
+      +'<input class="mcd-commit-inp" type="text" id="mcd-commit-q-0" value="0 errors" style="width:64px" />'
+      +'</div>';
     qRowsEl.innerHTML=qRowsHtml;
   }
 
@@ -27227,17 +27312,18 @@ function mcdGenerate(){
   if(_mcd.togA&&(_mcd.actions['rv-a'].length<1||_mcd.actions['tl-a'].length<1))err=true;
   if(err){document.getElementById('mcd-val-err').classList.add('mcd-show');return;}
   document.getElementById('mcd-val-err').classList.remove('mcd-show');
-  // Collect per-SW quality committed scores
-  var commitQRows=[];
-  if(_mcd.swQuality&&_mcd.swQuality.length>0){
-    _mcd.swQuality.forEach(function(sq,i){
-      var el=document.getElementById('mcd-commit-q-'+i);
-      commitQRows.push({sw:sq.sw,errors:sq.errors,acc:(sq.acc*100).toFixed(2)+'%',commit:el?el.value:'0 errors',prec:sq.prec!==null?(sq.prec*100).toFixed(1)+'%':'—',rec:sq.rec!==null?(sq.rec*100).toFixed(1)+'%':'—'});
-    });
-  }else{
-    var el0=document.getElementById('mcd-commit-q-0');
-    commitQRows=[{sw:'All SWs',errors:0,acc:_mcd.accStr,commit:el0?el0.value:'0 errors'}];
-  }
+  // Collect the single overall quality committed score (P&R + policy
+  // breakdown, replacing the old per-SW array) — kept as a 1-element array
+  // so mcdFABlock/mcdFARow's existing per-row iteration still works
+  // unchanged downstream.
+  var qEl0=document.getElementById('mcd-commit-q-0');
+  var qPStr=_mcd.overallPrec!==null&&_mcd.overallPrec!==undefined?(_mcd.overallPrec*100).toFixed(1)+'%':'—';
+  var qRStr=_mcd.overallRec!==null&&_mcd.overallRec!==undefined?(_mcd.overallRec*100).toFixed(1)+'%':'—';
+  var commitQRows=[{
+    pr: qPStr+' / '+qRStr,
+    pol: _mcd.allPolStr||'',
+    commit: qEl0?qEl0.value:'0 errors'
+  }];
   // Collect per-SW AHT committed scores
   var commitERows=[];
   if(_mcd.overAHT&&_mcd.overAHT.length>0){
