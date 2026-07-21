@@ -26924,9 +26924,10 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
         <div class="mcd-fa-hdr">
           <span class="mcd-badge mcd-badge-a">Efficiency</span>
           <span class="mcd-fa-title" id="mcd-e-title">Loading...</span>
-          <select class="mcd-picker" id="mcd-e-sw-picker" style="display:none;max-width:150px;font-size:10px" onchange="mcdEfficiencySwChange(this.value)">
-            <option value="">All failing SWs</option>
-          </select>
+          <div class="mcd-ms-wrap" id="mcd-e-sw-picker-wrap" style="display:none;position:relative">
+            <button type="button" class="mcd-picker" id="mcd-e-sw-picker-btn" style="max-width:150px;font-size:10px;text-align:left;background-image:none" onclick="mcdEfficiencyPickerToggle(event)">All failing SWs</button>
+            <div class="mcd-ms-pop" id="mcd-e-sw-picker-pop" style="display:none;position:absolute;top:100%;left:0;z-index:20;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:6px;min-width:170px;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+          </div>
           <div class="mcd-tog-wrap">
             <span class="mcd-tog-lbl" id="mcd-e-tog-lbl">Included</span>
             <span class="mcd-locked-note" id="mcd-e-lock-note" style="display:none"></span>
@@ -27241,23 +27242,57 @@ function openMonthlyCoachingModal(){
   document.body.style.overflow='hidden';
 }
 
-// Populate the "focus SW" picker with the failing SWs found for this reviewer.
-// Selecting one narrows the header + commit rows to that SW only; selecting
-// "All failing SWs" (empty value) restores the original all-SW behavior.
+// Populate the "focus SW" multi-select popover with the failing SWs found
+// for this reviewer. Checking one or more narrows the header + commit box
+// to just those SWs; checking none (or clicking "All") shows every failing SW.
 function mcdPopulateEfficiencyPicker(){
-  var picker=document.getElementById('mcd-e-sw-picker');
-  if(!picker)return;
+  var wrap=document.getElementById('mcd-e-sw-picker-wrap');
+  var pop=document.getElementById('mcd-e-sw-picker-pop');
+  if(!wrap||!pop)return;
   var list=_mcd.overAHT||[];
-  picker.innerHTML='<option value="">All failing SWs</option>'
-    +list.map(function(x){return '<option value="'+mcdEsc(x.sw)+'">'+mcdEsc(x.sw)+'</option>';}).join('');
-  picker.style.display=list.length>1?'':'none';
-  picker.value='';
+  pop.innerHTML=list.map(function(x){
+    return '<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:11px;color:var(--text);cursor:pointer;white-space:nowrap">'
+      +'<input type="checkbox" value="'+mcdEsc(x.sw)+'" onchange="mcdEfficiencySwToggle(this)" style="margin:0" />'
+      +'<span style="overflow:hidden;text-overflow:ellipsis">'+mcdEsc(x.sw)+'</span>'
+      +'</label>';
+  }).join('');
+  wrap.style.display=list.length>1?'':'none';
+  mcdEfficiencyPickerBtnLabel();
 }
 
-function mcdEfficiencySwChange(sw){
-  _mcd.eSelSws=sw?[sw]:[];
+function mcdEfficiencyPickerBtnLabel(){
+  var btn=document.getElementById('mcd-e-sw-picker-btn');
+  if(!btn)return;
+  var sel=_mcd.eSelSws||[];
+  btn.textContent = !sel.length ? 'All failing SWs'
+    : sel.length===1 ? sel[0]
+    : sel.length+' SWs selected';
+}
+
+function mcdEfficiencyPickerToggle(evt){
+  evt.stopPropagation();
+  var pop=document.getElementById('mcd-e-sw-picker-pop');
+  if(!pop)return;
+  pop.style.display = pop.style.display==='none' ? '' : 'none';
+}
+
+function mcdEfficiencySwToggle(checkbox){
+  var sw=checkbox.value;
+  var sel=_mcd.eSelSws||[];
+  var idx=sel.indexOf(sw);
+  if(checkbox.checked && idx===-1) sel.push(sw);
+  else if(!checkbox.checked && idx!==-1) sel.splice(idx,1);
+  _mcd.eSelSws=sel;
+  mcdEfficiencyPickerBtnLabel();
   mcdRenderEfficiency();
 }
+
+// Close the popover on outside click
+document.addEventListener('click', function(e){
+  var pop=document.getElementById('mcd-e-sw-picker-pop');
+  var wrap=document.getElementById('mcd-e-sw-picker-wrap');
+  if(pop && pop.style.display!=='none' && wrap && !wrap.contains(e.target)) pop.style.display='none';
+});
 
 // Renders the Efficiency focus-area header + per-SW AHT commit rows.
 // Reads _mcd.overAHT (all failing SWs, computed once per modal open) and
@@ -27274,7 +27309,11 @@ function mcdRenderEfficiency(){
     document.getElementById('mcd-e-tog-lbl').textContent='Included';_mcd.togE=true;
     // Combined AHT commit box — one box covering whichever SW(s) are
     // currently selected (not one box per SW), per Karl's request.
-    var eCommitHtml='<div class="mcd-rlbl" id="mcd-e-commit-lbl" style="color:var(--green)">Committed score — AHT</div>'
+    // Wrapped in .mcd-e-commit-block so re-renders can fully clear it —
+    // previously the box itself had no class, so old copies never got
+    // removed and just kept stacking on every dropdown change.
+    var eCommitHtml='<div class="mcd-e-commit-block">'
+      +'<div class="mcd-rlbl" id="mcd-e-commit-lbl" style="color:var(--green)">Committed score — AHT</div>'
       +'<div style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;display:flex;flex-direction:column;gap:6px">';
     shown.forEach(function(x,i){
       eCommitHtml+='<div style="display:flex;align-items:center;gap:6px">'
@@ -27283,9 +27322,9 @@ function mcdRenderEfficiency(){
         +'<input class="mcd-commit-inp" type="text" id="mcd-commit-e-'+i+'" value="'+x.target+'s" style="width:52px;font-size:10px" />'
         +'</div>';
     });
-    eCommitHtml+='</div><div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.'+(shown.length<overAHT.length?' Showing '+shown.length+' of '+overAHT.length+' failing SWs — use the dropdown above to focus on a different one.':'')+'</div>';
+    eCommitHtml+='</div><div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.'+(shown.length<overAHT.length?' Showing '+shown.length+' of '+overAHT.length+' failing SWs — use the dropdown above to focus on a different one.':'')+'</div></div>';
     var eBody=document.getElementById('mcd-e-body');
-    var toRemove=eBody?eBody.querySelectorAll('.mcd-commit-row,.mcd-e-commit-lbl,.mcd-commit-hint,#mcd-e-commit-lbl'):[];
+    var toRemove=eBody?eBody.querySelectorAll('.mcd-e-commit-block'):[];
     toRemove.forEach(function(el){el.remove();});
     if(eBody)eBody.insertAdjacentHTML('beforeend',eCommitHtml);
     if(eBody)eBody.style.display='';
