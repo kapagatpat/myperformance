@@ -17866,12 +17866,12 @@ function _generateCoachingDocInner(mcdConfig) {
         const mtdQualityWin = (() => {
             if(mtdUsesPR) {
                 const parts=[];
-                if(mtdPrec!==null && mtdPrec>=ACC_TGT) parts.push(`Precision <strong>${(mtdPrec*100).toFixed(1)}%</strong>`);
-                if(mtdRec!==null  && mtdRec>=ACC_TGT)  parts.push(`Recall <strong>${(mtdRec*100).toFixed(1)}%</strong>`);
+                if(mtdPrec!==null && mtdPrec>=ACC_TARGET) parts.push(`Precision <strong>${(mtdPrec*100).toFixed(1)}%</strong>`);
+                if(mtdRec!==null  && mtdRec>=ACC_TARGET)  parts.push(`Recall <strong>${(mtdRec*100).toFixed(1)}%</strong>`);
                 if(!parts.length) return null;
                 return `${parts.join(' · ')} MTD.`;
             }
-            if(mtdAcc===null || mtdAcc<ACC_TGT) return null;
+            if(mtdAcc===null || mtdAcc<ACC_TARGET) return null;
             return `Adj Accuracy <strong>${(mtdAcc*100).toFixed(1)}%</strong> MTD.`;
         })();
 
@@ -26913,7 +26913,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
             </div>
           </div>
           <div>
-            <div class="mcd-rlbl">Committed score — Quality</div>
+            <div class="mcd-rlbl" style="color:var(--green)">Committed score — Quality</div>
             <div id="mcd-commit-q-rows" style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;display:flex;flex-direction:column;gap:1px"></div>
             <div class="mcd-commit-hint">Pre-filled to zero errors per SW. Adjust for PSP phasing only — e.g. "≤2 errors" for Month 1.</div>
           </div>
@@ -27012,7 +27012,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
             </div>
           </div>
           <div>
-            <div class="mcd-rlbl">Committed score — Absenteeism</div>
+            <div class="mcd-rlbl" style="color:var(--green)">Committed score — Absenteeism</div>
             <div class="mcd-commit-row">
               <div class="mcd-commit-dot" style="background:var(--amber)"></div>
               <span class="mcd-commit-lbl">Target: ≤5% absenteeism rate</span>
@@ -27272,17 +27272,18 @@ function mcdRenderEfficiency(){
     eTrack.classList.remove('mcd-off');eTrack.classList.add('mcd-on','mcd-locked');
     eTrack.onclick=function(){};eLockNote.style.display='';
     document.getElementById('mcd-e-tog-lbl').textContent='Included';_mcd.togE=true;
-    // Per-SW AHT commit rows — compact 2-col grid, only for the selected SW(s)
-    var eCommitHtml='<div class="mcd-rlbl" id="mcd-e-commit-lbl">Committed AHT by SW</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px">';
+    // Combined AHT commit box — one box covering whichever SW(s) are
+    // currently selected (not one box per SW), per Karl's request.
+    var eCommitHtml='<div class="mcd-rlbl" id="mcd-e-commit-lbl" style="color:var(--green)">Committed score — AHT</div>'
+      +'<div style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;display:flex;flex-direction:column;gap:6px">';
     shown.forEach(function(x,i){
-      eCommitHtml+='<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;background:var(--sa);border:1px solid var(--border);border-radius:var(--r-xs)">'
+      eCommitHtml+='<div style="display:flex;align-items:center;gap:6px">'
         +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+mcdEsc(x.sw)+'">'+mcdEsc(x.sw)+'</span>'
         +'<span style="font-size:9px;color:var(--tm);white-space:nowrap;flex-shrink:0">'+x.actual+'s→</span>'
         +'<input class="mcd-commit-inp" type="text" id="mcd-commit-e-'+i+'" value="'+x.target+'s" style="width:52px;font-size:10px" />'
         +'</div>';
     });
-    eCommitHtml+='</div><div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.'+(shown.length<overAHT.length?' Showing '+shown.length+' of '+overAHT.length+' failing SWs — switch the dropdown above to focus on a different one.':'')+'</div>';
+    eCommitHtml+='</div><div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.'+(shown.length<overAHT.length?' Showing '+shown.length+' of '+overAHT.length+' failing SWs — use the dropdown above to focus on a different one.':'')+'</div>';
     var eBody=document.getElementById('mcd-e-body');
     var toRemove=eBody?eBody.querySelectorAll('.mcd-commit-row,.mcd-e-commit-lbl,.mcd-commit-hint,#mcd-e-commit-lbl'):[];
     toRemove.forEach(function(el){el.remove();});
