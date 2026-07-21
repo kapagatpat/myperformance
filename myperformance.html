@@ -8405,8 +8405,8 @@ function renderDrillDown(){
       };
       const [pspC,pspBg]=pspColors[pspStatus]||['var(--tm)','var(--sa)'];
 
-      // Supervisor + tenure from row data
-      const rvMeta=RAW_ROWS.find(r=>r.reviewer===rv)||{};
+      // Supervisor + tenure from row data — use the most recent week's record, not the first match
+      const rvMeta=RAW_ROWS.filter(r=>r.reviewer===rv).sort((a,b)=>a.week.localeCompare(b.week)).pop()||{};
       const supName=rvMeta.supervisor?stl(rvMeta.supervisor):'—';
       const tenureLabel=rvMeta.tenure||'—';
       const topWF=[...new Set(rows.map(r=>r.workflow).filter(Boolean))][0]||'—';
@@ -16277,8 +16277,8 @@ function generateReviewerMonthlyDoc(mcdConfig) {
         </div>`;
     };
 
-    // ── Meta ──────────────────────────────────────────────────────────────────
-    const rvMeta = RAW_ROWS.find(r=>r.reviewer===rv) || {};
+    // ── Meta — use the most recent week's record, not the first match ─────────
+    const rvMeta = RAW_ROWS.filter(r=>r.reviewer===rv).sort((a,b)=>a.week.localeCompare(b.week)).pop() || {};
     const tlName = rvMeta.supervisor ? stl(rvMeta.supervisor) : '\u2014';
     const tenure = rvMeta.tenure || '\u2014';
 
@@ -17865,13 +17865,13 @@ function _generateCoachingDocInner(mcdConfig) {
         const mtdUsesPR = mtdAR!==null && mtdAR>=0.10;
         const mtdQualityWin = (() => {
             if(mtdUsesPR) {
-                if(mtdPrec===null && mtdRec===null) return null;
                 const parts=[];
-                if(mtdPrec!==null) parts.push(`Precision <strong>${(mtdPrec*100).toFixed(1)}%</strong>`);
-                if(mtdRec!==null)  parts.push(`Recall <strong>${(mtdRec*100).toFixed(1)}%</strong>`);
+                if(mtdPrec!==null && mtdPrec>=ACC_TGT) parts.push(`Precision <strong>${(mtdPrec*100).toFixed(1)}%</strong>`);
+                if(mtdRec!==null  && mtdRec>=ACC_TGT)  parts.push(`Recall <strong>${(mtdRec*100).toFixed(1)}%</strong>`);
+                if(!parts.length) return null;
                 return `${parts.join(' · ')} MTD.`;
             }
-            if(mtdAcc===null) return null;
+            if(mtdAcc===null || mtdAcc<ACC_TGT) return null;
             return `Adj Accuracy <strong>${(mtdAcc*100).toFixed(1)}%</strong> MTD.`;
         })();
 
@@ -18294,30 +18294,50 @@ function _generateCoachingDocInner(mcdConfig) {
             : [`AHT on target across all sub-workflows this period — maintain your current pace and flag any unusual job types to your TL.`];
         const _ahtCommit = _topAHTSW2 ? `${_topAHTSW2} AHT ≤${_topAHTMTD.tgt}s for WE ${fmtW(_cdLastBakedWk||'next week')}` : null;
 
+        // 4-column table layout: area badge | reviewer does | TL does | commit.
+        // Replaces the old stacked row-per-row layout so actions can be
+        // scanned in one pass instead of reading top-to-bottom through
+        // separate bars per item.
+        const _wtColHdr = `<div style="display:grid;grid-template-columns:78px 1fr 1fr 1fr;gap:0 14px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${textMuted};padding-bottom:6px;border-bottom:0.5px solid ${divider}"><div></div><div>Reviewer does</div><div>TL does</div><div>Commit</div></div>`;
+        const _wtEmpty = `<span style="color:${textMuted}">—</span>`;
+        const _wtRow = (accentColor, label, rvCell, tlCell, commitCell, isLast) =>
+            `<div style="display:grid;grid-template-columns:78px 1fr 1fr 1fr;gap:0 14px;align-items:start;padding:10px 0;${isLast?'':`border-bottom:0.5px solid ${divider};`}">
+               <div style="display:flex;align-items:center;gap:5px;padding-top:1px">
+                 <span style="width:6px;height:6px;border-radius:50%;background:${accentColor};flex-shrink:0"></span>
+                 <span style="font-size:11px;font-weight:700;color:${accentColor}">${label}</span>
+               </div>
+               <div style="font-size:12px;color:${textPri};line-height:1.5">${rvCell || _wtEmpty}</div>
+               <div style="font-size:12px;color:${textPri};line-height:1.5">${tlCell || _wtEmpty}</div>
+               <div style="font-size:11px;color:${accentColor};line-height:1.5;font-style:italic">${commitCell || _wtEmpty}</div>
+             </div>`;
+
         const focusCard = mcdConfig ? (()=>{
-            // Build focus card from MCD modal inputs
-            const mcdFARow = (accentColor, accentBg, label, rvActs, tlActs, commitRows, commitTxt) => {
-                if(!rvActs.length && !tlActs.length) return '';
-                const actLine = (act) => {
-                    const txt = typeof act === 'object' ? act.text||act : act;
-                    const dt  = typeof act === 'object' && act.date ? ` <span style="font-size:10px;color:${textMuted}">(by ${act.date})</span>` : '';
-                    return `<div style="font-size:11px;color:${textPri};line-height:1.5;padding:5px 9px;background:${lightGray};border-radius:5px;border-left:2px solid ${accentColor};margin-bottom:3px">${txt}${dt}</div>`;
-                };
-                const commitBlock = commitRows && commitRows.length ? commitRows.map(r=>`<div style="font-size:10px;color:${accentColor};margin-top:3px"><span style="font-style:italic">P&amp;R: ${mcdEsc(r.pr)}${r.pol?' · '+mcdEsc(r.pol):''}</span> → <strong>${mcdEsc(r.commit)}</strong></div>`).join('') : commitTxt ? `<div style="font-size:10px;color:${accentColor};padding:3px 9px;border-left:2px solid ${accentColor};margin-top:2px;font-style:italic">Commit: ${commitTxt}</div>` : '';
-                return `<div style="margin-bottom:10px">
-                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${accentColor};margin-bottom:5px">${label}</div>
-                  ${rvActs.length ? `<div style="font-size:8px;font-weight:600;text-transform:uppercase;color:${textMuted};margin-bottom:3px">Reviewer actions</div>${rvActs.map(actLine).join('')}` : ''}
-                  ${tlActs.length ? `<div style="font-size:8px;font-weight:600;text-transform:uppercase;color:${textMuted};margin-top:5px;margin-bottom:3px">TL actions</div>${tlActs.map(actLine).join('')}` : ''}
-                  ${commitBlock}
-                </div>`;
+            // Build focus card rows from MCD modal inputs
+            const actTxt = (act) => {
+                const txt = typeof act === 'object' ? act.text||act : act;
+                const dt  = typeof act === 'object' && act.date ? ` <span style="font-size:10px;color:${textMuted}">(by ${act.date})</span>` : '';
+                return `${txt}${dt}`;
             };
-            const qBlock = mcdConfig.togQ ? mcdFARow(red, redBg, `Quality — ${mcdConfig.qTitle||'Focus area'}`, mcdConfig.actions['rv-q']||[], mcdConfig.actions['tl-q']||[], mcdConfig.commitQRows, null) : '';
-            const eBlock = mcdConfig.togE ? mcdFARow(amber, amberBg, `Efficiency — ${mcdConfig.eTitle||'Focus area'}`, mcdConfig.actions['rv-e']||[], mcdConfig.actions['tl-e']||[], null, mcdConfig.commitERows && mcdConfig.commitERows[0] ? mcdConfig.commitERows.map(r=>`${r.sw||'Overall'}: ${r.commit}`).join(' · ') : null) : '';
-            const aBlock = mcdConfig.togA ? mcdFARow(green, greenBg, `Attendance — ${mcdConfig.aTitle||'Focus area'}`, mcdConfig.actions['rv-a']||[], mcdConfig.actions['tl-a']||[], null, mcdConfig.commitA||null) : '';
+            const cellFromActs = (acts) => acts && acts.length ? acts.map(actTxt).join('<br>') : '';
+            const commitFromRows = (rows, fallbackTxt) => {
+                if(rows && rows.length) return rows.map(r=>`${r.pr!==undefined?`P&amp;R: ${mcdEsc(r.pr)}${r.pol?' \xb7 '+mcdEsc(r.pol):''} \u2192 `:r.sw?`${mcdEsc(r.sw)}: `:''}<strong>${mcdEsc(r.commit)}</strong>`).join('<br>');
+                return fallbackTxt || '';
+            };
+            const qRow = mcdConfig.togQ && ((mcdConfig.actions['rv-q']&&mcdConfig.actions['rv-q'].length) || (mcdConfig.actions['tl-q']&&mcdConfig.actions['tl-q'].length))
+                ? _wtRow(red, 'Quality', cellFromActs(mcdConfig.actions['rv-q']), cellFromActs(mcdConfig.actions['tl-q']), commitFromRows(mcdConfig.commitQRows))
+                : '';
+            const eRow = mcdConfig.togE && ((mcdConfig.actions['rv-e']&&mcdConfig.actions['rv-e'].length) || (mcdConfig.actions['tl-e']&&mcdConfig.actions['tl-e'].length))
+                ? _wtRow(amber, 'Efficiency', cellFromActs(mcdConfig.actions['rv-e']), cellFromActs(mcdConfig.actions['tl-e']), mcdConfig.commitERows ? mcdConfig.commitERows.map(r=>`${r.sw||'Overall'}: <strong>${mcdEsc(r.commit)}</strong>`).join('<br>') : '')
+                : '';
+            const aRow = mcdConfig.togA && ((mcdConfig.actions['rv-a']&&mcdConfig.actions['rv-a'].length) || (mcdConfig.actions['tl-a']&&mcdConfig.actions['tl-a'].length))
+                ? _wtRow(green, 'Attendance', cellFromActs(mcdConfig.actions['rv-a']), cellFromActs(mcdConfig.actions['tl-a']), mcdConfig.commitA || '')
+                : '';
+            const rows = [qRow, eRow, aRow].filter(Boolean);
+            const rowsFixed = rows.map((r,i)=> i===rows.length-1 ? r.replace(`border-bottom:0.5px solid ${divider};`,'') : r);
             const notesBlock = mcdConfig.notes ? `<div style="margin-top:8px;padding:9px 12px;background:${lightGray};border-radius:6px;border:1px solid ${borderColor};font-size:11px;color:${textSec};line-height:1.6;font-style:italic">${mcdConfig.notes}</div>` : '';
-            const divider2 = `<div style="height:0.5px;background:${divider};margin:8px 0"></div>`;
             return `<div style="border:1px solid ${borderColor};border-radius:8px;padding:14px 16px">
-              ${qBlock}${qBlock&&eBlock?divider2:''}${eBlock}${(qBlock||eBlock)&&aBlock?divider2:''}${aBlock}
+              ${_wtColHdr}
+              ${rowsFixed.join('')}
               ${notesBlock}
               <div style="height:0.5px;background:${divider};margin:12px 0 10px"></div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -18325,17 +18345,20 @@ function _generateCoachingDocInner(mcdConfig) {
                 <div style="border-top:1.5px solid ${textPri};padding-top:5px;font-size:10px;color:${textMuted}">TL signature &amp; date</div>
               </div>
             </div>`;
-        })() : `<div style="border:1px solid ${borderColor};border-radius:8px;padding:14px 16px">
-            ${_focusRow(red, redBg, 'Quality focus', _qualItems, _qualCommit)}
-            <div style="height:0.5px;background:${divider};margin:8px 0"></div>
-            ${_focusRow(amber, amberBg, 'AHT focus', _ahtItems, _ahtCommit)}
+        })() : (()=>{
+            const qRow = _wtRow(red, 'Quality', _qualItems.join('<br>'), '', _qualCommit ? `<strong>${_qualCommit}</strong>` : '');
+            const eRow = _wtRow(amber, 'Efficiency', _ahtItems.join('<br>'), '', _ahtCommit ? `<strong>${_ahtCommit}</strong>` : '', true);
+            return `<div style="border:1px solid ${borderColor};border-radius:8px;padding:14px 16px">
+            ${_wtColHdr}
+            ${qRow}
+            ${eRow}
             <div style="height:0.5px;background:${divider};margin:10px 0 12px"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
               <div style="border-top:1.5px solid ${textPri};padding-top:5px;font-size:10px;color:${textMuted}">Reviewer signature &amp; date</div>
               <div style="border-top:1.5px solid ${textPri};padding-top:5px;font-size:10px;color:${textMuted}">TL signature &amp; date</div>
             </div>
           </div>`;
-
+        })();
         // ── Assemble doc ──────────────────────────────────────────────────────
         return `<div style="max-width:860px;font-family:${sans};color:${textPri}">
 
@@ -26901,6 +26924,9 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
         <div class="mcd-fa-hdr">
           <span class="mcd-badge mcd-badge-a">Efficiency</span>
           <span class="mcd-fa-title" id="mcd-e-title">Loading...</span>
+          <select class="mcd-picker" id="mcd-e-sw-picker" style="display:none;max-width:150px;font-size:10px" onchange="mcdEfficiencySwChange(this.value)">
+            <option value="">All failing SWs</option>
+          </select>
           <div class="mcd-tog-wrap">
             <span class="mcd-tog-lbl" id="mcd-e-tog-lbl">Included</span>
             <span class="mcd-locked-note" id="mcd-e-lock-note" style="display:none"></span>
@@ -27016,7 +27042,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
 
 <script>
 // ─── MONTHLY COACHING MODAL ───────────────────────────────────────────────────
-var _mcd={rv:'',month:'',sw:'',accPct:null,accStr:'',isPSP:false,pspTraj:'',totalErrors:0,togQ:true,togE:true,togA:false,_mode:'monthly',actions:{'rv-q':[],'tl-q':[],'rv-e':[],'tl-e':[],'rv-a':[],'tl-a':[]}};
+var _mcd={rv:'',month:'',sw:'',eSelSws:[],accPct:null,accStr:'',isPSP:false,pspTraj:'',totalErrors:0,togQ:true,togE:true,togA:false,_mode:'monthly',actions:{'rv-q':[],'tl-q':[],'rv-e':[],'tl-e':[],'rv-a':[],'tl-a':[]}};
 
 function openMonthlyCoachingModal(){
   var rv=document.getElementById('g-reviewer')?document.getElementById('g-reviewer').value:'';
@@ -27179,46 +27205,9 @@ function openMonthlyCoachingModal(){
 
   // ── Efficiency card — ALL over-target SWs ────────────────────────────────
   _mcd.lockedE=(overAHT.length>0);
-  var eTrack=document.getElementById('mcd-tog-e');
-  var eLockNote=document.getElementById('mcd-e-lock-note');
-  if(overAHT.length){
-    document.getElementById('mcd-e-title').textContent=overAHT.map(function(x){return x.sw+' +'+x.over+'s ('+x.actual+'s vs '+x.target+'s)'}).join(' \xb7 ');
-    eTrack.classList.remove('mcd-off');eTrack.classList.add('mcd-on','mcd-locked');
-    eTrack.onclick=function(){};eLockNote.style.display='';
-    document.getElementById('mcd-e-tog-lbl').textContent='Included';_mcd.togE=true;
-    // Per-SW AHT commit rows — compact 2-col grid
-    var eCommitHtml='<div class="mcd-rlbl" id="mcd-e-commit-lbl">Committed AHT by SW</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px">';
-    overAHT.forEach(function(x,i){
-      eCommitHtml+='<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;background:var(--sa);border:1px solid var(--border);border-radius:var(--r-xs)">'
-        +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+mcdEsc(x.sw)+'">'+mcdEsc(x.sw)+'</span>'
-        +'<span style="font-size:9px;color:var(--tm);white-space:nowrap;flex-shrink:0">'+x.actual+'s→</span>'
-        +'<input class="mcd-commit-inp" type="text" id="mcd-commit-e-'+i+'" value="'+x.target+'s" style="width:52px;font-size:10px" />'
-        +'</div>';
-    });
-    eCommitHtml+='</div><div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.</div>';
-    var eBody=document.getElementById('mcd-e-body');
-    // Replace the last child (commit block) with the per-SW version
-    var eCommitBlock=eBody?eBody.querySelector('.mcd-commit-row'):null;
-    if(eCommitBlock){
-      // remove all commit rows and existing lbl
-      var toRemove=eBody.querySelectorAll('.mcd-commit-row,.mcd-e-commit-lbl,.mcd-commit-hint,#mcd-e-commit-lbl');
-      toRemove.forEach(function(el){el.remove();});
-      eBody.insertAdjacentHTML('beforeend',eCommitHtml);
-    }
-    if(eBody)eBody.style.display='';
-    document.getElementById('mcd-fa-efficiency').classList.remove('mcd-excluded');
-  }else{
-    document.getElementById('mcd-e-title').textContent='AHT on target across all SWs — maintain';
-    eTrack.classList.remove('mcd-off');eTrack.classList.add('mcd-on','mcd-locked');
-    eTrack.onclick=function(){};eLockNote.style.display='';
-    eLockNote.textContent='On target \u2014 maintain actions auto-added';
-    document.getElementById('mcd-e-tog-lbl').textContent='Included';_mcd.togE=true;
-    _mcd.actions['rv-e']=['AHT on target \u2014 maintain process discipline across all SWs'];
-    _mcd.actions['tl-e']=['AHT on target \u2014 monitor weekly to confirm no regression'];
-    var eBody2=document.getElementById('mcd-e-body');if(eBody2)eBody2.style.display='none';
-    document.getElementById('mcd-fa-efficiency').classList.remove('mcd-excluded');
-  }
+  _mcd.eSelSws=[]; // reset to "All" on every modal open
+  mcdPopulateEfficiencyPicker();
+  mcdRenderEfficiency();
 
   // ── Attendance card ───────────────────────────────────────────────────────
   document.getElementById('mcd-cur-a').textContent=absStr;
@@ -27250,6 +27239,67 @@ function openMonthlyCoachingModal(){
   document.getElementById('mcd-notes').value='';
   document.getElementById('mcd-overlay').classList.add('mcd-open');
   document.body.style.overflow='hidden';
+}
+
+// Populate the "focus SW" picker with the failing SWs found for this reviewer.
+// Selecting one narrows the header + commit rows to that SW only; selecting
+// "All failing SWs" (empty value) restores the original all-SW behavior.
+function mcdPopulateEfficiencyPicker(){
+  var picker=document.getElementById('mcd-e-sw-picker');
+  if(!picker)return;
+  var list=_mcd.overAHT||[];
+  picker.innerHTML='<option value="">All failing SWs</option>'
+    +list.map(function(x){return '<option value="'+mcdEsc(x.sw)+'">'+mcdEsc(x.sw)+'</option>';}).join('');
+  picker.style.display=list.length>1?'':'none';
+  picker.value='';
+}
+
+function mcdEfficiencySwChange(sw){
+  _mcd.eSelSws=sw?[sw]:[];
+  mcdRenderEfficiency();
+}
+
+// Renders the Efficiency focus-area header + per-SW AHT commit rows.
+// Reads _mcd.overAHT (all failing SWs, computed once per modal open) and
+// _mcd.eSelSws (the picker's current selection — empty means "all").
+function mcdRenderEfficiency(){
+  var overAHT=_mcd.overAHT||[];
+  var shown=(_mcd.eSelSws&&_mcd.eSelSws.length) ? overAHT.filter(function(x){return _mcd.eSelSws.indexOf(x.sw)!==-1;}) : overAHT;
+  var eTrack=document.getElementById('mcd-tog-e');
+  var eLockNote=document.getElementById('mcd-e-lock-note');
+  if(overAHT.length){
+    document.getElementById('mcd-e-title').textContent=shown.map(function(x){return x.sw+' +'+x.over+'s ('+x.actual+'s vs '+x.target+'s)'}).join(' \xb7 ');
+    eTrack.classList.remove('mcd-off');eTrack.classList.add('mcd-on','mcd-locked');
+    eTrack.onclick=function(){};eLockNote.style.display='';
+    document.getElementById('mcd-e-tog-lbl').textContent='Included';_mcd.togE=true;
+    // Per-SW AHT commit rows — compact 2-col grid, only for the selected SW(s)
+    var eCommitHtml='<div class="mcd-rlbl" id="mcd-e-commit-lbl">Committed AHT by SW</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px">';
+    shown.forEach(function(x,i){
+      eCommitHtml+='<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;background:var(--sa);border:1px solid var(--border);border-radius:var(--r-xs)">'
+        +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+mcdEsc(x.sw)+'">'+mcdEsc(x.sw)+'</span>'
+        +'<span style="font-size:9px;color:var(--tm);white-space:nowrap;flex-shrink:0">'+x.actual+'s→</span>'
+        +'<input class="mcd-commit-inp" type="text" id="mcd-commit-e-'+i+'" value="'+x.target+'s" style="width:52px;font-size:10px" />'
+        +'</div>';
+    });
+    eCommitHtml+='</div><div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.'+(shown.length<overAHT.length?' Showing '+shown.length+' of '+overAHT.length+' failing SWs — switch the dropdown above to focus on a different one.':'')+'</div>';
+    var eBody=document.getElementById('mcd-e-body');
+    var toRemove=eBody?eBody.querySelectorAll('.mcd-commit-row,.mcd-e-commit-lbl,.mcd-commit-hint,#mcd-e-commit-lbl'):[];
+    toRemove.forEach(function(el){el.remove();});
+    if(eBody)eBody.insertAdjacentHTML('beforeend',eCommitHtml);
+    if(eBody)eBody.style.display='';
+    document.getElementById('mcd-fa-efficiency').classList.remove('mcd-excluded');
+  }else{
+    document.getElementById('mcd-e-title').textContent='AHT on target across all SWs — maintain';
+    eTrack.classList.remove('mcd-off');eTrack.classList.add('mcd-on','mcd-locked');
+    eTrack.onclick=function(){};eLockNote.style.display='';
+    eLockNote.textContent='On target \u2014 maintain actions auto-added';
+    document.getElementById('mcd-e-tog-lbl').textContent='Included';_mcd.togE=true;
+    _mcd.actions['rv-e']=['AHT on target \u2014 maintain process discipline across all SWs'];
+    _mcd.actions['tl-e']=['AHT on target \u2014 monitor weekly to confirm no regression'];
+    var eBody2=document.getElementById('mcd-e-body');if(eBody2)eBody2.style.display='none';
+    document.getElementById('mcd-fa-efficiency').classList.remove('mcd-excluded');
+  }
 }
 
 
@@ -27324,10 +27374,12 @@ function mcdGenerate(){
     pol: _mcd.allPolStr||'',
     commit: qEl0?qEl0.value:'0 errors'
   }];
-  // Collect per-SW AHT committed scores
+  // Collect per-SW AHT committed scores — only for whichever SWs are
+  // currently shown (picker may have narrowed this to a subset)
   var commitERows=[];
-  if(_mcd.overAHT&&_mcd.overAHT.length>0){
-    _mcd.overAHT.forEach(function(x,i){
+  var shownAHT=(_mcd.eSelSws&&_mcd.eSelSws.length) ? (_mcd.overAHT||[]).filter(function(x){return _mcd.eSelSws.indexOf(x.sw)!==-1;}) : (_mcd.overAHT||[]);
+  if(shownAHT.length>0){
+    shownAHT.forEach(function(x,i){
       var el=document.getElementById('mcd-commit-e-'+i);
       commitERows.push({sw:x.sw,actual:x.actual,target:x.target,commit:el?el.value:x.target+'s'});
     });
