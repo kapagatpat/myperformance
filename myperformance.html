@@ -8786,6 +8786,90 @@ function renderSmeTab(){
   }
 }
 
+// ── AHT GAP DRIVER BREAKDOWN (Job Extract) ────────────────────────────────────
+// The Job Extract CSV has no root-cause taxonomy like RCA does for quality —
+// all it gives per job is decision_handle_time_sec + highest_severity_decision.
+// So instead of a labeled "why", this surfaces the one thing job-level data
+// CAN tell us: which decision type is actually driving a reviewer+SW's slow
+// jobs, normalized so near-duplicate tag orderings roll up into one bucket
+// rather than fragmenting (the raw field is a semicolon-joined multi-tag
+// string whose tag order varies row to row for the same underlying outcome).
+//
+// Boilerplate tags are near-universal companions on every decision (present
+// whether the job was fast or slow) and carry no diagnostic signal on their
+// own, so they're stripped before picking a representative tag. When every
+// tag on a row is boilerplate, the row is bucketed as an explicit
+// "non_violating (all-clear)" driver rather than silently returning the raw
+// first tag — this matters because in practice that bucket is often the
+// dominant driver (borderline content that ultimately clears), and a naive
+// first-tag pick would hide it.
+const AHT_DRIVER_BOILERPLATE = new Set([
+  'ignore_general','non_violating','reportee_not_violating','reportee_no_violation',
+  'no_bystander_underage','evidence_issue','reportee_not_present','insufficient_evidence',
+  'srt_widget_issue','world_doesnt_load','world_loads_doesnt_work_properly',
+  'other_visibility_issues','evidence_loads_doesnt_play_properly','navigation_issues'
+]);
+function ahtNormalizeDriver(decisionStr) {
+  if (!decisionStr) return '(unspecified)';
+  const parts = decisionStr.split(';').map(p => p.trim().toLowerCase()).filter(Boolean);
+  const meaningful = parts.filter(p => !AHT_DRIVER_BOILERPLATE.has(p));
+  return meaningful.length ? meaningful[0] : 'non_violating (all-clear)';
+}
+
+// Builds the AHT gap driver line for one reviewer+SW combo, using Job Extract
+// rows joined via the roster (see jdRowsForReviewerSW). aht/target/decisions
+// come from the main CSV (real blended AHT) — Job Extract only supplies the
+// "why", never the number that decides the band, since a per-job row has no
+// NHT component and would understate AHT if used directly.
+//
+// NHT check comes first and is checked against the reviewer+SW's OWN nht/dht
+// split (never a reviewer-wide blend) — if NHT is already under 5%, the
+// easiest lever is gone and the row goes straight to the DHT driver; if NHT
+// is 5%+, that's surfaced as the lead issue with a believable projected AHT
+// (computed from this reviewer+SW's real dht, not an assumed flat cut).
+function ahtGapDetail(reviewerName, sw, targetAht, dht, nht, decisions) {
+  const nhtPct = (dht + nht) > 0 ? nht / (dht + nht) : null;
+  const NHT_IDEAL = 0.05;
+
+  if (nhtPct !== null && nhtPct >= NHT_IDEAL) {
+    // Project AHT if NHT were brought down to the 5% ideal, solving for
+    // nht_new such that nht_new / (dht + nht_new) = 0.05 — i.e.
+    // nht_new = 0.05 * dht / 0.95. Uses this reviewer+SW's actual dht.
+    const nhtProjected = (NHT_IDEAL * dht) / (1 - NHT_IDEAL);
+    const projectedAht = decisions > 0 ? (dht + nhtProjected) / decisions : null;
+    return {
+      type: 'nht',
+      nhtPct,
+      projectedAht
+    };
+  }
+
+  // NHT already healthy — fall through to the DHT driver breakdown, which
+  // needs Job Extract rows. Returns null (not a driver block) when Job
+  // Detail isn't loaded — the caller shows a load-data prompt instead.
+  if (typeof window.jdIsLoaded !== 'function' || !window.jdIsLoaded()) return { type: 'no-job-data' };
+
+  const jobs = (typeof window.jdRowsForReviewerSW === 'function') ? window.jdRowsForReviewerSW(reviewerName, sw) : [];
+  const slowJobs = jobs.filter(j => j.dht !== null && j.dht !== undefined && targetAht !== null && j.dht > targetAht);
+
+  // Minimum slow-job count before showing a driver breakdown — same noise
+  // principle as the app's other volume gates (SW breakdowns use >=50,
+  // AHT eligibility uses >=5 decisions); 5 slow jobs is the floor for a
+  // "driver" claim to mean anything here.
+  const MIN_SLOW_JOBS = 5;
+  if (slowJobs.length < MIN_SLOW_JOBS) return { type: 'insufficient-slow-jobs', slowCount: slowJobs.length };
+
+  const driverCounts = {};
+  slowJobs.forEach(j => {
+    const d = ahtNormalizeDriver(j.decision);
+    driverCounts[d] = (driverCounts[d] || 0) + 1;
+  });
+  const ranked = Object.entries(driverCounts).sort((a, b) => b[1] - a[1]);
+  const [topDriver, topCount] = ranked[0];
+
+  return { type: 'driver', topDriver, topCount, slowCount: slowJobs.length };
+}
+
 // ── OPEN OPPORTUNITIES PANEL ──────────────────────────────────────────────────
 function renderDrillOppPanel(rows, rv, el) {
   if(!el) return;
@@ -8848,7 +8932,7 @@ function renderDrillOppPanel(rows, rv, el) {
       const b = getBandTargets(s.workflow, s.sw, AHT_M);
       const band = assignBand(aht, b, true);
       if(band==='ni'||band==='app') {
-        ahtFails.push({sw:s.sw, metric:AHT_M, band, val:aht, bandObj:b, isAHT:true});
+        ahtFails.push({sw:s.sw, metric:AHT_M, band, val:aht, bandObj:b, isAHT:true, dht:s.dht, nht:s.nht, dec:s.dec});
         hasAFail=true;
       }
     }
@@ -8863,11 +8947,34 @@ function renderDrillOppPanel(rows, rv, el) {
   // panel. Looked up per-SW below so each qualFail line can show its own
   // root cause. rcamfLookup is defined unconditionally and returns [] when
   // no RCA masterfile has been loaded — safe to call regardless of state.
+  const escAttr = s => String(s).replace(/'/g, "\\'");
+
   const renderLine = (f, allowRCA) => {
     const valStr = f.isAHT ? Math.round(f.val)+'s' : (f.val*100).toFixed(1)+'%';
     const tgtStr = f.isAHT
       ? (f.bandObj&&f.bandObj.ach ? Math.round(f.bandObj.ach)+'s' : '—')
       : (f.bandObj&&f.bandObj.ach ? (f.bandObj.ach*100).toFixed(1)+'%' : '—');
+
+    // AHT-only: NHT check + DHT driver breakdown, in place of the band pill
+    // (removed for AHT rows — see ahtDetailBlock below). No RCA taxonomy
+    // exists for speed, so this is the closest equivalent the available
+    // data supports.
+    let ahtDetailBlock = '';
+    if (f.isAHT) {
+      const targetAht = f.bandObj && f.bandObj.ach ? f.bandObj.ach : null;
+      const detail = ahtGapDetail(rv, f.sw, targetAht, f.dht||0, f.nht||0, f.dec||0);
+      if (detail.type === 'nht') {
+        ahtDetailBlock = `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;font-size:10px">
+          <span style="color:var(--amber);font-weight:700">⚠ NHT ${(detail.nhtPct*100).toFixed(1)}%</span>
+          <span style="color:var(--tm)">${detail.projectedAht!==null ? `— at &lt;5% NHT, AHT projects to ${Math.round(detail.projectedAht)}s` : '— above the 5% ideal'}</span>
+        </div>`;
+      } else if (detail.type === 'driver') {
+        ahtDetailBlock = `<div style="margin-top:3px;font-size:10px;color:var(--tm)">DHT driver: ${detail.topDriver} · ${detail.topCount}/${detail.slowCount} slow jobs</div>`;
+      } else if (detail.type === 'no-job-data') {
+        ahtDetailBlock = `<div style="margin-top:3px;font-size:10px;color:var(--tm);font-style:italic">Load Job Detail data to see what's driving this gap</div>`;
+      }
+      // 'insufficient-slow-jobs' renders nothing — not enough evidence for a driver claim.
+    }
 
     // Quality-only: look up reviewer-caused RCA records for this SW. AHT
     // gaps don't get RCA context — the masterfile's RCA taxonomy explains
@@ -8875,6 +8982,9 @@ function renderDrillOppPanel(rows, rv, el) {
     let rcaBlock = '';
     if (allowRCA && typeof rcamfLookup === 'function') {
       const recs = rcamfLookup(rv, f.sw, oppMonthKeys);
+      if (!recs.length && (typeof window.miscIsLoaded !== 'function' || !window.miscIsLoaded())) {
+        rcaBlock = `<div style="margin-top:3px;font-size:10px;color:var(--tm);font-style:italic">Load Quality RCA data to see what's driving this gap</div>`;
+      }
       if (recs.length) {
         // Group records by RCA Level 3 cause. Each record keeps its own
         // fp/fn (per-error, not summed away) so the per-cause breakdown
@@ -8931,18 +9041,39 @@ function renderDrillOppPanel(rows, rv, el) {
       }
     }
 
-    return `<div class="opp-line" style="flex-direction:column;align-items:stretch">
+    // Click-through: AHT rows jump to Job Detail Explorer, Quality rows jump
+    // to RCA Explorer — both pre-filtered to this reviewer + SW.
+    const clickAttr = f.isAHT
+      ? `onclick="if(typeof jdJumpToReviewerSW==='function') jdJumpToReviewerSW('${escAttr(rv)}','${escAttr(f.sw)}')"`
+      : `onclick="if(typeof oppJumpToRCAExplorer==='function') oppJumpToRCAExplorer('${escAttr(rv)}','${escAttr(f.sw)}')"`;
+
+    // AHT rows drop the NI/Approaching pill — the NHT/driver line below it
+    // already carries the "why", so a redundant band tag adds noise without
+    // new information. Quality rows keep the pill (existing framework,
+    // unchanged).
+    const pillHTML = f.isAHT ? '' : `<span class="opp-kpill ${f.band}">${f.metric}</span>`;
+
+    return `<div class="opp-line" ${clickAttr} style="flex-direction:column;align-items:stretch;cursor:pointer">
       <div style="display:flex;align-items:center">
-        <span class="opp-kpill ${f.band}">${f.metric}</span>
-        <span class="opp-sw">${f.sw}</span>
+        ${pillHTML}
+        <span class="opp-sw">${f.isAHT?f.metric+' · ':''}${f.sw}</span>
         <span class="opp-val ${f.band}">${valStr}<span style="font-size:8px;color:var(--tm);font-weight:400">/${tgtStr}</span></span>
       </div>
+      ${ahtDetailBlock}
       ${rcaBlock}
     </div>`;
   };
 
+  // AHT gap rows are ranked by site-wide handled volume for that SW (most
+  // decisions handled across the whole site first) — independent of band
+  // severity, so a TL sees the gap affecting the most site volume at the
+  // top, not necessarily the worst percentage miss. This is a sort only;
+  // nothing is filtered out. Quality gap sort order is unchanged.
+  const siteSWVolume = (typeof window.jdSiteVolumeBySW === 'function') ? window.jdSiteVolumeBySW() : {};
+  const ahtFailsSorted = ahtFails.slice().sort((a, b) => (siteSWVolume[b.sw]||0) - (siteSWVolume[a.sw]||0));
+
   const qualHTML = qualFails.length  ? qualFails.map(f=>renderLine(f, true)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No quality gaps</span></div>';
-  const ahtHTML  = ahtFails.length   ? ahtFails.map(f=>renderLine(f, false)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No AHT gaps</span></div>';
+  const ahtHTML  = ahtFailsSorted.length ? ahtFailsSorted.map(f=>renderLine(f, false)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No AHT gaps</span></div>';
   // Passing SWs — all on one line as pills, readable size
   const passHTML = passing.length
     ? `<div class="opp-line" style="flex-wrap:wrap;gap:4px;padding:6px 10px">${passing.map(sw=>`<span class="opp-kpill ach" style="font-size:10px;padding:2px 7px">✓ ${sw}</span>`).join('')}</div>`
@@ -19309,6 +19440,29 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (key === 'rca3') miscMSCascadeRCA(4);
         miscRender();
     };
+    // Exposure for Open Opportunities (Reviewer Deep-Dive) — MISC_ROWS is
+    // private to this IIFE, so a function accessor is needed rather than
+    // referencing the array directly from outside.
+    window.miscIsLoaded = function() { return MISC_ROWS.length > 0; };
+
+    // Click-through from a Quality gap row: pre-filter RCA Explorer to this
+    // reviewer + SW and switch tabs. Resolves SW naming through
+    // miscMSResolveRawSW first (same as the existing Pareto-bar click-
+    // through below) since the Job Log CSV's SW labels don't always match
+    // the main CSV's 1:1 — falls back to the raw value if no alias applies.
+    window.oppJumpToRCAExplorer = function(reviewerName, sw) {
+        if (typeof window.miscMSSelectOnly !== 'function') return;
+        window.miscMSSelectOnly('rv', reviewerName);
+        let applied = false;
+        if (typeof window.miscMSResolveRawSW === 'function') {
+            const raw = window.miscMSResolveRawSW(sw);
+            if (raw !== null) applied = window.miscMSSelectOnly('sw', raw);
+        }
+        if (!applied) window.miscMSSelectOnly('sw', sw);
+        const btn = document.querySelector('.t-rca');
+        if (btn) showTab('rca-explorer', btn);
+    };
+
     // Select exactly one value for a dimension (clearing any other selection)
     // — used when the Pareto chart's bar click drives Job Log's filter, since
     // clicking a bar should show only that category, not add to whatever was
@@ -21244,6 +21398,49 @@ document.addEventListener('DOMContentLoaded', () => {
         jdRenderChips();
         jdRenderColToggles();
         jdRenderJobTable();
+    };
+
+    // ── Exposure for Open Opportunities (Reviewer Deep-Dive) ────────────────
+    // renderDrillOppPanel lives outside this IIFE and needs read-only access
+    // to JOBDETAIL_ROWS (for the AHT gap driver breakdown) and a way to jump
+    // to the Job Detail Explorer with filters pre-applied (click-through).
+    // Exposed as functions, not the raw array, so JOBDETAIL_ROWS stays
+    // private and can't be mutated from outside this IIFE.
+    window.jdIsLoaded = function() { return JOBDETAIL_ROWS.length > 0; };
+
+    // Returns this reviewer's job rows for one SW, joined through the roster
+    // (actorId -> name) exactly like jdFilteredJobs's own JD_FILTERS.reviewer
+    // branch above — comparing the reviewer NAME, since Job Extract rows only
+    // carry actorId.
+    window.jdRowsForReviewerSW = function(reviewerName, sw) {
+        if (!reviewerName || !sw || !JOBDETAIL_ROWS.length) return [];
+        const rosterMap = jdRosterMap();
+        return JOBDETAIL_ROWS.filter(r => {
+            if (r.sw !== sw) return false;
+            const hit = rosterMap[r.actorId];
+            return hit && hit.name === reviewerName;
+        });
+    };
+
+    // Site-wide handled volume (job count) per SW, across all reviewers —
+    // used to rank AHT gap rows by how much site volume each SW represents,
+    // independent of the reviewer's own decision count. Cheap to recompute
+    // per render; JOBDETAIL_ROWS is at most tens of thousands of rows.
+    window.jdSiteVolumeBySW = function() {
+        const counts = {};
+        JOBDETAIL_ROWS.forEach(r => { if (r.sw) counts[r.sw] = (counts[r.sw] || 0) + 1; });
+        return counts;
+    };
+
+    // Click-through: jump to Job Detail Explorer with SW + reviewer
+    // pre-filtered, reusing the exact same JD_FILTERS state and re-render
+    // path as every other click-through into this tab.
+    window.jdJumpToReviewerSW = function(reviewerName, sw) {
+        JD_FILTERS = { sw: sw || null, reviewer: reviewerName || null, tenure: null };
+        JD_PAGE = 1;
+        renderJobDetail();
+        const btn = document.querySelector('.t-jd');
+        if (btn) showTab('jobdetail', btn);
     };
 
 })();
