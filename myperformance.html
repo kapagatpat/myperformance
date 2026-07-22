@@ -21324,7 +21324,7 @@ let RCAMF_BY_RV_SW = {};   // "reviewer||sw" -> [{l2,l3,l4,fp,fn,problemArea}, .
             // 'Audit process failure', which is an auditor-side cause, not
             // the reviewer's. Checking L1 too guards against any similar
             // mismatch between the L1 category and the L2 sub-label.
-            const isReviewerCaused = clean(l1) === 'People' && /^reviewer\b/i.test(l2);
+            const isReviewerCaused = l1.trim() === 'People' && /^reviewer\b/i.test(l2);
             // cmt carries the raw Dispute.1.Comment (already clean()-normalized
             // by parseMiscCSV) — parsed lazily per-error into Signal/Clause/
             // Anchor by rcamfExtractSCA() at render time, since not every
