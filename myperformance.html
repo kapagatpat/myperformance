@@ -276,6 +276,15 @@ tr:hover td{background:#F8F9FB}
 .opp-col-head{padding:4px 10px;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--tm);background:var(--sa);border-bottom:1px solid var(--divider)}
 .opp-line{display:flex;align-items:center;gap:5px;padding:4px 10px;border-bottom:1px solid var(--divider);font-size:11px}
 .opp-line:last-child{border-bottom:none}
+/* Clickable rows (AHT -> Job Detail Explorer, Quality -> RCA Explorer) get
+   the same hover treatment as .kcard[onclick] elsewhere in the app, plus an
+   always-visible chevron so clickability doesn't depend on discovering it
+   via hover — a static row and a clickable one should look different at
+   a glance, not just react differently on mouse-over. */
+.opp-line[onclick]{position:relative;padding-right:20px;transition:background .12s,border-color .12s}
+.opp-line[onclick]:hover{background:var(--bbg);border-color:var(--bbd)}
+.opp-line[onclick]::after{content:'\203A';position:absolute;right:8px;top:4px;font-size:13px;font-weight:700;color:var(--blue);opacity:.55}
+.opp-line[onclick]:hover::after{opacity:1}
 .opp-kpill{font-size:9px;font-weight:700;padding:1px 5px;border-radius:var(--pill);white-space:nowrap;flex-shrink:0}
 .opp-kpill.ni{background:var(--cbg);color:var(--coral)}
 .opp-kpill.app{background:var(--abg);color:var(--amber)}
@@ -8816,40 +8825,49 @@ function ahtNormalizeDriver(decisionStr) {
   return meaningful.length ? meaningful[0] : 'non_violating (all-clear)';
 }
 
-// Builds the AHT gap driver line for one reviewer+SW combo, using Job Extract
-// rows joined via the roster (see jdRowsForReviewerSW). aht/target/decisions
-// come from the main CSV (real blended AHT) — Job Extract only supplies the
-// "why", never the number that decides the band, since a per-job row has no
-// NHT component and would understate AHT if used directly.
+// Builds the AHT gap detail for one reviewer+SW combo. Returns an object
+// with TWO independent slots — nht and driver — since a SW above target can
+// have both a real NHT problem AND a real DHT driver at once; the two are
+// not mutually exclusive, so this always attempts the driver breakdown
+// rather than only falling back to it when NHT happens to be healthy.
+// aht/target/decisions come from the main CSV (real blended AHT) — Job
+// Extract only supplies the "why", never the number that decides the band,
+// since a per-job row has no NHT component and would understate AHT if
+// used directly.
 //
-// NHT check comes first and is checked against the reviewer+SW's OWN nht/dht
-// split (never a reviewer-wide blend) — if NHT is already under 5%, the
-// easiest lever is gone and the row goes straight to the DHT driver; if NHT
-// is 5%+, that's surfaced as the lead issue with a believable projected AHT
-// (computed from this reviewer+SW's real dht, not an assumed flat cut).
-function ahtGapDetail(reviewerName, sw, targetAht, dht, nht, decisions) {
+// monthKeys scopes the Job Extract driver lookup to the same period the
+// universal filter bar has applied to `rows` upstream — mirroring how the
+// Quality side's rcamfLookup(rv, sw, oppMonthKeys) already works, so a TL
+// filtered to "June only" doesn't see driver evidence pulled from the
+// reviewer's entire Job Extract history.
+function ahtGapDetail(reviewerName, sw, targetAht, dht, nht, decisions, monthKeys) {
   const nhtPct = (dht + nht) > 0 ? nht / (dht + nht) : null;
   const NHT_IDEAL = 0.05;
 
+  let nhtResult = null;
   if (nhtPct !== null && nhtPct >= NHT_IDEAL) {
     // Project AHT if NHT were brought down to the 5% ideal, solving for
     // nht_new such that nht_new / (dht + nht_new) = 0.05 — i.e.
     // nht_new = 0.05 * dht / 0.95. Uses this reviewer+SW's actual dht.
     const nhtProjected = (NHT_IDEAL * dht) / (1 - NHT_IDEAL);
     const projectedAht = decisions > 0 ? (dht + nhtProjected) / decisions : null;
-    return {
-      type: 'nht',
-      nhtPct,
-      projectedAht
-    };
+    nhtResult = { nhtPct, projectedAht };
   }
 
-  // NHT already healthy — fall through to the DHT driver breakdown, which
-  // needs Job Extract rows. Returns null (not a driver block) when Job
-  // Detail isn't loaded — the caller shows a load-data prompt instead.
-  if (typeof window.jdIsLoaded !== 'function' || !window.jdIsLoaded()) return { type: 'no-job-data' };
+  // Driver breakdown is always attempted when the SW is above target —
+  // independent of the NHT result above — since a reviewer can have both
+  // a genuine NHT problem and a genuine DHT driver at the same time, and
+  // hiding the driver whenever NHT happens to be flagged would silently
+  // drop real evidence.
+  if (typeof window.jdIsLoaded !== 'function' || !window.jdIsLoaded()) {
+    return { nht: nhtResult, driver: { type: 'no-job-data' } };
+  }
 
-  const jobs = (typeof window.jdRowsForReviewerSW === 'function') ? window.jdRowsForReviewerSW(reviewerName, sw) : [];
+  let jobs = (typeof window.jdRowsForReviewerSW === 'function') ? window.jdRowsForReviewerSW(reviewerName, sw) : [];
+  if (monthKeys && monthKeys.length) {
+    const keep = new Set(monthKeys);
+    jobs = jobs.filter(j => keep.has(j.month));
+  }
   const slowJobs = jobs.filter(j => j.dht !== null && j.dht !== undefined && targetAht !== null && j.dht > targetAht);
 
   // Minimum slow-job count before showing a driver breakdown — same noise
@@ -8857,7 +8875,9 @@ function ahtGapDetail(reviewerName, sw, targetAht, dht, nht, decisions) {
   // AHT eligibility uses >=5 decisions); 5 slow jobs is the floor for a
   // "driver" claim to mean anything here.
   const MIN_SLOW_JOBS = 5;
-  if (slowJobs.length < MIN_SLOW_JOBS) return { type: 'insufficient-slow-jobs', slowCount: slowJobs.length };
+  if (slowJobs.length < MIN_SLOW_JOBS) {
+    return { nht: nhtResult, driver: { type: 'insufficient-slow-jobs', slowCount: slowJobs.length } };
+  }
 
   const driverCounts = {};
   slowJobs.forEach(j => {
@@ -8867,7 +8887,7 @@ function ahtGapDetail(reviewerName, sw, targetAht, dht, nht, decisions) {
   const ranked = Object.entries(driverCounts).sort((a, b) => b[1] - a[1]);
   const [topDriver, topCount] = ranked[0];
 
-  return { type: 'driver', topDriver, topCount, slowCount: slowJobs.length };
+  return { nht: nhtResult, driver: { type: 'driver', topDriver, topCount, slowCount: slowJobs.length } };
 }
 
 // ── OPEN OPPORTUNITIES PANEL ──────────────────────────────────────────────────
@@ -8958,22 +8978,33 @@ function renderDrillOppPanel(rows, rv, el) {
     // AHT-only: NHT check + DHT driver breakdown, in place of the band pill
     // (removed for AHT rows — see ahtDetailBlock below). No RCA taxonomy
     // exists for speed, so this is the closest equivalent the available
-    // data supports.
+    // data supports. NHT and driver are independent findings — a SW above
+    // target can have a real NHT problem AND a real DHT driver at once, so
+    // both render when present rather than one suppressing the other.
     let ahtDetailBlock = '';
     if (f.isAHT) {
       const targetAht = f.bandObj && f.bandObj.ach ? f.bandObj.ach : null;
-      const detail = ahtGapDetail(rv, f.sw, targetAht, f.dht||0, f.nht||0, f.dec||0);
-      if (detail.type === 'nht') {
-        ahtDetailBlock = `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;font-size:10px">
-          <span style="color:var(--amber);font-weight:700">⚠ NHT ${(detail.nhtPct*100).toFixed(1)}%</span>
-          <span style="color:var(--tm)">${detail.projectedAht!==null ? `— at &lt;5% NHT, AHT projects to ${Math.round(detail.projectedAht)}s` : '— above the 5% ideal'}</span>
+      const detail = ahtGapDetail(rv, f.sw, targetAht, f.dht||0, f.nht||0, f.dec||0, oppMonthKeys);
+
+      let nhtLine = '';
+      if (detail.nht) {
+        nhtLine = `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;font-size:10px">
+          <span style="color:var(--amber);font-weight:700">⚠ NHT ${(detail.nht.nhtPct*100).toFixed(1)}%</span>
+          <span style="color:var(--ts)">${detail.nht.projectedAht!==null ? `— at &lt;5% NHT, AHT projects to ${Math.round(detail.nht.projectedAht)}s` : '— above the 5% ideal'}</span>
         </div>`;
-      } else if (detail.type === 'driver') {
-        ahtDetailBlock = `<div style="margin-top:3px;font-size:10px;color:var(--tm)">DHT driver: ${detail.topDriver} · ${detail.topCount}/${detail.slowCount} slow jobs</div>`;
-      } else if (detail.type === 'no-job-data') {
-        ahtDetailBlock = `<div style="margin-top:3px;font-size:10px;color:var(--tm);font-style:italic">Load Job Detail data to see what's driving this gap</div>`;
       }
-      // 'insufficient-slow-jobs' renders nothing — not enough evidence for a driver claim.
+
+      let driverLine = '';
+      if (detail.driver) {
+        if (detail.driver.type === 'driver') {
+          driverLine = `<div style="margin-top:3px;font-size:10px;color:var(--ts)">DHT driver: ${detail.driver.topDriver} · ${detail.driver.topCount}/${detail.driver.slowCount} slow jobs</div>`;
+        } else if (detail.driver.type === 'no-job-data') {
+          driverLine = `<div style="margin-top:3px;font-size:10px;color:var(--ts);font-style:italic">Load Job Detail data to see what's driving this gap</div>`;
+        }
+        // 'insufficient-slow-jobs' renders nothing — not enough evidence for a driver claim.
+      }
+
+      ahtDetailBlock = nhtLine + driverLine;
     }
 
     // Quality-only: look up reviewer-caused RCA records for this SW. AHT
@@ -8983,7 +9014,7 @@ function renderDrillOppPanel(rows, rv, el) {
     if (allowRCA && typeof rcamfLookup === 'function') {
       const recs = rcamfLookup(rv, f.sw, oppMonthKeys);
       if (!recs.length && (typeof window.miscIsLoaded !== 'function' || !window.miscIsLoaded())) {
-        rcaBlock = `<div style="margin-top:3px;font-size:10px;color:var(--tm);font-style:italic">Load Quality RCA data to see what's driving this gap</div>`;
+        rcaBlock = `<div style="margin-top:3px;font-size:10px;color:var(--ts);font-style:italic">Load Quality RCA data to see what's driving this gap</div>`;
       }
       if (recs.length) {
         // Group records by RCA Level 3 cause. Each record keeps its own
@@ -9069,7 +9100,14 @@ function renderDrillOppPanel(rows, rv, el) {
   // severity, so a TL sees the gap affecting the most site volume at the
   // top, not necessarily the worst percentage miss. This is a sort only;
   // nothing is filtered out. Quality gap sort order is unchanged.
-  const siteSWVolume = (typeof window.jdSiteVolumeBySW === 'function') ? window.jdSiteVolumeBySW() : {};
+  //
+  // Volume comes from the main CSV's decisions field, site-wide, scoped to
+  // the same oppMonthKeys period as everything else in this panel — same
+  // source of truth as the AHT value itself (never Job Extract's job count,
+  // which is a different dataset and could diverge from real decisions).
+  const siteMonthRows = oppMonthKeys.length ? RAW_ROWS.filter(r => oppMonthKeys.includes(r.month)) : RAW_ROWS;
+  const siteSWVolume = {};
+  siteMonthRows.forEach(r => { if (r.sw) siteSWVolume[r.sw] = (siteSWVolume[r.sw] || 0) + (r.decisions || 0); });
   const ahtFailsSorted = ahtFails.slice().sort((a, b) => (siteSWVolume[b.sw]||0) - (siteSWVolume[a.sw]||0));
 
   const qualHTML = qualFails.length  ? qualFails.map(f=>renderLine(f, true)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No quality gaps</span></div>';
