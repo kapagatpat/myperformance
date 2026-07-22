@@ -18320,7 +18320,7 @@ function _generateCoachingDocInner(mcdConfig) {
             };
             const cellFromActs = (acts) => acts && acts.length ? acts.map(actTxt).join('<br>') : '';
             const commitFromRows = (rows, fallbackTxt) => {
-                if(rows && rows.length) return rows.map(r=>`${r.pr!==undefined?`P&amp;R: ${mcdEsc(r.pr)}${r.pol?' \xb7 '+mcdEsc(r.pol):''} \u2192 `:r.sw?`${mcdEsc(r.sw)}: `:''}<strong>${mcdEsc(r.commit)}</strong>`).join('<br>');
+                if(rows && rows.length) return rows.map(r=>`${r.pr!==undefined?`${mcdEsc(r.pr)}${r.pol?' \xb7 '+mcdEsc(r.pol):''} \u2192 `:r.sw?`${mcdEsc(r.sw)}: `:''}<strong>${mcdEsc(r.commit)}</strong>`).join('<br>');
                 return fallbackTxt || '';
             };
             const qRow = mcdConfig.togQ && ((mcdConfig.actions['rv-q']&&mcdConfig.actions['rv-q'].length) || (mcdConfig.actions['tl-q']&&mcdConfig.actions['tl-q'].length))
@@ -18382,21 +18382,110 @@ function _generateCoachingDocInner(mcdConfig) {
 
         ${rvSecHead('Error history', red)}
         <div style="font-size:11px;color:${textMuted};margin-bottom:8px;margin-top:-4px">All time · one row per policy · sorted by most recent error</div>
+        <div style="font-size:10px;color:${textMuted};font-style:italic;margin-bottom:8px;margin-top:-4px">RCA breakdown on Active errors is split Enforcement (E) / Labeling (L) where workflow_type is available in the source data. Active/Watch/Hist count weeks with an error on record; the Why(N) total counts individual errors, which can exceed the week count when a week logged more than one error.</div>
         ${(()=>{
           const msD = 86400000;
           const latestWkE = WEEKS.length ? WEEKS[WEEKS.length-1] : allRvRows.map(r=>r.week).sort().pop();
           const errMap = {};
           allRvRows.filter(r=>r.pol&&(r.fpa+r.fna)>0).forEach(r => {
-            if(!errMap[r.pol]) errMap[r.pol] = { pol:r.pol, sws:new Set(), fp:0, fn:0, active:0, watch:0, hist:0, lastWk:'' };
+            if(!errMap[r.pol]) errMap[r.pol] = { pol:r.pol, sws:new Set(), fp:0, fn:0, active:0, watch:0, hist:0, activeErr:0, lastWk:'' };
             const g = errMap[r.pol];
             if(r.sw) g.sws.add(r.sw);
             g.fp += r.fpa||0; g.fn += r.fna||0;
             const days = (new Date(latestWkE) - new Date(r.week)) / msD;
-            if(days<=60) g.active++; else if(days<=120) g.watch++; else g.hist++;
+            // active/watch/hist are ROW counts (existing convention, matches
+            // polActive++ elsewhere in this file — used for the visible
+            // Active/Watch/Hist columns). activeErr is a separate ERROR
+            // count (summed fpa+fna) on the same active-window rows — a
+            // single row can bundle more than one error (e.g. fna=2), so
+            // row-count and error-count are different units. The RCA "Why"
+            // breakdown below sums actual errors per record, so it must be
+            // checked against activeErr, not active, or the totals will
+            // never tie out whenever any active row has more than 1 error.
+            if(days<=60) { g.active++; g.activeErr += (r.fpa||0)+(r.fna||0); } else if(days<=120) g.watch++; else g.hist++;
             if(!g.lastWk || r.week > g.lastWk) g.lastWk = r.week;
           });
           const errRows = Object.values(errMap).filter(g=>g.fp+g.fn>0).sort((a,b)=>b.lastWk.localeCompare(a.lastWk));
           if(!errRows.length) return `<div style="border-radius:8px;border:1px solid ${borderColor};padding:12px 14px;font-size:12px;color:${textMuted};font-style:italic">No errors on record.</div>`;
+
+          // RCA "why" detail for policies currently Active (within 60 days).
+          // Mirrors the Open Opportunities panel on the Reviewer Deep-Dive tab:
+          // pulls reviewer-caused RCA records across every SW this policy hit,
+          // grouped by RCA Level 3 cause + Level 4 detail, split by
+          // Enforcement (E) / Labeling (L) via workflow_type.
+          //
+          // IMPORTANT — filters by the RCA record's own WEEK against the same
+          // 60-day cutoff used for the Active count above, not by month.
+          // Filtering by month (an earlier version of this) over-counted:
+          // any week within 60 days pulled its entire calendar month into
+          // scope, including earlier weeks in that same month that actually
+          // sit outside the 60-day window — so the "Why (N)" total didn't
+          // match the row's Active count. Week-precision keeps both counts
+          // aligned to the exact same cutoff.
+          const rcaWhyBlock = (g) => {
+            if (typeof rcamfLookup !== 'function' || g.active===0) return '';
+            const allRecs = [...g.sws].flatMap(sw => rcamfLookup(rv, sw, []));
+            // rcamfLookup is keyed only by reviewer+SW — it returns every
+            // RCA record tagged on that SW, regardless of policy. Since
+            // errMap groups by POLICY (a policy can span multiple SWs, and
+            // one SW can carry many different policies), records must also
+            // be filtered down to this exact policy — otherwise an SW that
+            // hit two different policies (e.g. World Review: MARK_TEEN and
+            // separately MATURE_CONTENT) would leak the other policy's
+            // errors into this row's "Why" total and inflate it past the
+            // Active count.
+            const polRecs = allRecs.filter(r => (r.problemArea||'').trim() === (g.pol||'').trim());
+            const recs = polRecs.filter(r => {
+              if (!r.week) return false;
+              const days = (new Date(latestWkE) - new Date(r.week)) / msD;
+              return days <= 60;
+            });
+            if (!recs.length) return '';
+            const byL3 = {};
+            recs.forEach(r => {
+              // Sum actual errors (fp+fn) per record — validated against
+              // activeErr (the error-sum on active rows in errMap above),
+              // not against g.active (a row count). A single Job Log record
+              // can itself carry more than one error on rare occasions, and
+              // the Main CSV's fna/fpa on a single row is also a genuine
+              // error count, not a row count — summing here is what keeps
+              // this total aligned with activeErr.
+              const errCount = (r.fp||0) + (r.fn||0);
+              if (errCount <= 0) return;
+              const key = r.l3 || '(unspecified)';
+              if (!byL3[key]) byL3[key] = { l3:key, count:0, e:0, l:0, l4s:new Set() };
+              byL3[key].count += errCount;
+              if (r.rt === 'Enforcement') byL3[key].e += errCount;
+              else if (r.rt === 'Labeling') byL3[key].l += errCount;
+              if(r.l4) byL3[key].l4s.add(r.l4);
+            });
+            const ranked = Object.values(byL3).sort((a,b)=>b.count-a.count);
+            if (!ranked.length) return '';
+            const totalErr = ranked.reduce((s,c)=>s+c.count,0);
+            const totalE = ranked.reduce((s,c)=>s+c.e,0);
+            const totalL = ranked.reduce((s,c)=>s+c.l,0);
+            const line = ranked.map(c => {
+              const l4Str = c.l4s.size ? ` [${[...c.l4s].join(', ')}]` : '';
+              // E/L split only shown when both are present or when either
+              // is non-zero and the other tracked field exists (i.e. rt was
+              // populated for at least one record on this cause) — a cause
+              // with no rt data at all (older export, column absent) just
+              // shows the plain count, same as before.
+              const hasRt = c.e>0 || c.l>0;
+              const splitStr = hasRt ? ` (${c.e}E, ${c.l}L)` : ` (${c.count})`;
+              return `${c.l3}${l4Str}${splitStr}`;
+            }).join(' \u00b7 ');
+            const totalHasRt = totalE>0 || totalL>0;
+            const totalStr = totalHasRt ? `${totalErr} \u2014 ${totalE}E, ${totalL}L` : `${totalErr}`;
+            return `<tr class="rca-why-row" style="border-bottom:0.5px solid ${divider}">
+              <td colspan="6" style="padding:5px 10px 7px 26px;background:${lightGray}">
+                <div style="font-size:10px;line-height:1.4;color:${textSec}">
+                  <span style="font-weight:700;color:${purple}">Why (${totalStr}):</span> ${line}
+                </div>
+              </td>
+            </tr>`;
+          };
+
           return `<div style="border-radius:8px;border:1px solid ${borderColor};overflow:hidden">
             <table style="width:100%;border-collapse:collapse;font-size:12px">
               <thead><tr style="background:${lightGray};border-bottom:1px solid ${borderColor}">
@@ -18409,7 +18498,9 @@ function _generateCoachingDocInner(mcdConfig) {
               </tr></thead>
               <tbody>${errRows.map((g,i)=>{
                 const isHist=g.active===0&&g.watch===0;
-                return `<tr style="border-bottom:${i===errRows.length-1?'none':'0.5px solid '+divider}">
+                const isLast=i===errRows.length-1;
+                const why=rcaWhyBlock(g);
+                const bodyRow=`<tr style="border-bottom:${(!why&&isLast)?'none':'0.5px solid '+divider}">
                   <td style="padding:6px 10px;font-size:12px;font-weight:${isHist?'500':'600'};color:${isHist?textMuted:textPri}">${g.pol}</td>
                   <td style="padding:6px 8px;font-size:11px;color:${isHist?textMuted:textSec}">${[...g.sws].join(' \u00b7 ')||'\u2014'}</td>
                   <td style="padding:6px 8px;text-align:center;font-family:${mono};font-weight:700;color:${g.active>0?red:textMuted}">${g.active}</td>
@@ -18417,6 +18508,8 @@ function _generateCoachingDocInner(mcdConfig) {
                   <td style="padding:6px 8px;text-align:center;font-family:${mono};color:${textMuted}">${g.hist}</td>
                   <td style="padding:6px 8px;text-align:right;font-size:11px;color:${isHist?textMuted:textSec};white-space:nowrap">${fmtW(g.lastWk)}</td>
                 </tr>`;
+                const whyFixed = (why && isLast) ? why.replace('border-bottom:0.5px solid '+divider+';','border-bottom:none;') : why;
+                return bodyRow + whyFixed;
               }).join('')}</tbody>
               <tfoot><tr style="background:${lightGray};border-top:1px solid ${borderColor}">
                 <td colspan="6" style="padding:5px 10px;font-size:11px;color:${textMuted}">
@@ -19443,6 +19536,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const iJID   = col('Job ID') >= 0 ? col('Job ID') : col('Review Job ID') >= 0 ? col('Review Job ID') : col('BMS ID');
         const iAJID  = col('Audit Job ID') >= 0 ? col('Audit Job ID') : -1;
         const iSup   = col('Supervisor') >= 0 ? col('Supervisor') : col('Supervisor name') >= 0 ? col('Supervisor name') : col('lead_name');
+        // Enforcement/Labeling split for RCA records — literal values in the
+        // source CSV are 'Enforcement' and 'Labeling' (confirmed against a
+        // real export). No fallback header name; if absent, iRT stays -1
+        // and rt below resolves to '' for every row (same graceful-omit
+        // pattern as iAJID/other optional columns).
+        const iRT    = col('workflow_type');
         const iRDec  = col('review_decision_breakdown');
         const iADec  = col('audit_decision_breakdown');
         const iRNot  = col('Reviewer Notes') >= 0 ? col('Reviewer Notes') : col('reviewer_notes');
@@ -19581,6 +19680,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 jid:    (v[iJID] || '').replace(/^#/, '').trim(),
                 ajid:   (iAJID >= 0 ? v[iAJID] : '').replace(/^#/, '').trim(),
                 sup:    clean(v[iSup]),
+                rt:     (iRT >= 0 ? (v[iRT] || '').trim() : ''),
                 rvDec:  v[iRDec] || '',
                 auDec:  v[iADec] || '',
                 rvNote: extractNote(v[iRNot]),
@@ -21208,14 +21308,33 @@ let RCAMF_BY_RV_SW = {};   // "reviewer||sw" -> [{l2,l3,l4,fp,fn,problemArea}, .
             // every month the reviewer has ever had RCA-tagged errors on
             // this SW — see rcamfLookup's optional monthKeys filter below.
             const monthKey = r.monthKey || '';
+            // Also carry the row's own week (M/D/YYYY, same shape as
+            // RAW_ROWS.week) so callers that need day-precision — like the
+            // Weekly Doc's Active/Watch/Hist aging — can filter on the exact
+            // same 60/120-day cutoffs instead of the coarser month bucket.
+            // Filtering by month alone over-counts: any week within 60 days
+            // pulls its ENTIRE month into range, including earlier weeks in
+            // that month that are actually outside the 60-day window.
+            const week = r.week || '';
 
-            const isReviewerCaused = /^reviewer\b/i.test(l2);
+
+            // Requires BOTH L1 = 'People' AND L2 starting with 'Reviewer' —
+            // L2 alone isn't a reliable signal on its own: at least one row
+            // in a real export had L2 'Reviewer — Missed Violation' but L3
+            // 'Audit process failure', which is an auditor-side cause, not
+            // the reviewer's. Checking L1 too guards against any similar
+            // mismatch between the L1 category and the L2 sub-label.
+            const isReviewerCaused = clean(l1) === 'People' && /^reviewer\b/i.test(l2);
             // cmt carries the raw Dispute.1.Comment (already clean()-normalized
             // by parseMiscCSV) — parsed lazily per-error into Signal/Clause/
             // Anchor by rcamfExtractSCA() at render time, since not every
             // record needs it (e.g. AHT gaps never call this lookup).
             const cmt = r.cmt || '';
-            const rec = { name, sw, l1, l2, l3, l4, fp, fn, problemArea, isReviewerCaused, monthKey, cmt };
+            // rt: 'Enforcement' or 'Labeling' from workflow_type, when present.
+            // Carried straight through — no normalization, since the source
+            // CSV's literal values already match what this needs to display.
+            const rt = (r.rt || '').trim();
+            const rec = { name, sw, l1, l2, l3, l4, fp, fn, problemArea, isReviewerCaused, monthKey, week, cmt, rt };
             RCAMF_ROWS.push(rec);
 
             if (isReviewerCaused) {
@@ -27189,18 +27308,55 @@ function openMonthlyCoachingModal(){
     qTrack.onclick=function(){mcdToggle('q');};qLockNote.style.display='none';
   }
 
-  // Overall quality committed score — single P&R line + policy error
-  // breakdown, replacing the old per-SW pill list (per Karl's request to
-  // keep this simple: one overall PR score, then Policy).
+  // Overall quality committed score — now framed as an explicit action:
+  // whichever of Precision/Recall is failing gets an "IMPROVE" block naming
+  // its top policy drivers (by FN for Recall, FP for Precision) with a
+  // concrete zero-out/avoid-new commitment; the passing one gets a
+  // "MAINTAIN OR INCREASE" block framed around consistent QA performance.
   var qRowsEl=document.getElementById('mcd-commit-q-rows');
   if(qRowsEl){
+    var QA_TGT=0.96;
     var pStr=overallPrec!==null?(overallPrec*100).toFixed(1)+'%':'—';
     var rStr=overallRec!==null?(overallRec*100).toFixed(1)+'%':'—';
-    var qRowsHtml='<div style="display:flex;align-items:center;gap:6px;padding:2px 0">'
-      +'<div class="mcd-commit-dot" style="background:'+(totalErrors>0?'var(--text-danger)':'var(--green)')+';flex-shrink:0"></div>'
-      +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0">P&amp;R: '+pStr+' / '+rStr+(allPolStr?'<br><span style="color:var(--tm)">'+mcdEsc(allPolStr)+'</span>':'')+'</span>'
-      +'<input class="mcd-commit-inp" type="text" id="mcd-commit-q-0" value="0 errors" style="width:64px" />'
-      +'</div>';
+    var precFail=overallPrec!==null && overallPrec<QA_TGT;
+    var recFail =overallRec!==null  && overallRec<QA_TGT;
+
+    // Top policy drivers, split by whether they're mostly FN (hurts Recall)
+    // or mostly FP (hurts Precision), so each failing metric only lists the
+    // policies actually responsible for its own gap.
+    var fnPols=topPols.filter(function(p){return p.type==='FN';}).slice(0,2);
+    var fpPols=topPols.filter(function(p){return p.type==='FP';}).slice(0,2);
+    var polLine=function(p){return mcdEsc(p.pol)+' ('+p.type+'\xd7'+p.total+')';};
+
+    var qBlockHtml=function(metricLabel, failing, valStr, driverPols, inputId){
+      if(failing){
+        var driverList=driverPols.length
+          ? '<div style="margin:4px 0 3px;padding-left:2px">'+driverPols.map(function(p){return '<div style="font-size:10px;color:var(--ts)">\u2022 '+polLine(p)+'</div>';}).join('')+'</div>'
+          : '';
+        return '<div style="padding:5px 0;border-bottom:1px solid var(--border)">'
+          +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">'
+          +'<div class="mcd-commit-dot" style="background:var(--coral)"></div>'
+          +'<span style="font-size:10px;font-weight:700;color:var(--coral);text-transform:uppercase;letter-spacing:.04em">Improve '+metricLabel+' to '+Math.round(QA_TGT*100)+'%</span>'
+          +'<span style="font-size:10px;color:var(--tm);margin-left:auto">'+valStr+'</span>'
+          +'</div>'
+          +'<div style="font-size:10px;color:var(--ts);line-height:1.5">Zero out markdowns on known policy drivers:</div>'
+          +driverList
+          +'<div style="font-size:10px;color:var(--ts);line-height:1.5">Avoid new markdowns on other policy drivers until end of month.</div>'
+          +'<input class="mcd-commit-inp" type="text" id="'+inputId+'" value="'+Math.round(QA_TGT*100)+'%" style="width:64px;margin-top:4px" />'
+          +'</div>';
+      }
+      return '<div style="padding:5px 0">'
+        +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">'
+        +'<div class="mcd-commit-dot" style="background:var(--green)"></div>'
+        +'<span style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.04em">Maintain or increase '+metricLabel+'</span>'
+        +'<span style="font-size:10px;color:var(--tm);margin-left:auto">'+valStr+'</span>'
+        +'</div>'
+        +'<div style="font-size:10px;color:var(--ts);line-height:1.5">Maintain consistent QA performance \u2014 avoid new markdowns on any policy driver until end of month.</div>'
+        +'</div>';
+    };
+
+    var qRowsHtml=qBlockHtml('Precision', precFail, pStr, fpPols, 'mcd-commit-q-0')
+                + qBlockHtml('Recall',    recFail,  rStr, fnPols, 'mcd-commit-q-1');
     qRowsEl.innerHTML=qRowsHtml;
   }
 
@@ -27312,17 +27468,27 @@ function mcdRenderEfficiency(){
     // Wrapped in .mcd-e-commit-block so re-renders can fully clear it —
     // previously the box itself had no class, so old copies never got
     // removed and just kept stacking on every dropdown change.
+    // AHT is framed as a discussion prompt rather than a single lever —
+    // TL and reviewer need to agree what's actually driving the extra
+    // time (decision speed, tooling, NHT, etc.) — so the action text is
+    // written once for the whole selected set, not per SW.
     var eCommitHtml='<div class="mcd-e-commit-block">'
-      +'<div class="mcd-rlbl" id="mcd-e-commit-lbl" style="color:var(--green)">Committed score — AHT</div>'
+      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">'
+      +'<div class="mcd-commit-dot" style="background:var(--coral)"></div>'
+      +'<span style="font-size:10px;font-weight:700;color:var(--coral);text-transform:uppercase;letter-spacing:.04em" id="mcd-e-commit-lbl">Reduce AHT</span>'
+      +'</div>'
       +'<div style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;display:flex;flex-direction:column;gap:6px">';
     shown.forEach(function(x,i){
+      var overPct=x.target>0?Math.round((x.over/x.target)*1000)/10:0;
       eCommitHtml+='<div style="display:flex;align-items:center;gap:6px">'
         +'<span style="font-size:10px;color:var(--ts);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+mcdEsc(x.sw)+'">'+mcdEsc(x.sw)+'</span>'
-        +'<span style="font-size:9px;color:var(--tm);white-space:nowrap;flex-shrink:0">'+x.actual+'s→</span>'
+        +'<span style="font-size:9px;color:var(--tm);white-space:nowrap;flex-shrink:0">'+x.actual+'s→'+x.target+'s (+'+overPct+'%)</span>'
         +'<input class="mcd-commit-inp" type="text" id="mcd-commit-e-'+i+'" value="'+x.target+'s" style="width:52px;font-size:10px" />'
         +'</div>';
     });
-    eCommitHtml+='</div><div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.'+(shown.length<overAHT.length?' Showing '+shown.length+' of '+overAHT.length+' failing SWs — use the dropdown above to focus on a different one.':'')+'</div></div>';
+    eCommitHtml+='</div>'
+      +'<div style="font-size:10px;color:var(--ts);line-height:1.5;margin-top:4px">Discuss with TL which part of the review process is driving the extra time \u2014 decision speed, tooling, or non-handle time (NHT) \u2014 and agree on what to adjust.</div>'
+      +'<div class="mcd-commit-hint">Pre-filled to SW target. Adjust if phasing.'+(shown.length<overAHT.length?' Showing '+shown.length+' of '+overAHT.length+' failing SWs — use the dropdown above to focus on a different one.':'')+'</div></div>';
     var eBody=document.getElementById('mcd-e-body');
     var toRemove=eBody?eBody.querySelectorAll('.mcd-e-commit-block'):[];
     toRemove.forEach(function(el){el.remove();});
@@ -27402,18 +27568,24 @@ function mcdGenerate(){
   if(_mcd.togA&&(_mcd.actions['rv-a'].length<1||_mcd.actions['tl-a'].length<1))err=true;
   if(err){document.getElementById('mcd-val-err').classList.add('mcd-show');return;}
   document.getElementById('mcd-val-err').classList.remove('mcd-show');
-  // Collect the single overall quality committed score (P&R + policy
-  // breakdown, replacing the old per-SW array) — kept as a 1-element array
-  // so mcdFABlock/mcdFARow's existing per-row iteration still works
-  // unchanged downstream.
-  var qEl0=document.getElementById('mcd-commit-q-0');
+  // Collect the quality committed score(s) — Precision and Recall are now
+  // each their own row: a failing metric gets its own editable commit
+  // input (mcd-commit-q-0 for Precision, mcd-commit-q-1 for Recall); a
+  // passing metric has no input, so it's recorded as a "maintain" row.
+  var QA_TGT_GEN=0.96;
   var qPStr=_mcd.overallPrec!==null&&_mcd.overallPrec!==undefined?(_mcd.overallPrec*100).toFixed(1)+'%':'—';
   var qRStr=_mcd.overallRec!==null&&_mcd.overallRec!==undefined?(_mcd.overallRec*100).toFixed(1)+'%':'—';
-  var commitQRows=[{
-    pr: qPStr+' / '+qRStr,
-    pol: _mcd.allPolStr||'',
-    commit: qEl0?qEl0.value:'0 errors'
-  }];
+  var qPrecFail=_mcd.overallPrec!==null && _mcd.overallPrec<QA_TGT_GEN;
+  var qRecFail =_mcd.overallRec!==null  && _mcd.overallRec<QA_TGT_GEN;
+  var qPEl=document.getElementById('mcd-commit-q-0');
+  var qREl=document.getElementById('mcd-commit-q-1');
+  var commitQRows=[];
+  commitQRows.push(qPrecFail
+    ? {pr:'Precision '+qPStr, pol:_mcd.allPolStr||'', commit:qPEl?qPEl.value:Math.round(QA_TGT_GEN*100)+'%'}
+    : {pr:'Precision '+qPStr, pol:'', commit:'Maintain or increase'});
+  commitQRows.push(qRecFail
+    ? {pr:'Recall '+qRStr, pol:_mcd.allPolStr||'', commit:qREl?qREl.value:Math.round(QA_TGT_GEN*100)+'%'}
+    : {pr:'Recall '+qRStr, pol:'', commit:'Maintain or increase'});
   // Collect per-SW AHT committed scores — only for whichever SWs are
   // currently shown (picker may have narrowed this to a subset)
   var commitERows=[];
