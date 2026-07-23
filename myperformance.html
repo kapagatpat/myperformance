@@ -529,6 +529,9 @@ tr:hover td{background:#F8F9FB}
 
       <div id="e-attention-banner" style="display:none"></div>
 
+      <div class="kpi-section-label" style="display:flex;align-items:center">SW Health &amp; PSP <span id="e-psp-legend"></span></div>
+      <div class="kpi-row" id="e-psp-cards" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem"></div>
+
       <div id="e-qual-type-warn" style="display:none;background:var(--abg);border-left:4px solid var(--amber);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber);font-weight:600;margin-bottom:1rem;"></div>
 
       <!-- Tier 1: at-a-glance KPI cards (Quality / Efficiency & WFM / Alignment) — compact, always open -->
@@ -4393,6 +4396,118 @@ function renderExec(){
     kcard('TOPS Adoption ↑', tops!==null?p(tops):'—', 'tops', 'Target: 100%', 100, null, null, {compact:true, onClick:deLink('tops')});
 
   document.getElementById('e-nht-note').innerHTML = sws.length !== 1 ? "*NHT% tracking is suppressed across blended workflows to prevent skewed averages." : "";
+
+  // ── NEW: SW Health & PSP card row ──────────────────────────────────────
+  // SW fail counts: reactive to filters + qual type (uses qualRowsLM/qualType,
+  // same source as the cards above). PSP + Early Warning: fixed methodology,
+  // NOT affected by qual type or the month/date filter — always evaluated
+  // against each reviewer's own latest-complete-month vs current MTD, scoped
+  // only by TL/tenure/SW/workflow (population filters, not date/qual-type).
+  (function renderPSPCardRow(){
+    const pspEl = document.getElementById('e-psp-cards');
+    const pspLegEl = document.getElementById('e-psp-legend');
+    if(!pspEl) return;
+    if(pspLegEl) pspLegEl.innerHTML = ` <span style="font-size:10px;font-weight:700;color:var(--tm)">· SW cards: ${qLabel} · current filter</span>`;
+
+    // -- SW-level Precision/Recall fail counts (filter + qual-type reactive) --
+    const swAgg = {};
+    qualRowsLM.forEach(r => {
+      if(!r.sw) return;
+      const q = getQualMetrics(r, qualType);
+      if(!swAgg[r.sw]) swAgg[r.sw] = {sw:r.sw, workflow:r.workflow||'', tp:0,fp:0,fn:0,tn:0};
+      const s = swAgg[r.sw];
+      s.tp+=q.tp||0; s.fp+=q.fp||0; s.fn+=q.fn||0; s.tn+=q.tn||0;
+    });
+    let swTotal=0, swPrecFail=0, swRecFail=0;
+    Object.values(swAgg).forEach(s => {
+      const tot = s.tp+s.fp+s.fn+s.tn;
+      if(tot<=0) return;
+      swTotal++;
+      const prec = (s.tp+s.fp)>0 ? s.tp/(s.tp+s.fp) : null;
+      const rec  = (s.tp+s.fn)>0 ? s.tp/(s.tp+s.fn) : null;
+      const precTgt = getBandTargets(s.workflow, s.sw, 'Precision');
+      const recTgt  = getBandTargets(s.workflow, s.sw, 'Recall');
+      if(prec!==null && !['exc','ach'].includes(assignBand(prec, precTgt, false))) swPrecFail++;
+      if(rec!==null  && !['exc','ach'].includes(assignBand(rec, recTgt, false)))  swRecFail++;
+    });
+
+    // -- PSP + Early Warning (reviewer population, fixed methodology) --
+    const pspPopRows = filterRows(RAW_ROWS, tls, tenures, sws, workflows);
+    const pspReviewers = [...new Set(pspPopRows.map(r=>r.reviewer).filter(Boolean))];
+    const allMo = [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort();
+    const cohortMo = allMo[allMo.length-1];
+    const prevMo = allMo.length>1 ? allMo[allMo.length-2] : null;
+    const overallTgt2 = BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96;
+    const qualForMonth = (rvName, mo) => {
+      let t=0,tp=0,tn=0,fp=0,fn=0;
+      RAW_ROWS.filter(r=>r.reviewer===rvName&&r.month===mo).forEach(r=>{tp+=r.tpa;tn+=r.tna;fp+=r.fpa;fn+=r.fna;t+=r.tpa+r.tna+r.fpa+r.fna;});
+      const acc=t>0?(tp+tn)/t:null, ar=t>0?(tp+fp)/t:null;
+      const prec=(tp+fp)>0?tp/(tp+fp):null, rec=(tp+fn)>0?tp/(tp+fn):null;
+      return {acc,ar,prec,rec};
+    };
+    let pspCount=0, pspPrecCount=0, pspRecCount=0, pspImprovingCount=0;
+    let ewCount=0, ewPrecCount=0, ewRecCount=0;
+    pspReviewers.forEach(rvName => {
+      const cq = qualForMonth(rvName, cohortMo);
+      const pq = prevMo ? qualForMonth(rvName, prevMo) : null;
+      const usesPR = cq.ar!==null && cq.ar>=0.10;
+      let missPrec=false, missRec=false, missAcc=false, curVal=null, prevVal=null;
+      if(usesPR) {
+        missPrec = cq.prec!==null && cq.prec<overallTgt2;
+        missRec  = cq.rec!==null  && cq.rec<overallTgt2;
+        curVal = missPrec ? cq.prec : cq.rec;
+        prevVal = pq ? (missPrec ? pq.prec : pq.rec) : null;
+      } else {
+        missAcc = cq.acc!==null && cq.acc<overallTgt2;
+        curVal = cq.acc; prevVal = pq ? pq.acc : null;
+      }
+      const isPSPRv = missPrec || missRec || missAcc;
+      if(isPSPRv) {
+        pspCount++;
+        if(missPrec) pspPrecCount++;
+        if(missRec) pspRecCount++;
+        if(!missPrec && !missRec && missAcc) { /* accuracy-driven, not counted in P/R split */ }
+        if(prevVal!==null && curVal!==null && curVal>prevVal) pspImprovingCount++;
+      } else {
+        // Early warning: not PSP (passed last complete month) but MTD (same
+        // cohort month if still open — using cohortMo as MTD proxy since
+        // that's the latest month present) is failing. Reuses the qual
+        // vars already computed for the snapshot-card-style MTD signal.
+        // Here we approximate MTD via the current filtered qualRowsLM scoped
+        // to this reviewer, respecting the AR gate.
+        const rvRows = qualRowsLM.filter(r=>r.reviewer===rvName);
+        let t=0,tp=0,tn=0,fp=0,fn=0;
+        rvRows.forEach(r=>{const q=getQualMetrics(r,qualType);tp+=q.tp||0;tn+=q.tn||0;fp+=q.fp||0;fn+=q.fn||0;t+=(q.tp||0)+(q.tn||0)+(q.fp||0)+(q.fn||0);});
+        if(t>0) {
+          const ar=(tp+fp)/t;
+          if(ar>=0.10) {
+            const prec=(tp+fp)>0?tp/(tp+fp):null, rec=(tp+fn)>0?tp/(tp+fn):null;
+            const mPrec = prec!==null && prec<overallTgt2;
+            const mRec  = rec!==null && rec<overallTgt2;
+            if(mPrec||mRec) { ewCount++; if(mPrec) ewPrecCount++; if(mRec) ewRecCount++; }
+          } else {
+            const acc=(tp+tn)/t;
+            if(acc<overallTgt2) ewCount++;
+          }
+        }
+      }
+    });
+
+    pspEl.innerHTML =
+      kcard('SW failing Precision', String(swPrecFail), 'na', `of ${swTotal} SW · ${qLabel} Precision`, null, null, null, {compact:true, onClick:deLink('adj_prec')}) +
+      kcard('SW failing Recall', String(swRecFail), 'na', `of ${swTotal} SW · ${qLabel} Recall`, null, null, null, {compact:true, onClick:deLink('adj_rec')}) +
+      kcard('Reviewers on PSP', String(pspCount), 'na', `${pspPrecCount} Precision · ${pspRecCount} Recall · ${pspImprovingCount} improving`, null, null, null, {compact:true}) +
+      kcard('Early warning MTD', String(ewCount), 'na', `${ewPrecCount} Precision · ${ewRecCount} Recall`, null, null, null, {compact:true});
+
+    // Force fail cards to always show coral bar (they're always a "watch" metric — the number itself is what matters, not a hidden pass state)
+    setTimeout(()=>{
+      const cards = pspEl.querySelectorAll('.kcard-compact');
+      if(cards[0]) { cards[0].style.borderLeftColor='var(--coral)'; cards[0].style.background='var(--cbg)'; }
+      if(cards[1]) { cards[1].style.borderLeftColor='var(--coral)'; cards[1].style.background='var(--cbg)'; }
+      if(cards[2]) { cards[2].style.borderLeftColor='var(--amber)'; cards[2].style.background='var(--abg)'; }
+      if(cards[3]) { cards[3].style.borderLeftColor='var(--amber)'; cards[3].style.background='var(--abg)'; }
+    }, 0);
+  })();
 
   // ── Attention banner — surfaces every metric currently flagged bad/warn ────
   // Reuses the same flag() thresholds already driving each card's color, so
@@ -8422,24 +8537,72 @@ function renderDrillDown(){
           .map(([pol,v])=>({pol,avgAht:v.dec>0?v.dht/v.dec:0,pct:_pDec>0?v.dec/_pDec:0,impact:(v.dec>0?v.dht/v.dec:0)*(_pDec>0?v.dec/_pDec:0)}))
           .sort((a,b)=>b.impact-a.impact).slice(0,3);
 
-      // PSP status for this reviewer
+      // PSP status for this reviewer — mirrors PSP Tracker's Status column:
+      // AR-gated (Accuracy if AR<10%, else Precision AND Recall both need to
+      // pass), based on the last COMPLETE month (cohortM here is the latest
+      // month present in the dataset, treated as "previous" for this check).
+      // Attributes which specific KPI caused the miss.
       const cohortM=allMonthsSorted[allMonthsSorted.length-1];
       const prevMForPSP=allMonthsSorted.length>1?allMonthsSorted[allMonthsSorted.length-2]:null;
       let pspStatus='Non-PSP';
-      const getAcc=(mo)=>{
+      let pspMissKPI=null; // 'Precision' | 'Recall' | 'Accuracy' | null
+      const getMonthQual=(mo)=>{
           let mr=RAW_ROWS.filter(r=>r.reviewer===rv&&r.month===mo);
-          let t=0,tp=0,tn=0;mr.forEach(r=>{tp+=r.tpa;tn+=r.tna;t+=r.tpa+r.tna+r.fpa+r.fna;});
-          return t>0?(tp+tn)/t:null;
+          let t=0,tp=0,tn=0,fp=0,fn=0;mr.forEach(r=>{tp+=r.tpa;tn+=r.tna;fp+=r.fpa;fn+=r.fna;t+=r.tpa+r.tna+r.fpa+r.fna;});
+          const acc=t>0?(tp+tn)/t:null;
+          const ar=t>0?(tp+fp)/t:null;
+          const prec=(tp+fp)>0?tp/(tp+fp):null;
+          const rec=(tp+fn)>0?tp/(tp+fn):null;
+          return {acc,ar,prec,rec};
       };
-      const cohAcc=getAcc(cohortM), prevAcc2=prevMForPSP?getAcc(prevMForPSP):null;
+      const getAcc=(mo)=>getMonthQual(mo).acc; // kept for Consecutive Below below (Accuracy-only trend)
+      const cohQ=getMonthQual(cohortM), prevQ=prevMForPSP?getMonthQual(prevMForPSP):null;
       const overallTgt = BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96;
-      const isPSP=cohAcc!==null&&cohAcc<overallTgt;
+      const cohUsesPR = cohQ.ar!==null && cohQ.ar>=0.10;
+      let cohAcc, prevAcc2, isPSP;
+      if(cohUsesPR) {
+          const precFail = cohQ.prec!==null && cohQ.prec<overallTgt;
+          const recFail  = cohQ.rec!==null && cohQ.rec<overallTgt;
+          isPSP = precFail || recFail;
+          pspMissKPI = precFail && recFail ? 'Precision & Recall' : precFail ? 'Precision' : recFail ? 'Recall' : null;
+          // Trend uses whichever failed metric (Precision if both) vs prior month same metric
+          cohAcc = precFail ? cohQ.prec : cohQ.rec;
+          prevAcc2 = prevQ ? (precFail ? prevQ.prec : prevQ.rec) : null;
+      } else {
+          const accFail = cohQ.acc!==null && cohQ.acc<overallTgt;
+          isPSP = accFail;
+          pspMissKPI = accFail ? 'Accuracy' : null;
+          cohAcc = cohQ.acc;
+          prevAcc2 = prevQ ? prevQ.acc : null;
+      }
       if(isPSP){
-          if(cohAcc>=overallTgt) pspStatus='PSP-Within Goal';
+          if(cohAcc!==null&&cohAcc>=overallTgt) pspStatus='PSP-Within Goal';
           else if(prevAcc2!==null&&cohAcc>prevAcc2) pspStatus='PSP-Improving';
           else if(prevAcc2!==null&&cohAcc<prevAcc2) pspStatus='PSP-Regressing';
           else pspStatus='PSP';
       }
+      const pspLabel = isPSP && pspMissKPI ? `PSP · ${pspMissKPI}` : pspStatus;
+
+      // MTD early warning — is the reviewer CURRENTLY (still-open latest
+      // month, via the already-computed cAcc/cPrec/cRec/cAr for this
+      // period) tracking below target, using the same AR-gating? Distinct
+      // from pspStatus above, which only looks at the last COMPLETE month.
+      let mtdMissKPI = null;
+      const mtdUsesPR = cAr!==null && cAr>=0.10;
+      if(mtdUsesPR) {
+          const mtdPrecFail = cPrec!==null && cPrec<overallTgt;
+          const mtdRecFail  = cRec!==null && cRec<overallTgt;
+          if(mtdPrecFail && mtdRecFail) mtdMissKPI = 'Precision & Recall';
+          else if(mtdPrecFail) mtdMissKPI = 'Precision';
+          else if(mtdRecFail) mtdMissKPI = 'Recall';
+      } else if(cAcc!==null && cAcc<overallTgt) {
+          mtdMissKPI = 'Accuracy';
+      }
+      // Only show the early-warning pill if not already officially PSP this period
+      const showMtdWarning = mtdMissKPI!==null && pspStatus==='Non-PSP';
+      const mtdWarningHTML = showMtdWarning
+          ? `<span style="background:var(--asec);color:var(--amber);border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px;margin-left:6px">⚠ MTD miss - ${mtdMissKPI}</span>`
+          : '';
 
       // Consecutive Below auto-flag — count how many of the last N months are below target
       const last6Months = allMonthsSorted.slice(-6);
@@ -8545,7 +8708,7 @@ function renderDrillDown(){
             <div style="font-size:11px;color:var(--tm)">TL: ${supName} · ${tenureLabel} · ${topWF}</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-            <span style="background:${pspBg};color:${pspC};border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px">● ${pspStatus}</span>${consecFlag}
+            <span style="background:${pspBg};color:${pspC};border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px">● ${pspLabel}</span>${mtdWarningHTML}${consecFlag}
             <span style="font-size:10px;color:var(--tm);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:2px 8px">${fmtMonth(latestM)||'—'}</span>
           </div>
         </div>
@@ -9152,28 +9315,30 @@ function renderDrillOppPanel(rows, rv, el) {
   const qualHTML = qualFails.length  ? qualFails.map(f=>renderLine(f, true)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No quality gaps</span></div>';
   const ahtHTML  = ahtFailsSorted.length ? ahtFailsSorted.map(f=>renderLine(f, false)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No AHT gaps</span></div>';
 
-  // Active Errors — SWs with a policy error in the last 60 days that are
-  // NOT already surfaced in Quality Gaps (avoids double-listing the same
-  // SW under two columns). Distinct concept from qualFails: error recency,
-  // not a current metric-band miss.
+  // Other Active Quality Gaps — SWs with a policy error in the last 60 days
+  // (anchored to the latest available quality data, not wall-clock today)
+  // that are NOT already surfaced in MTD Active Quality Gaps. Sourced from
+  // the reviewer's full history — intentionally NOT filtered by the current
+  // date/period selection, so it's always visible regardless of filter.
   const _qualGapSWs = new Set(qualFails.map(f=>f.sw));
-  const _now60 = new Date();
+  const _latestWkE = WEEKS.length ? WEEKS[WEEKS.length-1] : RAW_ROWS.map(r=>r.week).sort().pop();
+  const _allTimeRvRows = RAW_ROWS.filter(r => r.reviewer === rv);
   const _activeErrMap = {};
-  rows.forEach(r => {
+  _allTimeRvRows.forEach(r => {
     if(!r.pol || (r.fpa+r.fna)<=0 || !r.sw) return;
     if(_qualGapSWs.has(r.sw)) return;
-    const days = (_now60 - new Date(r.week)) / 86400000;
+    const days = (new Date(_latestWkE) - new Date(r.week)) / 86400000;
     if(days > 60) return;
     if(!_activeErrMap[r.sw]) _activeErrMap[r.sw] = new Set();
     _activeErrMap[r.sw].add(r.pol);
   });
   const activeErrSWs = Object.entries(_activeErrMap).map(([sw,pols])=>({sw, count:pols.size}));
   const activeErrHTML = activeErrSWs.length
-    ? activeErrSWs.map(x=>`<div class="opp-line" style="flex-direction:column;align-items:stretch">
+    ? activeErrSWs.map(x=>`<div class="opp-line">
         <div style="display:flex;align-items:center">
           <span class="opp-kpill app">Active</span>
           <span class="opp-sw">${x.sw}</span>
-          <span class="opp-val app">${x.count} error${x.count!==1?'s':''}<span style="font-size:8px;color:var(--tm);font-weight:400">/60d</span></span>
+          <span class="opp-val app">${x.count}<span style="font-size:8px;color:var(--tm);font-weight:400">/60d</span></span>
         </div>
       </div>`).join('')
     : '<div class="opp-line"><span class="snap-kpi-dim">No other active errors</span></div>';
