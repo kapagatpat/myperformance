@@ -4040,7 +4040,44 @@ function renderSummaryTable(rows, tableId, showSW) {
         const legLabel = legMonths.length<=3 && legMonths.length>0
             ? 'Last '+legMonths.length+' month'+(legMonths.length!==1?'s':'')+': '+legMonths.map(fmtMonth).join(', ')
             : mkDateLegend('Range', fmtW(weeks[0]), fmtW(weeks[weeks.length-1]));
-        leg.innerHTML = legLabel;
+
+        // SW pass/eligible counts — Quality (AR-gated Acc vs P&R) and AHT,
+        // matching the same band logic used elsewhere for consistency.
+        const _swAgg = {};
+        rows.forEach(r => {
+            const key = r.sw||'Unknown';
+            if(!_swAgg[key]) _swAgg[key] = {sw:key, workflow:r.workflow||'', tpa:0,tna:0,fpa:0,fna:0,dht:0,nht:0,dec:0};
+            const s=_swAgg[key];
+            s.tpa+=r.tpa; s.tna+=r.tna; s.fpa+=r.fpa; s.fna+=r.fna; s.dht+=r.dht; s.nht+=r.nht; s.dec+=r.decisions;
+        });
+        let _qEligible=0,_qPass=0,_aEligible=0,_aPass=0;
+        Object.values(_swAgg).forEach(s => {
+            const tot=s.tpa+s.tna+s.fpa+s.fna;
+            if(tot>0) {
+                _qEligible++;
+                const ar=(s.tpa+s.fpa)/tot;
+                const useAcc = ar<0.10;
+                if(useAcc) {
+                    const acc=(s.tpa+s.tna)/tot;
+                    const b=getBandTargets(s.workflow,s.sw,'Accuracy');
+                    if(['exc','ach'].includes(assignBand(acc,b,false))) _qPass++;
+                } else {
+                    const prec=(s.tpa+s.fpa)>0?s.tpa/(s.tpa+s.fpa):null;
+                    const rec=(s.tpa+s.fna)>0?s.tpa/(s.tpa+s.fna):null;
+                    const pB=getBandTargets(s.workflow,s.sw,'Precision');
+                    const rB=getBandTargets(s.workflow,s.sw,'Recall');
+                    if(prec!==null && rec!==null && ['exc','ach'].includes(assignBand(prec,pB,false)) && ['exc','ach'].includes(assignBand(rec,rB,false))) _qPass++;
+                }
+            }
+            if(s.dec>=5) {
+                _aEligible++;
+                const aht=(s.dht+s.nht)/s.dec;
+                const b=getBandTargets(s.workflow,s.sw,'AHT');
+                if(['exc','ach'].includes(assignBand(aht,b,true))) _aPass++;
+            }
+        });
+        const passChip = ` <span style="font-size:9px;font-weight:700;color:var(--tm)">· QA ${_qPass}/${_qEligible} SW passing · AHT ${_aPass}/${_aEligible} SW passing</span>`;
+        leg.innerHTML = legLabel + passChip;
     }
 
     // Two-row header: month groups on top, week dates below
@@ -7453,6 +7490,8 @@ function renderDrillDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
 
     const labels  = periods.map(d=>d.label);
     const accData = periods.map(d=>{const t=d.tpa+d.tna+d.fpa+d.fna;return t>0?parseFloat(((d.tpa+d.tna)/t*100).toFixed(2)):null;});
+    const precData = periods.map(d=>(d.tpa+d.fpa)>0?parseFloat((d.tpa/(d.tpa+d.fpa)*100).toFixed(2)):null);
+    const recData  = periods.map(d=>(d.tpa+d.fna)>0?parseFloat((d.tpa/(d.tpa+d.fna)*100).toFixed(2)):null);
     const ahtData = periods.map(d=>d.dec>0?parseFloat(((d.dht+d.nht)/d.dec).toFixed(1)):null);
     const accTgt  = labels.map(()=>parseFloat((accTarget*100).toFixed(1)));
     const ahtTgt  = ahtTarget ? labels.map(()=>ahtTarget) : null;
@@ -7481,6 +7520,8 @@ function renderDrillDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
     const datasets = [
         { label:'Accuracy %', data:accData, borderColor:'#1A56DB', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, pointBackgroundColor:accPtColors, spanGaps:true, tension:0.3, yAxisID:'yAcc' },
         { label:'Accuracy Target', data:accTgt, borderColor:'#1A56DB', borderWidth:1.2, borderDash:[5,4], pointRadius:0, backgroundColor:'transparent', spanGaps:true, yAxisID:'yAcc' },
+        { label:'Adj Precision %', data:precData, borderColor:'#0F766E', backgroundColor:'transparent', borderWidth:1.5, pointRadius:2, spanGaps:true, tension:0.3, yAxisID:'yAcc' },
+        { label:'Adj Recall %', data:recData, borderColor:'#7C3AED', backgroundColor:'transparent', borderWidth:1.5, pointRadius:2, spanGaps:true, tension:0.3, yAxisID:'yAcc' },
         { label:'Avg AHT (s)', data:ahtData, borderColor:'#D97706', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, pointBackgroundColor:ahtPtColors, spanGaps:true, tension:0.3, yAxisID:'yAHT' },
     ];
     if(ahtTgt) datasets.push({ label:'AHT Target', data:ahtTgt, borderColor:'#D97706', borderWidth:1.2, borderDash:[5,4], pointRadius:0, backgroundColor:'transparent', spanGaps:true, yAxisID:'yAHT' });
@@ -8120,12 +8161,24 @@ function renderDrillDown(){
 
   const t3From = fw;
   const t3To   = tw;
-  let rowsLM = rows;
+
+  // Reviewer Trends + AHT vs Quality Over Time default to the last 12 weeks
+  // when no explicit month filter is active — matches the fixed-window
+  // convention used elsewhere (e.g. Performance Summary Table). If the user
+  // has picked specific months in the filter bar, that selection wins.
+  let trendRows = rows;
+  if(!selMonths.length) {
+      const _drAllWeeks = [...new Set(baseRvRows.map(r=>r.week).filter(Boolean))].sort();
+      const _drLast12Weeks = new Set(_drAllWeeks.slice(-12));
+      trendRows = filterRows(baseRvRows.filter(r=>_drLast12Weeks.has(r.week)), [], [], sws, workflows);
+  }
+
+  let rowsLM = trendRows;
   let teamBaseRows = selMonths.length ? RAW_ROWS.filter(r=>selMonths.includes(r.month)) : RAW_ROWS;
   let teamRowsLM = filterRows(teamBaseRows, [], [], sws, workflows);
 
   // Dynamic legend chips — month based
-  const drMonthLabel = selMonths.length ? selMonths.map(fmtMonth).join(', ') : 'All months';
+  const drMonthLabel = selMonths.length ? selMonths.map(fmtMonth).join(', ') : 'Last 12 weeks';
   const rangeLeg = `<span style="background:var(--bbg);color:var(--blue);border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 8px;margin-left:6px">${drMonthLabel}</span>`;
   const trendChip = rangeLeg;
   const trendLeg=document.getElementById('dr-trend-legend'); if(trendLeg) trendLeg.innerHTML=trendChip;
@@ -8253,7 +8306,7 @@ function renderDrillDown(){
   document.getElementById('dr-acc-title-extra').textContent=totalAccWeeks>0?` | Passed ${accPassWeeks}/${totalAccWeeks} weeks (${Math.round(accPassWeeks/totalAccWeeks*100)})%`:'' ;
   document.getElementById('dr-aht-title-extra').textContent=totalAhtWeeks>0?` | Passed ${ahtPassWeeks}/${totalAhtWeeks} weeks (${Math.round(ahtPassWeeks/totalAhtWeeks*100)})%`:'';
 
-  renderDrillDualAxis(rows, targetAcc, targetAht, rangeLeg);
+  renderDrillDualAxis(trendRows, targetAcc, targetAht, rangeLeg);
 
   renderTrendCharts(rowsLM,'chart-dr-acc','chart-dr-aht',null,targetAht,targetAcc,sws.length!==1);
   renderPolicyPareto(rows);
@@ -9116,9 +9169,12 @@ function renderDrillOppPanel(rows, rv, el) {
   });
   const activeErrSWs = Object.entries(_activeErrMap).map(([sw,pols])=>({sw, count:pols.size}));
   const activeErrHTML = activeErrSWs.length
-    ? activeErrSWs.map(x=>`<div class="opp-line" style="gap:6px">
-        <span class="opp-sw">${x.sw}</span>
-        <span style="font-size:9px;font-weight:700;background:var(--asec);color:var(--amber);border-radius:var(--pill);padding:1px 7px;white-space:nowrap">${x.count} active</span>
+    ? activeErrSWs.map(x=>`<div class="opp-line" style="flex-direction:column;align-items:stretch">
+        <div style="display:flex;align-items:center">
+          <span class="opp-kpill app">Active</span>
+          <span class="opp-sw">${x.sw}</span>
+          <span class="opp-val app">${x.count} error${x.count!==1?'s':''}<span style="font-size:8px;color:var(--tm);font-weight:400">/60d</span></span>
+        </div>
       </div>`).join('')
     : '<div class="opp-line"><span class="snap-kpi-dim">No other active errors</span></div>';
 
@@ -9129,25 +9185,6 @@ function renderDrillOppPanel(rows, rv, el) {
   const qualPassCount = qualEligibleCount - new Set(qualFails.map(f=>f.sw)).size;
   const ahtEligibleCount = Object.values(swMap).filter(s=>s.dec>=5).length;
   const ahtPassCount = ahtEligibleCount - new Set(ahtFails.map(f=>f.sw)).size;
-
-  // Action row — list ALL NI gaps, then Approaching gaps
-  const allNI  = [...qualFails,...ahtFails].filter(f=>f.band==='ni');
-  const allApp = [...qualFails,...ahtFails].filter(f=>f.band==='app');
-  const fmtGap = f => {
-    const v = f.isAHT ? Math.round(f.val)+'s' : (f.val*100).toFixed(1)+'%';
-    const t = f.bandObj&&f.bandObj.ach ? (f.isAHT?Math.round(f.bandObj.ach)+'s':(f.bandObj.ach*100).toFixed(1)+'%') : '—';
-    return `<span style="background:var(--csec);color:var(--coral);border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700;white-space:nowrap">${f.metric} · ${f.sw}</span> <span style="font-family:var(--m);font-size:10px">${v}/${t}</span>`;
-  };
-  const fmtGapApp = f => {
-    const v = f.isAHT ? Math.round(f.val)+'s' : (f.val*100).toFixed(1)+'%';
-    const t = f.bandObj&&f.bandObj.ach ? (f.isAHT?Math.round(f.bandObj.ach)+'s':(f.bandObj.ach*100).toFixed(1)+'%') : '—';
-    return `<span style="background:var(--asec);color:var(--amber);border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700;white-space:nowrap">${f.metric} · ${f.sw}</span> <span style="font-family:var(--m);font-size:10px">${v}/${t}</span>`;
-  };
-  const actionHTML = (allNI.length||allApp.length) ? `<div class="opp-action-row" style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
-    <span style="flex-shrink:0;font-weight:700">🎯 Focus:</span>
-    ${allNI.map(fmtGap).join(' ')}
-    ${allApp.length?`<span style="color:var(--tm);font-size:10px;font-weight:700;align-self:center">· Approaching:</span> ${allApp.map(fmtGapApp).join(' ')}`:''}
-  </div>` : '';
 
   el.innerHTML = `<div class="dr-opp-panel">
     <div class="opp-panel-head">
@@ -9161,11 +9198,11 @@ function renderDrillOppPanel(rows, rv, el) {
     </div>
     <div class="opp-cols">
       <div class="opp-col">
-        <div class="opp-col-head">Quality Gaps <span style="font-weight:400;color:var(--tm)">· ${qualPassCount}/${qualEligibleCount} SW passing</span></div>
+        <div class="opp-col-head">MTD Active Quality Gaps <span style="font-weight:400;color:var(--tm)">· ${qualPassCount}/${qualEligibleCount} SW passing</span></div>
         ${qualHTML}
       </div>
       <div class="opp-col">
-        <div class="opp-col-head">Active Errors <span style="font-weight:400;color:var(--tm)">· not in Quality Gaps</span></div>
+        <div class="opp-col-head">Other Active Quality Gaps <span style="font-weight:400;color:var(--tm)">· not in MTD gaps</span></div>
         ${activeErrHTML}
       </div>
       <div class="opp-col">
@@ -9173,7 +9210,6 @@ function renderDrillOppPanel(rows, rv, el) {
         ${ahtHTML}
       </div>
     </div>
-    ${actionHTML}
   </div>`;
 }
 
