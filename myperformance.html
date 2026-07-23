@@ -18083,12 +18083,91 @@ function _generateCoachingDocInner(mcdConfig) {
             return res.sort((a,b)=>b.drop-a.drop);
         })();
 
+        // ── Standing this month: Incentive rank + Stack Ranking position ──────
+        // Self-contained (doesn't call into the Incentive/Stack Ranking tab
+        // modules — those are private to their own closures). Reproduces the
+        // core scoring shape (Accuracy/Precision/Recall + AHT bonus +
+        // absenteeism) across ALL reviewers for currMonth, then finds rv's
+        // position. Only surfaces rank, per Karl — not the underlying score.
+        const _standingWin = (() => {
+            const STAND_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
+            const monthRows = RAW_ROWS.filter(r => r.month === currMonth && !STAND_EXCLUDE.includes(r.reviewer));
+            if(!monthRows.length) return null;
+            const monthWeeks = [...new Set(monthRows.map(r=>r.week))];
+
+            // -- Incentive score rank --
+            const rvMap = {};
+            monthRows.forEach(r => {
+                if(!r.reviewer) return;
+                if(!rvMap[r.reviewer]) rvMap[r.reviewer] = { rows: [] };
+                rvMap[r.reviewer].rows.push(r);
+            });
+            const incTotals = {};
+            Object.keys(rvMap).forEach(name => {
+                const rows = rvMap[name].rows;
+                const qRows = rows.filter(r=>r.sw);
+                let tpa=0,fpa=0,fna=0,tna=0;
+                qRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;});
+                const tot=tpa+fpa+fna+tna;
+                const acc = tot>0 ? (tpa+tna)/tot : null;
+                const prec = (tpa+fpa)>0 ? tpa/(tpa+fpa) : null;
+                const rec  = (tpa+fna)>0 ? tpa/(tpa+fna) : null;
+                // AHT bonus: % of eligible SWs (>=5 dec, has target) at/under target
+                const swMap={};
+                rows.filter(r=>r.sw).forEach(r=>{ if(!swMap[r.sw]) swMap[r.sw]={dht:0,dec:0}; swMap[r.sw].dht+=r.dht||0; swMap[r.sw].dec+=r.decisions||0; });
+                let elig=0,hit=0;
+                Object.entries(swMap).forEach(([sw,d])=>{ const tgt=SW_TARGETS[sw]?.aht||null; if(!tgt||d.dec<5) return; elig++; if((d.dht/d.dec)<=tgt) hit++; });
+                const ahtB = elig>0 ? hit/elig : null;
+                // Absenteeism bonus: <=5% -> full point
+                let s=0,a=0;
+                monthWeeks.forEach(wk=>{ const w=WFM_LOOKUP[name.trim()+'|'+wk]; if(w){ s+=w.sched||0; a+=w.actual||0; } });
+                const absRate = s>0 ? Math.max(0,(s-a)/s) : null;
+                const absB = absRate!==null ? (absRate<=0.05?0.01:0) : null;
+                const pb = prec!==null ? Math.min(prec,1)*0.01 : null;
+                const rb = rec!==null ? Math.min(rec,1)*0.01 : null;
+                const ab = ahtB!==null ? Math.min(ahtB,1)*0.01 : null;
+                const comps=[acc,pb,rb,ab,absB];
+                incTotals[name] = comps.every(v=>v!==null) ? acc+pb+rb+ab+absB : null;
+            });
+            const incRanked = Object.keys(incTotals).filter(n=>incTotals[n]!==null).sort((a,b)=>incTotals[b]-incTotals[a]);
+            const incRank = incRanked.indexOf(rv)+1;
+            const incLine = incRank>0 ? `Incentive standing: <strong>Ranked #${incRank} of ${incRanked.length}</strong> reviewers this month.` : null;
+
+            // -- Stack Ranking position (legacy accuracy+AHT blended rank) --
+            const srMap = {};
+            monthRows.forEach(r => {
+                if(!r.reviewer) return;
+                if(!srMap[r.reviewer]) srMap[r.reviewer] = { tpa:0,tna:0,fpa:0,fna:0,dec:0,dht:0,nht:0 };
+                const m = srMap[r.reviewer];
+                m.tpa+=r.tpa||0; m.tna+=r.tna||0; m.fpa+=r.fpa||0; m.fna+=r.fna||0;
+                m.dec+=r.decisions||0; m.dht+=r.dht||0; m.nht+=r.nht||0;
+            });
+            const srList = Object.entries(srMap).map(([name,m])=>{
+                const tot=m.tpa+m.tna+m.fpa+m.fna;
+                const acc = tot>0 ? (m.tpa+m.tna)/tot : null;
+                const aht = m.dec>0 ? (m.dht+m.nht)/m.dec : null;
+                return { name, acc, aht, dec:m.dec };
+            }).filter(x=>x.acc!==null && x.aht!==null && x.dec>=1);
+            [...srList].sort((a,b)=>b.acc-a.acc).forEach((x,i)=>{ x.qualRank=i+1; });
+            [...srList].sort((a,b)=>a.aht-b.aht).forEach((x,i)=>{ x.effRank=i+1; });
+            srList.forEach(x=>{ x.ows=(x.qualRank*0.70)+(x.effRank*0.30); });
+            srList.sort((a,b)=>a.ows-b.ows);
+            const srIdx = srList.findIndex(x=>x.name===rv);
+            const srLine = srIdx>=0 ? `Stack Ranking: <strong>#${srIdx+1} of ${srList.length}</strong> reviewers this month.` : null;
+
+            const lines=[];
+            if(incLine) lines.push(incLine);
+            if(srLine) lines.push(srLine);
+            return lines;
+        })();
+
         const winLines=[];
         if(mtdQualityWin) winLines.push({area:'Quality',txt:mtdQualityWin});
         if(swsMeetingQualityGoal.length>0) winLines.push({area:'Quality',txt:`<strong>${swsMeetingQualityGoal.length} sub-workflow${swsMeetingQualityGoal.length!==1?'s':''}</strong> meeting quality goal this month (${swsMeetingQualityGoal.join(', ')}).`});
         if(winErrRecovery2.length>0) winLines.push({area:'Quality',txt:`Zero new <strong>${winErrRecovery2.slice(0,2).join(', ')}</strong> errors in 5 weeks. Great recovery.`});
         if(swsMeetingAHTGoal.length>0) winLines.push({area:'AHT',txt:`<strong>${swsMeetingAHTGoal.length} sub-workflow${swsMeetingAHTGoal.length!==1?'s':''}</strong> meeting AHT goal this month (${swsMeetingAHTGoal.join(', ')}).`});
         if(winAHTImp2.length>0) winLines.push({area:'AHT',txt:`<strong>${winAHTImp2.slice(0,2).map(w=>w.sw).join(', ')}</strong> improved AHT week over week (down ${winAHTImp2[0].drop}s).`});
+        if(_standingWin) _standingWin.forEach(txt => winLines.push({area:'Standing', txt}));
 
         const winsBlock2 = winLines.length===0
             ? `<div style="padding:10px 14px;border-radius:8px;border:1px solid ${borderColor};font-size:12px;color:${textMuted};font-style:italic">No standout wins to highlight this period — focus areas below.</div>`
@@ -18458,9 +18537,9 @@ function _generateCoachingDocInner(mcdConfig) {
 
         const _topAHTMTD = _topAHTSW2 ? _getMTD2(_topAHTSW2) : null;
         const _ahtItems = _topAHTSW2
-            ? [`<strong>${_topAHTSW2}</strong> MTD AHT is ${_topAHTMTD.aht}s vs ${_topAHTMTD.tgt}s target. Track time on complex cases — identify where the seconds are going.`,
+            ? [`Improve AHT on <strong>${_topAHTSW2}</strong> — MTD AHT is ${_topAHTMTD.aht}s vs ${_topAHTMTD.tgt}s target. Track time on complex cases — identify where the seconds are going.`,
                `Flag any jobs over ${Math.round(_topAHTMTD.tgt*1.5)}s to your TL so they can check for routing or tool issues.`]
-            : [`AHT on target across all sub-workflows this period — maintain your current pace and flag any unusual job types to your TL.`];
+            : [`Maintain AHT — on target across all sub-workflows this period. Keep your current pace and flag any unusual job types to your TL.`];
         const _ahtCommit = _topAHTSW2 ? `${_topAHTSW2} AHT ≤${_topAHTMTD.tgt}s for WE ${fmtW(_cdLastBakedWk||'next week')}` : null;
 
         // 4-column table layout: area badge | reviewer does | TL does | commit.
@@ -18477,7 +18556,7 @@ function _generateCoachingDocInner(mcdConfig) {
                </div>
                <div style="font-size:12px;color:${textPri};line-height:1.5">${rvCell || _wtEmpty}</div>
                <div style="font-size:12px;color:${textPri};line-height:1.5">${tlCell || _wtEmpty}</div>
-               <div style="font-size:11px;color:${accentColor};line-height:1.5;font-style:italic">${commitCell || _wtEmpty}</div>
+               <div style="font-size:11px;color:${green};line-height:1.5;font-style:italic">${commitCell || _wtEmpty}</div>
              </div>`;
 
         const focusCard = mcdConfig ? (()=>{
@@ -27710,7 +27789,7 @@ function mcdRenderEfficiency(){
     var eCommitHtml='<div class="mcd-e-commit-block">'
       +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">'
       +'<div class="mcd-commit-dot" style="background:var(--coral)"></div>'
-      +'<span style="font-size:10px;font-weight:700;color:var(--coral);text-transform:uppercase;letter-spacing:.04em" id="mcd-e-commit-lbl">Reduce AHT</span>'
+      +'<span style="font-size:10px;font-weight:700;color:var(--coral);text-transform:uppercase;letter-spacing:.04em" id="mcd-e-commit-lbl">Improve AHT</span>'
       +'</div>'
       +'<div style="background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;display:flex;flex-direction:column;gap:6px">';
     shown.forEach(function(x,i){
