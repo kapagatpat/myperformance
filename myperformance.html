@@ -8634,9 +8634,9 @@ function renderDrillDown(){
           : '';
       const pspColors={
           'PSP':['var(--coral)','var(--csec)'],
-          'PSP-Improving':['var(--amber)','var(--asec)'],
+          'PSP-Improving':['var(--coral)','var(--csec)'],
           'PSP-Regressing':['var(--coral)','var(--csec)'],
-          'PSP-Within Goal':['var(--green)','var(--gsec)'],
+          'PSP-Within Goal':['var(--coral)','var(--csec)'],
           'Non-PSP':['var(--green)','var(--gsec)']
       };
       const [pspC,pspBg]=pspColors[pspStatus]||['var(--tm)','var(--sa)'];
@@ -8719,7 +8719,7 @@ function renderDrillDown(){
             <div style="font-size:11px;color:var(--tm)">TL: ${supName} · ${tenureLabel} · ${topWF}</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-            <span style="background:${pspBg};color:${pspC};border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px">● ${pspBadgeLabel}</span>${mtdWarningHTML}${consecFlag}
+            ${isPSP ? `<span style="background:${pspBg};color:${pspC};border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px">● ${pspBadgeLabel}</span>` : ''}${mtdWarningHTML}${consecFlag}
             <span style="font-size:10px;color:var(--tm);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:2px 8px">${fmtMonth(latestM)||'—'}</span>
           </div>
         </div>
@@ -9392,7 +9392,12 @@ function renderDrillOppPanel(rows, rv, el) {
     // tied to one specific failing metric, unlike Quality Gaps rows).
     let rcaBlock = '';
     if (typeof rcamfLookup === 'function') {
-      const recs = rcamfLookup(rv, x.sw, oppMonthKeys);
+      const recsAll = rcamfLookup(rv, x.sw, []);
+      const recs = recsAll.filter(r => {
+        if (!r.week) return true;
+        const days = (new Date(_latestWkE) - new Date(r.week)) / 86400000;
+        return days <= 60;
+      });
       if (!recs.length && (typeof window.miscIsLoaded !== 'function' || !window.miscIsLoaded())) {
         rcaBlock = `<div style="margin-top:3px;font-size:10px;color:var(--ts);font-style:italic">Load Quality RCA data to see what's driving this gap</div>`;
       }
