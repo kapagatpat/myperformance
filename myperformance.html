@@ -4494,8 +4494,8 @@ function renderExec(){
     });
 
     pspEl.innerHTML =
-      kcard('SW failing Precision', String(swPrecFail), 'na', `of ${swTotal} SW · ${qLabel} Precision`, null, null, null, {compact:true, onClick:deLink('adj_prec')}) +
-      kcard('SW failing Recall', String(swRecFail), 'na', `of ${swTotal} SW · ${qLabel} Recall`, null, null, null, {compact:true, onClick:deLink('adj_rec')}) +
+      kcard('SW failing Precision', String(swPrecFail), 'na', `of ${swTotal} SW · ${qLabel} Precision`, null, null, null, {compact:true, onClick:`goToDataExplorerFiltered('adj_prec',['sw'])`}) +
+      kcard('SW failing Recall', String(swRecFail), 'na', `of ${swTotal} SW · ${qLabel} Recall`, null, null, null, {compact:true, onClick:`goToDataExplorerFiltered('adj_rec',['sw'])`}) +
       kcard('Reviewers on PSP', String(pspCount), 'na', `${pspPrecCount} Precision · ${pspRecCount} Recall · ${pspImprovingCount} improving`, null, null, null, {compact:true}) +
       kcard('Early warning MTD', String(ewCount), 'na', `${ewPrecCount} Precision · ${ewRecCount} Recall`, null, null, null, {compact:true});
 
@@ -8581,7 +8581,7 @@ function renderDrillDown(){
           else if(prevAcc2!==null&&cohAcc<prevAcc2) pspStatus='PSP-Regressing';
           else pspStatus='PSP';
       }
-      const pspLabel = isPSP && pspMissKPI ? `PSP · ${pspMissKPI}` : pspStatus;
+      const pspBadgeLabel = isPSP && pspMissKPI ? `PSP · ${pspMissKPI}` : pspStatus;
 
       // MTD early warning — is the reviewer CURRENTLY (still-open latest
       // month, via the already-computed cAcc/cPrec/cRec/cAr for this
@@ -8708,7 +8708,7 @@ function renderDrillDown(){
             <div style="font-size:11px;color:var(--tm)">TL: ${supName} · ${tenureLabel} · ${topWF}</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-            <span style="background:${pspBg};color:${pspC};border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px">● ${pspLabel}</span>${mtdWarningHTML}${consecFlag}
+            <span style="background:${pspBg};color:${pspC};border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px">● ${pspBadgeLabel}</span>${mtdWarningHTML}${consecFlag}
             <span style="font-size:10px;color:var(--tm);background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:2px 8px">${fmtMonth(latestM)||'—'}</span>
           </div>
         </div>
@@ -8721,8 +8721,33 @@ function renderDrillDown(){
             const _accCls = cellCls(cAcc,'adj_acc') + (_highAR ? ' c-secondary' : '');
             const _preCls = cellCls(cPrec,'prec') + (!_highAR ? ' c-secondary' : '');
             const _recCls = cellCls(cRec,'rec') + (!_highAR ? ' c-secondary' : '');
+            // SW pass-rate — same eligible/pass logic used in Open Opportunities,
+            // scoped to this snapshot's own rows (whatever filter is active).
+            const _qSwAgg = {};
+            rows.forEach(r => {
+              const key = r.sw||'Unknown';
+              if(!_qSwAgg[key]) _qSwAgg[key] = {sw:key, workflow:r.workflow||'', tpa:0,tna:0,fpa:0,fna:0};
+              const s=_qSwAgg[key];
+              s.tpa+=r.tpa; s.tna+=r.tna; s.fpa+=r.fpa; s.fna+=r.fna;
+            });
+            let _qElig=0,_qPassSW=0;
+            Object.values(_qSwAgg).forEach(s => {
+              const tot=s.tpa+s.tna+s.fpa+s.fna; if(tot<=0) return;
+              _qElig++;
+              const ar=(s.tpa+s.fpa)/tot;
+              if(ar<0.10) {
+                const acc=(s.tpa+s.tna)/tot;
+                const b=getBandTargets(s.workflow,s.sw,'Accuracy');
+                if(['exc','ach'].includes(assignBand(acc,b,false))) _qPassSW++;
+              } else {
+                const prec=(s.tpa+s.fpa)>0?s.tpa/(s.tpa+s.fpa):null;
+                const rec=(s.tpa+s.fna)>0?s.tpa/(s.tpa+s.fna):null;
+                const pB=getBandTargets(s.workflow,s.sw,'Precision'), rB=getBandTargets(s.workflow,s.sw,'Recall');
+                if(prec!==null&&rec!==null&&['exc','ach'].includes(assignBand(prec,pB,false))&&['exc','ach'].includes(assignBand(rec,rB,false))) _qPassSW++;
+              }
+            });
             return `<div class="snap-kpi-col">
-              <div class="snap-kpi-col-head">Quality</div>
+              <div class="snap-kpi-col-head">Quality <span style="font-weight:400;color:var(--tm);font-size:9px">· ${_qPassSW}/${_qElig} SW passing</span></div>
               <div class="snap-kpi-row ${_accCls}">
                 <span class="snap-kpi-label">Adj Accuracy</span>
                 <span class="snap-kpi-val">${fmt(cAcc)}</span>
@@ -8754,8 +8779,24 @@ function renderDrillDown(){
             const _ddExp = _jt.expected!==null ? Math.round(_jt.expected) : null;
             const _ddC   = _jt.expected!==null ? jobGapColor(_jt.gap,_jt.expected) : 'var(--ts)';
             const _nhtCls = cNhtPct!==null ? (cNhtPct<=0.15?'c-good':cNhtPct<=0.25?'c-warn':'c-bad') : '';
+            // AHT SW pass-rate — same >=5 decisions gate used elsewhere.
+            const _aSwAgg = {};
+            rows.forEach(r => {
+              const key = r.sw||'Unknown';
+              if(!_aSwAgg[key]) _aSwAgg[key] = {sw:key, workflow:r.workflow||'', dht:0,nht:0,dec:0};
+              const s=_aSwAgg[key];
+              s.dht+=r.dht; s.nht+=r.nht; s.dec+=r.decisions;
+            });
+            let _aElig=0,_aPassSW=0;
+            Object.values(_aSwAgg).forEach(s => {
+              if(s.dec<5) return;
+              _aElig++;
+              const aht=(s.dht+s.nht)/s.dec;
+              const b=getBandTargets(s.workflow,s.sw,'AHT');
+              if(['exc','ach'].includes(assignBand(aht,b,true))) _aPassSW++;
+            });
             return `<div class="snap-kpi-col">
-              <div class="snap-kpi-col-head">Efficiency</div>
+              <div class="snap-kpi-col-head">Efficiency <span style="font-weight:400;color:var(--tm);font-size:9px">· ${_aPassSW}/${_aElig} SW passing</span></div>
               <div class="snap-kpi-row">
                 <span class="snap-kpi-label">AHT</span>
                 <span class="snap-kpi-val" style="color:${_aC}">${fmtS(cAht)}</span>
@@ -9334,13 +9375,16 @@ function renderDrillOppPanel(rows, rv, el) {
   });
   const activeErrSWs = Object.entries(_activeErrMap).map(([sw,pols])=>({sw, count:pols.size}));
   const activeErrHTML = activeErrSWs.length
-    ? activeErrSWs.map(x=>`<div class="opp-line">
-        <div style="display:flex;align-items:center">
-          <span class="opp-kpill app">Active</span>
-          <span class="opp-sw">${x.sw}</span>
-          <span class="opp-val app">${x.count}<span style="font-size:8px;color:var(--tm);font-weight:400">/60d</span></span>
-        </div>
-      </div>`).join('')
+    ? activeErrSWs.map(x=>{
+        const clickAttr = `onclick="if(typeof oppJumpToRCAExplorer==='function') oppJumpToRCAExplorer('${escAttr(rv)}','${escAttr(x.sw)}')"`;
+        return `<div class="opp-line" ${clickAttr} style="flex-direction:column;align-items:stretch;cursor:pointer">
+      <div style="display:flex;align-items:center">
+        <span class="opp-kpill app">Active</span>
+        <span class="opp-sw">${x.sw}</span>
+        <span class="opp-val app">${x.count}<span style="font-size:8px;color:var(--tm);font-weight:400">/60d</span></span>
+      </div>
+    </div>`;
+      }).join('')
     : '<div class="opp-line"><span class="snap-kpi-dim">No other active errors</span></div>';
 
   // Pass-ratio counts — eligible = same volume gate each column already uses
@@ -19045,7 +19089,7 @@ function goToTab(id, tabSelector) {
 // global filter bar), so this mirrors the current global filter selections
 // into DE's local filters, then groups by Reviewer and sorts by the relevant
 // metric ascending (worst first) so the person to talk to is the top row.
-function goToDataExplorerFiltered(sortCol) {
+function goToDataExplorerFiltered(sortCol, dims) {
   goToTab('dataexplorer', '.t-de');
 
   // Mirror current global filter selections (TL/tenure/SW/workflow/role/reviewType)
@@ -19071,9 +19115,11 @@ function goToDataExplorerFiltered(sortCol) {
     if(monthEl._rebuildOptions) monthEl._rebuildOptions();
   }
 
-  // Group by Reviewer (the actionable coaching unit) and sort by the flagged
-  // metric ascending so the worst performer is the very first row.
-  DE_DIMS = ['reviewer'];
+  // Group by Reviewer (the actionable coaching unit) by default, or by the
+  // caller's requested dims (e.g. SW health cards group by sub-workflow so
+  // the failing SWs actually surface), then sort by the flagged metric
+  // ascending so the worst is the very first row.
+  DE_DIMS = dims || ['reviewer'];
   DE_SORT = { col: sortCol, dir: 'asc', userSet: true };
 
   renderDataExplorer();
