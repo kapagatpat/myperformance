@@ -8585,25 +8585,11 @@ function renderDrillDown(){
 
         </div>
 
-        <!-- Signals strip — single compact row -->
-        <div style="padding:5px 12px;display:flex;align-items:center;gap:14px;background:var(--sa);border-top:1px solid var(--divider);flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-            <span style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">History</span>
-            <span style="display:flex;align-items:center;gap:1px">${dotsHTML}</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:5px;padding-left:12px;border-left:1px solid var(--divider);flex-shrink:0">
-            <span style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Repeats</span>
-            <span style="font-size:11px;font-weight:700;color:${repeatCount>0?'var(--coral)':'var(--green)'}">${repeatCount>0?repeatCount+' ★':'—'}</span>
-          </div>
-          ${top3ErrPols.length?`<div style="display:flex;align-items:center;gap:5px;padding-left:12px;border-left:1px solid var(--divider)">
-            <span style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Top Err</span>
-            ${top3ErrPols.slice(0,2).map(p=>`<span style="font-size:9px;font-weight:700;background:var(--csec);color:var(--coral);border-radius:var(--pill);padding:1px 6px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.pol}</span>`).join('')}
-          </div>`:''}
-          ${top3AhtPols.length?`<div style="display:flex;align-items:center;gap:5px;padding-left:12px;border-left:1px solid var(--divider)">
+        <!-- Signals strip — Top AHT only -->
+        ${top3AhtPols.length?`<div style="padding:5px 12px;display:flex;align-items:center;gap:5px;background:var(--sa);border-top:1px solid var(--divider);flex-wrap:wrap">
             <span style="font-size:9px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em">Top AHT</span>
             ${top3AhtPols.slice(0,2).map(p=>`<span style="font-size:9px;font-weight:700;background:var(--asec);color:var(--amber);border-radius:var(--pill);padding:1px 6px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.pol}</span>`).join('')}
           </div>`:''}
-        </div>
 
       </div>`;
 
@@ -9112,10 +9098,37 @@ function renderDrillOppPanel(rows, rv, el) {
 
   const qualHTML = qualFails.length  ? qualFails.map(f=>renderLine(f, true)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No quality gaps</span></div>';
   const ahtHTML  = ahtFailsSorted.length ? ahtFailsSorted.map(f=>renderLine(f, false)).join('')  : '<div class="opp-line"><span class="snap-kpi-dim">No AHT gaps</span></div>';
-  // Passing SWs — all on one line as pills, readable size
-  const passHTML = passing.length
-    ? `<div class="opp-line" style="flex-wrap:wrap;gap:4px;padding:6px 10px">${passing.map(sw=>`<span class="opp-kpill ach" style="font-size:10px;padding:2px 7px">✓ ${sw}</span>`).join('')}</div>`
-    : '<div class="opp-line"><span class="snap-kpi-dim">—</span></div>';
+
+  // Active Errors — SWs with a policy error in the last 60 days that are
+  // NOT already surfaced in Quality Gaps (avoids double-listing the same
+  // SW under two columns). Distinct concept from qualFails: error recency,
+  // not a current metric-band miss.
+  const _qualGapSWs = new Set(qualFails.map(f=>f.sw));
+  const _now60 = new Date();
+  const _activeErrMap = {};
+  rows.forEach(r => {
+    if(!r.pol || (r.fpa+r.fna)<=0 || !r.sw) return;
+    if(_qualGapSWs.has(r.sw)) return;
+    const days = (_now60 - new Date(r.week)) / 86400000;
+    if(days > 60) return;
+    if(!_activeErrMap[r.sw]) _activeErrMap[r.sw] = new Set();
+    _activeErrMap[r.sw].add(r.pol);
+  });
+  const activeErrSWs = Object.entries(_activeErrMap).map(([sw,pols])=>({sw, count:pols.size}));
+  const activeErrHTML = activeErrSWs.length
+    ? activeErrSWs.map(x=>`<div class="opp-line" style="gap:6px">
+        <span class="opp-sw">${x.sw}</span>
+        <span style="font-size:9px;font-weight:700;background:var(--asec);color:var(--amber);border-radius:var(--pill);padding:1px 7px;white-space:nowrap">${x.count} active</span>
+      </div>`).join('')
+    : '<div class="opp-line"><span class="snap-kpi-dim">No other active errors</span></div>';
+
+  // Pass-ratio counts — eligible = same volume gate each column already uses
+  const qualEligibleCount = Object.values(swMap).filter(s=>{
+    const tot=s.tpa+s.tna+s.fpa+s.fna; return tot>0;
+  }).length;
+  const qualPassCount = qualEligibleCount - new Set(qualFails.map(f=>f.sw)).size;
+  const ahtEligibleCount = Object.values(swMap).filter(s=>s.dec>=5).length;
+  const ahtPassCount = ahtEligibleCount - new Set(ahtFails.map(f=>f.sw)).size;
 
   // Action row — list ALL NI gaps, then Approaching gaps
   const allNI  = [...qualFails,...ahtFails].filter(f=>f.band==='ni');
@@ -9148,16 +9161,16 @@ function renderDrillOppPanel(rows, rv, el) {
     </div>
     <div class="opp-cols">
       <div class="opp-col">
-        <div class="opp-col-head">Quality Gaps</div>
+        <div class="opp-col-head">Quality Gaps <span style="font-weight:400;color:var(--tm)">· ${qualPassCount}/${qualEligibleCount} SW passing</span></div>
         ${qualHTML}
       </div>
       <div class="opp-col">
-        <div class="opp-col-head">AHT Gaps</div>
-        ${ahtHTML}
+        <div class="opp-col-head">Active Errors <span style="font-weight:400;color:var(--tm)">· not in Quality Gaps</span></div>
+        ${activeErrHTML}
       </div>
       <div class="opp-col">
-        <div class="opp-col-head">Passing SWs</div>
-        ${passHTML}
+        <div class="opp-col-head">AHT Gaps <span style="font-weight:400;color:var(--tm)">· ${ahtPassCount}/${ahtEligibleCount} SW passing</span></div>
+        ${ahtHTML}
       </div>
     </div>
     ${actionHTML}
@@ -13630,6 +13643,160 @@ function srToggleMonth(m) {
     renderStackRank();
 }
 
+// Standalone reviewer ranking calc — extracted from Stack Ranking tab so the
+// Reviewer Doc's rank line always matches exactly what that tab shows.
+// Takes explicit filter args instead of reading UI selects, so callers
+// (Stack Ranking tab, Reviewer Doc) each control their own scope.
+function computeRvRankingShared(months, tls, tenures, sws, workflows, isMayOnly) {
+    const rows = filterRows(qaFilter(RAW_ROWS.filter(r => months.includes(r.month))), tls, tenures, sws, workflows);
+    if(!rows.length) return { ranked: [], excluded: [], isMay: isMayOnly };
+
+    const rvMap = {};
+    const SR_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
+    rows.forEach(r => {
+        if(SR_RV_EXCLUDE.includes(r.reviewer)) return;
+        if(!rvMap[r.reviewer]) rvMap[r.reviewer] = { name: r.reviewer, supervisor: r.supervisor, tpa:0, tna:0, fpa:0, fna:0, dec:0, dht:0, nht:0, sw:r.sw, swDec:{}, swDht:{} };
+        const m = rvMap[r.reviewer];
+        m.tpa+=r.tpa; m.tna+=r.tna; m.fpa+=r.fpa; m.fna+=r.fna;
+        m.dec+=r.decisions; m.dht+=r.dht; m.nht+=r.nht;
+        if(r.sw) {
+            m.swDec[r.sw] = (m.swDec[r.sw]||0) + r.decisions;
+            m.swDht[r.sw] = (m.swDht[r.sw]||0) + r.dht;
+        }
+    });
+    const reviewers = Object.values(rvMap).filter(m => m.dec >= 1);
+    const excluded  = Object.values(rvMap).filter(m => m.dec < 1);
+    excluded.forEach(m => {
+        const tot = m.tpa+m.tna+m.fpa+m.fna;
+        m.acc = tot > 0 ? (m.tpa+m.tna)/tot : null;
+        m.aht = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
+    });
+    if(!reviewers.length) return { ranked: [], excluded, isMay: isMayOnly };
+
+    if(isMayOnly) {
+        const allRows       = filterRows(RAW_ROWS, tls, tenures, sws, workflows);
+        const siteTotalDht  = allRows.reduce((s,r)=>s+r.dht,0);
+        const siteTotalDec  = allRows.reduce((s,r)=>s+r.decisions,0);
+        const siteAvgAHT    = siteTotalDec > 0 ? siteTotalDht / siteTotalDec : 0;
+        const siteCorrect   = allRows.reduce((s,r)=>s+r.tpa+r.tna,0);
+
+        reviewers.forEach(m => {
+            const tot = m.tpa+m.tna+m.fpa+m.fna;
+            m.acc  = tot > 0 ? (m.tpa+m.tna)/tot : null;
+            m.aht  = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
+            m.tptn = m.tpa + m.tna;
+            m.accImpact = (m.acc !== null && siteCorrect > 0) ? m.acc * (m.tptn / siteCorrect) : null;
+            m.ahtImpact = (m.aht !== null && m.aht > 0 && siteTotalDht > 0) ? (siteAvgAHT / m.aht) * (m.dht / siteTotalDht) : null;
+        });
+        const valid = reviewers.filter(m => m.accImpact !== null && m.ahtImpact !== null);
+        if(!valid.length) return { ranked: [], excluded, isMay: true };
+        [...valid].sort((a,b)=>b.accImpact-a.accImpact).forEach((m,i)=>{ m.qualRank=i+1; });
+        [...valid].sort((a,b)=>b.ahtImpact-a.ahtImpact).forEach((m,i)=>{ m.effRank=i+1; });
+        valid.forEach(m => { m.ows = (m.qualRank*0.70)+(m.effRank*0.30); });
+        valid.sort((a,b)=>a.ows-b.ows);
+        valid.forEach((m,i)=>{ m.rank=i+1; });
+        return { ranked: valid, excluded, isMay: true, siteAvgAHT };
+
+    } else {
+        const isPostMayCutover = months.some(m => new Date(m) >= new Date('2026-03-01'));
+
+        if(isPostMayCutover) {
+            const decVals = reviewers.map(r => r.dec).filter(d => d > 0).sort((a,b) => a-b);
+            let minJobThresh = 0;
+            if(decVals.length >= 2) {
+                const _n      = decVals.length;
+                const _median = _n % 2 === 0
+                    ? (decVals[_n/2-1] + decVals[_n/2]) / 2
+                    : decVals[Math.floor(_n/2)];
+                const _mean  = decVals.reduce((s,x)=>s+x,0) / _n;
+                const _stdev = Math.sqrt(decVals.reduce((s,x)=>s+(_mean-x)**2,0) / _n);
+                minJobThresh = Math.max(_median - _stdev, 0);
+            }
+            const belowThresh = reviewers.filter(m => m.dec < minJobThresh);
+            belowThresh.forEach(m => {
+                const tot = m.tpa+m.tna+m.fpa+m.fna;
+                m.acc = tot > 0 ? (m.tpa+m.tna)/tot : null;
+                m.aht = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
+                m.lowVolume = true;
+            });
+            excluded.push(...belowThresh);
+            const finalReviewers = reviewers.filter(m => m.dec >= minJobThresh);
+
+            finalReviewers.forEach(m => {
+                const tot = m.tpa+m.tna+m.fpa+m.fna;
+                m.acc  = tot > 0 ? (m.tpa+m.tna)/tot : null;
+                m.aht  = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
+                m.tptn = m.tpa + m.tna;
+                let covDHT = 0, expJobs = 0;
+                if(m.swDht) {
+                    Object.entries(m.swDht).forEach(([sw, dht]) => {
+                        const t = SW_TARGETS[sw]?.aht;
+                        if(t && t > 0 && dht > 0) { covDHT += dht; expJobs += dht / t; }
+                    });
+                }
+                m.ahtTarget = expJobs > 0 ? covDHT / expJobs : (SW_TARGETS[m.sw]?.aht || null);
+                m.expJobs   = expJobs > 0 ? expJobs : null;
+                m.effScore  = m.aht !== null ? m.aht : null;
+            });
+            const valid = finalReviewers.filter(m => m.acc !== null && m.aht !== null);
+            if(!valid.length) return { ranked: [], excluded, isMay: false, isNewLegacy: true, minJobThresh };
+
+            const compRank = (arr, keyFn) => {
+                const sorted = [...arr].sort(keyFn);
+                let r = 1;
+                for(let i = 0; i < sorted.length; i++) {
+                    if(i > 0) {
+                        const prev = sorted[i-1], curr = sorted[i];
+                        if(keyFn(curr, prev) !== 0) r = i + 1;
+                    }
+                    sorted[i]._rank = r;
+                }
+                return sorted;
+            };
+
+            compRank(valid, (a,b) => b.acc - a.acc).forEach(m => { m.qualRank = m._rank; delete m._rank; });
+
+            valid.forEach(m => {
+                m.effScore = (m.ahtTarget !== null && m.ahtTarget > 0)
+                    ? m.aht - m.ahtTarget
+                    : m.aht;
+            });
+            compRank(valid, (a,b) => a.effScore - b.effScore).forEach(m => { m.effRank = m._rank; delete m._rank; });
+
+            compRank(valid, (a,b) => {
+                const ra = a.expJobs > 0 ? a.dec / a.expJobs : 0;
+                const rb = b.expJobs > 0 ? b.dec / b.expJobs : 0;
+                return rb - ra;
+            }).forEach(m => { m.volRank = m._rank; delete m._rank; });
+
+            valid.forEach(m => { m.ows = (m.qualRank*0.60) + (m.effRank*0.20) + (m.volRank*0.20); });
+            valid.sort((a,b) => a.ows - b.ows);
+
+            compRank(valid, (a,b) => a.ows - b.ows).forEach(m => { m.rank = m._rank; delete m._rank; });
+
+            return { ranked: valid, excluded, isMay: false, isNewLegacy: true, minJobThresh };
+
+        } else {
+            reviewers.forEach(m => {
+                const tot = m.tpa+m.tna+m.fpa+m.fna;
+                m.acc        = tot > 0 ? (m.tpa+m.tna)/tot : null;
+                m.aht        = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
+                m.tptn       = m.tpa + m.tna;
+                const dhtHrs = m.dht / 3600;
+                m.throughput = dhtHrs > 0 ? m.dec / dhtHrs : null;
+            });
+            const valid = reviewers.filter(m => m.acc !== null && m.throughput !== null);
+            if(!valid.length) return { ranked: [], excluded, isMay: false, isNewLegacy: false };
+            [...valid].sort((a,b)=>b.acc-a.acc).forEach((m,i)=>{ m.qualRank=i+1; });
+            [...valid].sort((a,b)=>b.throughput-a.throughput).forEach((m,i)=>{ m.effRank=i+1; });
+            valid.forEach(m => { m.ows = (m.qualRank*0.70)+(m.effRank*0.30); });
+            valid.sort((a,b)=>a.ows-b.ows);
+            valid.forEach((m,i)=>{ m.rank=i+1; });
+            return { ranked: valid, excluded, isMay: false, isNewLegacy: false };
+        }
+    }
+}
+
 function renderStackRank() {
     const el = document.getElementById('sr-content');
     if(!el) return;
@@ -13652,181 +13819,8 @@ function renderStackRank() {
     // May-only = contribution formula; any other month mix = legacy formula
     const isMayOnly = _srMode === 'impact'; // impact mode = contribution formula, regardless of month
 
-    const computeRvRanking = (months) => {
-        const rows = filterRows(qaFilter(RAW_ROWS.filter(r => months.includes(r.month))), tls, tenures, sws, workflows);
-        if(!rows.length) return { ranked: [], excluded: [], isMay: isMayOnly };
-
-        const rvMap = {};
-        // Reviewer Stack Ranking excludes these SMEs from ranking, per Karl —
-        // matched against the raw "Last, First" reviewer string since that's
-        // the exact format r.reviewer uses (same convention as SME_TL_MAP keys).
-        const SR_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
-        rows.forEach(r => {
-            if(SR_RV_EXCLUDE.includes(r.reviewer)) return;
-            if(!rvMap[r.reviewer]) rvMap[r.reviewer] = { name: r.reviewer, supervisor: r.supervisor, tpa:0, tna:0, fpa:0, fna:0, dec:0, dht:0, nht:0, sw:r.sw, swDec:{}, swDht:{} };
-            const m = rvMap[r.reviewer];
-            m.tpa+=r.tpa; m.tna+=r.tna; m.fpa+=r.fpa; m.fna+=r.fna;
-            m.dec+=r.decisions; m.dht+=r.dht; m.nht+=r.nht;
-            // Track decisions + DHT per SW for harmonic blended AHT target (matches calcJobTarget)
-            if(r.sw) {
-                m.swDec[r.sw] = (m.swDec[r.sw]||0) + r.decisions;
-                m.swDht[r.sw] = (m.swDht[r.sw]||0) + r.dht;
-            }
-        });
-        const reviewers = Object.values(rvMap).filter(m => m.dec >= 1);
-        const excluded  = Object.values(rvMap).filter(m => m.dec < 1);
-        excluded.forEach(m => {
-            const tot = m.tpa+m.tna+m.fpa+m.fna;
-            m.acc = tot > 0 ? (m.tpa+m.tna)/tot : null;
-            m.aht = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
-        });
-        if(!reviewers.length) return { ranked: [], excluded, isMay: isMayOnly };
-
-        if(isMayOnly) {
-            // ── MAY: contribution-based ranking ───────────────────────────────
-            // Baseline = full dataset (all months), same non-month filters
-            const allRows       = filterRows(RAW_ROWS, tls, tenures, sws, workflows);
-            const siteTotalDht  = allRows.reduce((s,r)=>s+r.dht,0);
-            const siteTotalDec  = allRows.reduce((s,r)=>s+r.decisions,0);
-            const siteAvgAHT    = siteTotalDec > 0 ? siteTotalDht / siteTotalDec : 0;
-            const siteCorrect   = allRows.reduce((s,r)=>s+r.tpa+r.tna,0);
-
-            reviewers.forEach(m => {
-                const tot = m.tpa+m.tna+m.fpa+m.fna;
-                m.acc  = tot > 0 ? (m.tpa+m.tna)/tot : null;
-                m.aht  = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
-                m.tptn = m.tpa + m.tna;
-                // Acc Impact = adj_accuracy × (reviewer_tptn / site_tptn)
-                m.accImpact = (m.acc !== null && siteCorrect > 0) ? m.acc * (m.tptn / siteCorrect) : null;
-                // AHT Impact = (site_avg_aht / reviewer_aht) × (reviewer_dht / site_dht) — DHT share, queue-mix neutral
-                m.ahtImpact = (m.aht !== null && m.aht > 0 && siteTotalDht > 0) ? (siteAvgAHT / m.aht) * (m.dht / siteTotalDht) : null;
-            });
-            const valid = reviewers.filter(m => m.accImpact !== null && m.ahtImpact !== null);
-            if(!valid.length) return { ranked: [], excluded, isMay: true };
-            [...valid].sort((a,b)=>b.accImpact-a.accImpact).forEach((m,i)=>{ m.qualRank=i+1; });
-            [...valid].sort((a,b)=>b.ahtImpact-a.ahtImpact).forEach((m,i)=>{ m.effRank=i+1; });
-            valid.forEach(m => { m.ows = (m.qualRank*0.70)+(m.effRank*0.30); });
-            valid.sort((a,b)=>a.ows-b.ows);
-            valid.forEach((m,i)=>{ m.rank=i+1; });
-            return { ranked: valid, excluded, isMay: true, siteAvgAHT };
-
-        } else {
-            // ── Detect March 2026+ cutover ────────────────────────────────────
-            const isPostMayCutover = months.some(m => new Date(m) >= new Date('2026-03-01'));
-
-            if(isPostMayCutover) {
-                // ── MARCH 2026+: AHT vs target + min job threshold (median−1σ) ─
-                const decVals = reviewers.map(r => r.dec).filter(d => d > 0).sort((a,b) => a-b);
-                let minJobThresh = 0;
-                if(decVals.length >= 2) {
-                    const _n      = decVals.length;
-                    const _median = _n % 2 === 0
-                        ? (decVals[_n/2-1] + decVals[_n/2]) / 2
-                        : decVals[Math.floor(_n/2)];
-                    const _mean  = decVals.reduce((s,x)=>s+x,0) / _n;
-                    const _stdev = Math.sqrt(decVals.reduce((s,x)=>s+(_mean-x)**2,0) / _n);
-                    minJobThresh = Math.max(_median - _stdev, 0);
-                }
-                const belowThresh = reviewers.filter(m => m.dec < minJobThresh);
-                belowThresh.forEach(m => {
-                    const tot = m.tpa+m.tna+m.fpa+m.fna;
-                    m.acc = tot > 0 ? (m.tpa+m.tna)/tot : null;
-                    m.aht = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
-                    m.lowVolume = true;
-                });
-                excluded.push(...belowThresh);
-                const finalReviewers = reviewers.filter(m => m.dec >= minJobThresh);
-
-                finalReviewers.forEach(m => {
-                    const tot = m.tpa+m.tna+m.fpa+m.fna;
-                    m.acc  = tot > 0 ? (m.tpa+m.tna)/tot : null;
-                    m.aht  = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
-                    m.tptn = m.tpa + m.tna;
-                    // Harmonic blended target: totalDHT / sum(dht/target) — matches calcJobTarget
-                    let covDHT = 0, expJobs = 0;
-                    if(m.swDht) {
-                        Object.entries(m.swDht).forEach(([sw, dht]) => {
-                            const t = SW_TARGETS[sw]?.aht;
-                            if(t && t > 0 && dht > 0) { covDHT += dht; expJobs += dht / t; }
-                        });
-                    }
-                    m.ahtTarget = expJobs > 0 ? covDHT / expJobs : (SW_TARGETS[m.sw]?.aht || null);
-                    m.expJobs   = expJobs > 0 ? expJobs : null; // required jobs — for vol rank ratio
-                    m.effScore  = m.aht !== null ? m.aht : null; // sort by raw AHT asc
-                });
-                const valid = finalReviewers.filter(m => m.acc !== null && m.aht !== null);
-                if(!valid.length) return { ranked: [], excluded, isMay: false, isNewLegacy: true, minJobThresh };
-
-                // Competition ranking helper: ties share same rank, next rank skips
-                // e.g. three tied at pos 0 → all rank 1, next gets rank 4
-                const compRank = (arr, keyFn) => {
-                    const sorted = [...arr].sort(keyFn);
-                    let rank = 1;
-                    sorted.forEach((m, i) => {
-                        if(i > 0 && keyFn(sorted[i], sorted[i-1]) !== 0) rank = i + 1;
-                        m._cr = rank;
-                    });
-                    sorted.forEach(m => { delete m._cr; }); // clean temp
-                    // Re-run assigning properly
-                    let r = 1;
-                    for(let i = 0; i < sorted.length; i++) {
-                        if(i > 0) {
-                            const prev = sorted[i-1], curr = sorted[i];
-                            if(keyFn(curr, prev) !== 0) r = i + 1;
-                        }
-                        sorted[i]._rank = r;
-                    }
-                    return sorted;
-                };
-
-                // Qual rank: higher acc = better (desc). Ties share same rank.
-                compRank(valid, (a,b) => b.acc - a.acc).forEach(m => { m.qualRank = m._rank; delete m._rank; });
-
-                // Eff rank: AHT delta vs blended target (lower = better). No target → raw AHT.
-                valid.forEach(m => {
-                    m.effScore = (m.ahtTarget !== null && m.ahtTarget > 0)
-                        ? m.aht - m.ahtTarget   // delta: negative = under target (good)
-                        : m.aht;                 // fallback: raw AHT
-                });
-                compRank(valid, (a,b) => a.effScore - b.effScore).forEach(m => { m.effRank = m._rank; delete m._rank; });
-
-                // Vol rank: actual/required ratio (higher = better). Falls back to plain dec if no target.
-                compRank(valid, (a,b) => {
-                    const ra = a.expJobs > 0 ? a.dec / a.expJobs : 0;
-                    const rb = b.expJobs > 0 ? b.dec / b.expJobs : 0;
-                    return rb - ra;
-                }).forEach(m => { m.volRank = m._rank; delete m._rank; });
-
-                // OWS: 60/20/20
-                valid.forEach(m => { m.ows = (m.qualRank*0.60) + (m.effRank*0.20) + (m.volRank*0.20); });
-                valid.sort((a,b) => a.ows - b.ows);
-
-                // Final rank: competition ranking on OWS
-                compRank(valid, (a,b) => a.ows - b.ows).forEach(m => { m.rank = m._rank; delete m._rank; });
-
-                return { ranked: valid, excluded, isMay: false, isNewLegacy: true, minJobThresh };
-
-            } else {
-                // ── PRE-MAY 2026: original throughput formula ─────────────────
-                reviewers.forEach(m => {
-                    const tot = m.tpa+m.tna+m.fpa+m.fna;
-                    m.acc        = tot > 0 ? (m.tpa+m.tna)/tot : null;
-                    m.aht        = m.dec > 0 ? (m.dht+m.nht)/m.dec : null;
-                    m.tptn       = m.tpa + m.tna;
-                    const dhtHrs = m.dht / 3600;
-                    m.throughput = dhtHrs > 0 ? m.dec / dhtHrs : null;
-                });
-                const valid = reviewers.filter(m => m.acc !== null && m.throughput !== null);
-                if(!valid.length) return { ranked: [], excluded, isMay: false, isNewLegacy: false };
-                [...valid].sort((a,b)=>b.acc-a.acc).forEach((m,i)=>{ m.qualRank=i+1; });
-                [...valid].sort((a,b)=>b.throughput-a.throughput).forEach((m,i)=>{ m.effRank=i+1; });
-                valid.forEach(m => { m.ows = (m.qualRank*0.70)+(m.effRank*0.30); });
-                valid.sort((a,b)=>a.ows-b.ows);
-                valid.forEach((m,i)=>{ m.rank=i+1; });
-                return { ranked: valid, excluded, isMay: false, isNewLegacy: false };
-            }
-        }
-    };
+    // Standalone, shared with Reviewer Doc — see computeRvRankingShared below
+    const computeRvRanking = (months) => computeRvRankingShared(months, tls, tenures, sws, workflows, isMayOnly);
 
     // ── Compute supervisor ranking ────────────────────────────────────────────
     const computeSvRanking = (months) => {
@@ -18089,76 +18083,29 @@ function _generateCoachingDocInner(mcdConfig) {
         // core scoring shape (Accuracy/Precision/Recall + AHT bonus +
         // absenteeism) across ALL reviewers for currMonth, then finds rv's
         // position. Only surfaces rank, per Karl — not the underlying score.
+        // Uses the same shared ranking functions as the Incentive and Stack
+        // Ranking tabs (computeIncentiveRankingShared / computeRvRankingShared)
+        // so this rank is always identical to what those tabs show.
         const _standingWin = (() => {
-            const STAND_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
-            const monthRows = RAW_ROWS.filter(r => r.month === currMonth && !STAND_EXCLUDE.includes(r.reviewer));
-            if(!monthRows.length) return null;
-            const monthWeeks = [...new Set(monthRows.map(r=>r.week))];
+            if(!currMonth) return null;
+            const lines = [];
 
-            // -- Incentive score rank --
-            const rvMap = {};
-            monthRows.forEach(r => {
-                if(!r.reviewer) return;
-                if(!rvMap[r.reviewer]) rvMap[r.reviewer] = { rows: [] };
-                rvMap[r.reviewer].rows.push(r);
-            });
-            const incTotals = {};
-            Object.keys(rvMap).forEach(name => {
-                const rows = rvMap[name].rows;
-                const qRows = rows.filter(r=>r.sw);
-                let tpa=0,fpa=0,fna=0,tna=0;
-                qRows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;});
-                const tot=tpa+fpa+fna+tna;
-                const acc = tot>0 ? (tpa+tna)/tot : null;
-                const prec = (tpa+fpa)>0 ? tpa/(tpa+fpa) : null;
-                const rec  = (tpa+fna)>0 ? tpa/(tpa+fna) : null;
-                // AHT bonus: % of eligible SWs (>=5 dec, has target) at/under target
-                const swMap={};
-                rows.filter(r=>r.sw).forEach(r=>{ if(!swMap[r.sw]) swMap[r.sw]={dht:0,dec:0}; swMap[r.sw].dht+=r.dht||0; swMap[r.sw].dec+=r.decisions||0; });
-                let elig=0,hit=0;
-                Object.entries(swMap).forEach(([sw,d])=>{ const tgt=SW_TARGETS[sw]?.aht||null; if(!tgt||d.dec<5) return; elig++; if((d.dht/d.dec)<=tgt) hit++; });
-                const ahtB = elig>0 ? hit/elig : null;
-                // Absenteeism bonus: <=5% -> full point
-                let s=0,a=0;
-                monthWeeks.forEach(wk=>{ const w=WFM_LOOKUP[name.trim()+'|'+wk]; if(w){ s+=w.sched||0; a+=w.actual||0; } });
-                const absRate = s>0 ? Math.max(0,(s-a)/s) : null;
-                const absB = absRate!==null ? (absRate<=0.05?0.01:0) : null;
-                const pb = prec!==null ? Math.min(prec,1)*0.01 : null;
-                const rb = rec!==null ? Math.min(rec,1)*0.01 : null;
-                const ab = ahtB!==null ? Math.min(ahtB,1)*0.01 : null;
-                const comps=[acc,pb,rb,ab,absB];
-                incTotals[name] = comps.every(v=>v!==null) ? acc+pb+rb+ab+absB : null;
-            });
-            const incRanked = Object.keys(incTotals).filter(n=>incTotals[n]!==null).sort((a,b)=>incTotals[b]-incTotals[a]);
-            const incRank = incRanked.indexOf(rv)+1;
-            const incLine = incRank>0 ? `Incentive standing: <strong>Ranked #${incRank} of ${incRanked.length}</strong> reviewers this month.` : null;
+            // -- Incentive score rank (site-wide, same month scope as Incentive tab) --
+            if(typeof window.computeIncentiveRankingShared === 'function') {
+                const monthRows = RAW_ROWS.filter(r => r.month === currMonth);
+                const incResult = window.computeIncentiveRankingShared(monthRows, currMonth);
+                const incRank = incResult.ranked.indexOf(rv) + 1;
+                if(incRank > 0) lines.push(`Incentive standing: <strong>Ranked #${incRank} of ${incResult.ranked.length}</strong> reviewers this month.`);
+            }
 
-            // -- Stack Ranking position (legacy accuracy+AHT blended rank) --
-            const srMap = {};
-            monthRows.forEach(r => {
-                if(!r.reviewer) return;
-                if(!srMap[r.reviewer]) srMap[r.reviewer] = { tpa:0,tna:0,fpa:0,fna:0,dec:0,dht:0,nht:0 };
-                const m = srMap[r.reviewer];
-                m.tpa+=r.tpa||0; m.tna+=r.tna||0; m.fpa+=r.fpa||0; m.fna+=r.fna||0;
-                m.dec+=r.decisions||0; m.dht+=r.dht||0; m.nht+=r.nht||0;
-            });
-            const srList = Object.entries(srMap).map(([name,m])=>{
-                const tot=m.tpa+m.tna+m.fpa+m.fna;
-                const acc = tot>0 ? (m.tpa+m.tna)/tot : null;
-                const aht = m.dec>0 ? (m.dht+m.nht)/m.dec : null;
-                return { name, acc, aht, dec:m.dec };
-            }).filter(x=>x.acc!==null && x.aht!==null && x.dec>=1);
-            [...srList].sort((a,b)=>b.acc-a.acc).forEach((x,i)=>{ x.qualRank=i+1; });
-            [...srList].sort((a,b)=>a.aht-b.aht).forEach((x,i)=>{ x.effRank=i+1; });
-            srList.forEach(x=>{ x.ows=(x.qualRank*0.70)+(x.effRank*0.30); });
-            srList.sort((a,b)=>a.ows-b.ows);
-            const srIdx = srList.findIndex(x=>x.name===rv);
-            const srLine = srIdx>=0 ? `Stack Ranking: <strong>#${srIdx+1} of ${srList.length}</strong> reviewers this month.` : null;
+            // -- Stack Ranking position (no TL/tenure/sw/workflow filter — full site scope) --
+            if(typeof computeRvRankingShared === 'function') {
+                const srResult = computeRvRankingShared([currMonth], [], [], [], [], false);
+                const srIdx = srResult.ranked.findIndex(m => m.name === rv);
+                if(srIdx >= 0) lines.push(`Stack Ranking: <strong>#${srIdx+1} of ${srResult.ranked.length}</strong> reviewers this month.`);
+            }
 
-            const lines=[];
-            if(incLine) lines.push(incLine);
-            if(srLine) lines.push(srLine);
-            return lines;
+            return lines.length ? lines : null;
         })();
 
         const winLines=[];
@@ -26360,25 +26307,22 @@ function gpDecReqExpand(open) {
     return { totalPts, bySw };
   }
 
-  function renderReviewerTable(monthRows, month) {
-    // Group by reviewer
+  // Standalone reviewer incentive ranking — shared with Reviewer Doc via
+  // window so the Doc's rank line matches this tab exactly. Kept inside this
+  // closure since it needs incQualityFilter/calcAHTBonus/calcWrvrBonus, which
+  // are private to this IIFE.
+  function computeIncentiveRankingShared(monthRows, month) {
     const rvMap = {};
-    // Excluded from Reviewer Incentive/Stack Ranking, per Karl.
     const INC_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
     monthRows.forEach(r => {
       if (INC_RV_EXCLUDE.includes(r.reviewer)) return;
-      if (!rvMap[r.reviewer]) rvMap[r.reviewer] = { rows: [], wfmRows: [], supervisor: r.supervisor };
+      if (!rvMap[r.reviewer]) rvMap[r.reviewer] = { rows: [] };
       rvMap[r.reviewer].rows.push(r);
     });
-
-    // WFM (absenteeism) from WFM_LOOKUP for selected month weeks
     const monthWeeks = [...new Set(monthRows.map(r => r.week))];
-
-    // July 11-24 special bonus is only active when July 2026 is the selected month.
     const wrvrActive = isWrvrBonusActiveMonth(month);
 
-    // Pre-compute totals for sorting — mirrors the main calculation
-    const _rvTotals = {};
+    const totals = {};
     Object.keys(rvMap).forEach(rv => {
       const rows = rvMap[rv].rows;
       const qRows = incQualityFilter(rows.filter(r => r.sw), month);
@@ -26398,8 +26342,36 @@ function gpDecReqExpand(open) {
       const _ab=_ahtB.bonus!==null?Math.min(_ahtB.bonus,1)*0.01:null;
       const _wrvrB = wrvrActive ? calcWrvrBonus(rows, rv).totalPts * 0.01 : 0;
       const comps=[_acc,_pb,_rb,_ab,_absB];
-      _rvTotals[rv]=comps.every(v=>v!==null)?_acc+_pb+_rb+_ab+_absB+_wrvrB:null;
+      totals[rv]=comps.every(v=>v!==null)?_acc+_pb+_rb+_ab+_absB+_wrvrB:null;
     });
+    const ranked = Object.keys(totals)
+      .filter(rv => totals[rv] !== null)
+      .sort((a,b) => totals[b]-totals[a]);
+    return { ranked, totals };
+  }
+  window.computeIncentiveRankingShared = computeIncentiveRankingShared;
+
+  function renderReviewerTable(monthRows, month) {
+    // Group by reviewer
+    const rvMap = {};
+    // Excluded from Reviewer Incentive/Stack Ranking, per Karl.
+    const INC_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
+    monthRows.forEach(r => {
+      if (INC_RV_EXCLUDE.includes(r.reviewer)) return;
+      if (!rvMap[r.reviewer]) rvMap[r.reviewer] = { rows: [], wfmRows: [], supervisor: r.supervisor };
+      rvMap[r.reviewer].rows.push(r);
+    });
+
+    // WFM (absenteeism) from WFM_LOOKUP for selected month weeks
+    const monthWeeks = [...new Set(monthRows.map(r => r.week))];
+
+    // July 11-24 special bonus is only active when July 2026 is the selected month.
+    const wrvrActive = isWrvrBonusActiveMonth(month);
+
+    // Totals for sorting — delegates to the shared ranking function so this
+    // tab and the Reviewer Doc never drift apart.
+    const _rvShared = computeIncentiveRankingShared(monthRows, month);
+    const _rvTotals = _rvShared.totals;
     const reviewers = Object.keys(rvMap).sort((a,b)=>{
       const ta=_rvTotals[a], tb=_rvTotals[b];
       if(ta===null&&tb===null) return a.localeCompare(b);
