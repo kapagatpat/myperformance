@@ -8537,13 +8537,20 @@ function renderDrillDown(){
           .map(([pol,v])=>({pol,avgAht:v.dec>0?v.dht/v.dec:0,pct:_pDec>0?v.dec/_pDec:0,impact:(v.dec>0?v.dht/v.dec:0)*(_pDec>0?v.dec/_pDec:0)}))
           .sort((a,b)=>b.impact-a.impact).slice(0,3);
 
-      // PSP status for this reviewer — mirrors PSP Tracker's Status column:
-      // AR-gated (Accuracy if AR<10%, else Precision AND Recall both need to
-      // pass), based on the last COMPLETE month (cohortM here is the latest
-      // month present in the dataset, treated as "previous" for this check).
-      // Attributes which specific KPI caused the miss.
-      const cohortM=allMonthsSorted[allMonthsSorted.length-1];
-      const prevMForPSP=allMonthsSorted.length>1?allMonthsSorted[allMonthsSorted.length-2]:null;
+      // PSP status for this reviewer — mirrors PSP Tracker exactly:
+      //   STATUS      = based on the PRIOR month (one before the latest
+      //                 month present in the dataset) — "was the reviewer
+      //                 below target last month?" This drives the real
+      //                 PSP / Non-PSP flag.
+      //   COHORT STATUS = based on the COHORT month itself (the latest
+      //                 month present, which may still be in progress) —
+      //                 "is the reviewer tracking below target right now?"
+      //                 This drives the early-warning pill, and is exactly
+      //                 what the PSP Tracker's Cohort Status column shows.
+      // Both AR-gated (Accuracy if AR<10%, else Precision AND Recall both
+      // need to pass), with the specific failing KPI attributed.
+      const cohortMo=allMonthsSorted[allMonthsSorted.length-1];
+      const preMo=allMonthsSorted.length>1?allMonthsSorted[allMonthsSorted.length-2]:null;
       let pspStatus='Non-PSP';
       let pspMissKPI=null; // 'Precision' | 'Recall' | 'Accuracy' | null
       const getMonthQual=(mo)=>{
@@ -8556,52 +8563,56 @@ function renderDrillDown(){
           return {acc,ar,prec,rec};
       };
       const getAcc=(mo)=>getMonthQual(mo).acc; // kept for Consecutive Below below (Accuracy-only trend)
-      const cohQ=getMonthQual(cohortM), prevQ=prevMForPSP?getMonthQual(prevMForPSP):null;
       const overallTgt = BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96;
-      const cohUsesPR = cohQ.ar!==null && cohQ.ar>=0.10;
-      let cohAcc, prevAcc2, isPSP;
-      if(cohUsesPR) {
-          const precFail = cohQ.prec!==null && cohQ.prec<overallTgt;
-          const recFail  = cohQ.rec!==null && cohQ.rec<overallTgt;
+
+      // -- STATUS: prior month vs target, AR-gated, drives the real PSP flag --
+      const preQ = preMo ? getMonthQual(preMo) : null;
+      // Fall back to cohort month if there's no prior month yet (first month in dataset)
+      const statusQ = preQ || getMonthQual(cohortMo);
+      const statusUsesPR = statusQ.ar!==null && statusQ.ar>=0.10;
+      let isPSP;
+      if(statusUsesPR) {
+          const precFail = statusQ.prec!==null && statusQ.prec<overallTgt;
+          const recFail  = statusQ.rec!==null && statusQ.rec<overallTgt;
           isPSP = precFail || recFail;
           pspMissKPI = precFail && recFail ? 'Precision & Recall' : precFail ? 'Precision' : recFail ? 'Recall' : null;
-          // Trend uses whichever failed metric (Precision if both) vs prior month same metric
-          cohAcc = precFail ? cohQ.prec : cohQ.rec;
-          prevAcc2 = prevQ ? (precFail ? prevQ.prec : prevQ.rec) : null;
       } else {
-          const accFail = cohQ.acc!==null && cohQ.acc<overallTgt;
+          const accFail = statusQ.acc!==null && statusQ.acc<overallTgt;
           isPSP = accFail;
           pspMissKPI = accFail ? 'Accuracy' : null;
-          cohAcc = cohQ.acc;
-          prevAcc2 = prevQ ? prevQ.acc : null;
       }
+      // Trend (Improving/Regressing/Within Goal) compares cohort month back
+      // to the prior month, same metric that drove the Status miss.
       if(isPSP){
-          if(cohAcc!==null&&cohAcc>=overallTgt) pspStatus='PSP-Within Goal';
-          else if(prevAcc2!==null&&cohAcc>prevAcc2) pspStatus='PSP-Improving';
-          else if(prevAcc2!==null&&cohAcc<prevAcc2) pspStatus='PSP-Regressing';
+          const cohQ = getMonthQual(cohortMo);
+          const trendVal = pspMissKPI==='Precision' ? cohQ.prec : pspMissKPI==='Recall' ? cohQ.rec : cohQ.acc;
+          const trendPrev = pspMissKPI==='Precision' ? statusQ.prec : pspMissKPI==='Recall' ? statusQ.rec : statusQ.acc;
+          if(trendVal!==null&&trendVal>=overallTgt) pspStatus='PSP-Within Goal';
+          else if(trendVal!==null&&trendPrev!==null&&trendVal>trendPrev) pspStatus='PSP-Improving';
+          else if(trendVal!==null&&trendPrev!==null&&trendVal<trendPrev) pspStatus='PSP-Regressing';
           else pspStatus='PSP';
       }
       const pspBadgeLabel = isPSP && pspMissKPI ? `PSP · ${pspMissKPI}` : pspStatus;
 
-      // MTD early warning — is the reviewer CURRENTLY (still-open latest
-      // month, via the already-computed cAcc/cPrec/cRec/cAr for this
-      // period) tracking below target, using the same AR-gating? Distinct
-      // from pspStatus above, which only looks at the last COMPLETE month.
-      let mtdMissKPI = null;
-      const mtdUsesPR = cAr!==null && cAr>=0.10;
-      if(mtdUsesPR) {
-          const mtdPrecFail = cPrec!==null && cPrec<overallTgt;
-          const mtdRecFail  = cRec!==null && cRec<overallTgt;
-          if(mtdPrecFail && mtdRecFail) mtdMissKPI = 'Precision & Recall';
-          else if(mtdPrecFail) mtdMissKPI = 'Precision';
-          else if(mtdRecFail) mtdMissKPI = 'Recall';
-      } else if(cAcc!==null && cAcc<overallTgt) {
-          mtdMissKPI = 'Accuracy';
+      // -- COHORT STATUS: cohort (latest) month vs target, AR-gated — this
+      // is the early-warning signal, matching PSP Tracker's Cohort Status
+      // column exactly. Shown only when not already officially PSP via
+      // Status, so the two pills don't say the same thing twice.
+      const cohortQ = getMonthQual(cohortMo);
+      let cohortMissKPI = null;
+      const cohortUsesPR = cohortQ.ar!==null && cohortQ.ar>=0.10;
+      if(cohortUsesPR) {
+          const cPrecFail = cohortQ.prec!==null && cohortQ.prec<overallTgt;
+          const cRecFail  = cohortQ.rec!==null && cohortQ.rec<overallTgt;
+          if(cPrecFail && cRecFail) cohortMissKPI = 'Precision & Recall';
+          else if(cPrecFail) cohortMissKPI = 'Precision';
+          else if(cRecFail) cohortMissKPI = 'Recall';
+      } else if(cohortQ.acc!==null && cohortQ.acc<overallTgt) {
+          cohortMissKPI = 'Accuracy';
       }
-      // Only show the early-warning pill if not already officially PSP this period
-      const showMtdWarning = mtdMissKPI!==null && pspStatus==='Non-PSP';
+      const showMtdWarning = cohortMissKPI!==null && pspStatus==='Non-PSP';
       const mtdWarningHTML = showMtdWarning
-          ? `<span style="background:var(--asec);color:var(--amber);border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px;margin-left:6px">⚠ MTD miss - ${mtdMissKPI}</span>`
+          ? `<span style="background:var(--asec);color:var(--amber);border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 9px;margin-left:6px">⚠ MTD miss - ${cohortMissKPI}</span>`
           : '';
 
       // Consecutive Below auto-flag — count how many of the last N months are below target
@@ -9374,17 +9385,69 @@ function renderDrillOppPanel(rows, rv, el) {
     _activeErrMap[r.sw].add(r.pol);
   });
   const activeErrSWs = Object.entries(_activeErrMap).map(([sw,pols])=>({sw, count:pols.size}));
-  const activeErrHTML = activeErrSWs.length
-    ? activeErrSWs.map(x=>{
-        const clickAttr = `onclick="if(typeof oppJumpToRCAExplorer==='function') oppJumpToRCAExplorer('${escAttr(rv)}','${escAttr(x.sw)}')"`;
-        return `<div class="opp-line" ${clickAttr} style="flex-direction:column;align-items:stretch;cursor:pointer">
+  const renderActiveErrLine = (x) => {
+    const clickAttr = `onclick="if(typeof oppJumpToRCAExplorer==='function') oppJumpToRCAExplorer('${escAttr(rv)}','${escAttr(x.sw)}')"`;
+    // Why block — same RCA lookup + L3-cause grouping as renderLine's
+    // rcaBlock, generalized to count both FP and FN (these rows aren't
+    // tied to one specific failing metric, unlike Quality Gaps rows).
+    let rcaBlock = '';
+    if (typeof rcamfLookup === 'function') {
+      const recs = rcamfLookup(rv, x.sw, oppMonthKeys);
+      if (!recs.length && (typeof window.miscIsLoaded !== 'function' || !window.miscIsLoaded())) {
+        rcaBlock = `<div style="margin-top:3px;font-size:10px;color:var(--ts);font-style:italic">Load Quality RCA data to see what's driving this gap</div>`;
+      }
+      if (recs.length) {
+        const byL3 = {};
+        recs.forEach(r => {
+          const errCount = (r.fp||0) + (r.fn||0);
+          if (errCount <= 0) return;
+          const key = r.l3 || '(unspecified)';
+          if (!byL3[key]) byL3[key] = { l3: key, fp: 0, fn: 0, count: 0, recs: [] };
+          byL3[key].fp += r.fp||0;
+          byL3[key].fn += r.fn||0;
+          byL3[key].count += errCount;
+          byL3[key].recs.push(r);
+        });
+        const ranked = Object.values(byL3).sort((a, b) => b.count - a.count);
+        const totalErr = ranked.reduce((s, c) => s + c.count, 0);
+        if (ranked.length) {
+          const causeBlocks = ranked.map(cause => {
+            const plain = (typeof rcamfPlainL3 === 'function' ? rcamfPlainL3(cause.l3) : null);
+            const fpfnStr = `${cause.fp} FP${cause.fp!==1?'s':''}, ${cause.fn} FN${cause.fn!==1?'s':''}`;
+            const errorLines = cause.recs.map(r => {
+              const l4Line = r.l4 ? `<div style="margin-top:3px">${r.l4}</div>` : '';
+              const sca = (typeof rcamfExtractSCA === 'function') ? rcamfExtractSCA(r.cmt) : null;
+              let scaLine = '';
+              if (sca) {
+                const parts = [sca.signal, sca.clause, sca.anchor].filter(Boolean);
+                if (parts.length) scaLine = `<div style="margin-top:1px;color:var(--tm)">${parts.join(' · ')}</div>`;
+              }
+              return (l4Line || scaLine) ? `<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--divider)">${l4Line}${scaLine}</div>` : '';
+            }).join('');
+            return `<div style="margin-top:6px">
+              <div><strong>${cause.l3}</strong> (${cause.count} error${cause.count!==1?'s':''}: ${fpfnStr})${plain?` — ${plain}`:''}</div>
+              ${errorLines}
+            </div>`;
+          }).join('');
+          rcaBlock = `
+            <div class="opp-rca-detail" style="font-size:10px;line-height:1.5;color:var(--ts);background:var(--sa);border-left:3px solid var(--purple);border-radius:0 var(--r) var(--r) 0;padding:6px 10px;margin:4px 0 6px">
+              <div style="font-weight:700;color:var(--purple)">Why? (${totalErr} error${totalErr!==1?'s':''})</div>
+              ${causeBlocks}
+            </div>`;
+        }
+      }
+    }
+    return `<div class="opp-line" ${clickAttr} style="flex-direction:column;align-items:stretch;cursor:pointer">
       <div style="display:flex;align-items:center">
         <span class="opp-kpill app">Active</span>
         <span class="opp-sw">${x.sw}</span>
         <span class="opp-val app">${x.count}<span style="font-size:8px;color:var(--tm);font-weight:400">/60d</span></span>
       </div>
+      ${rcaBlock}
     </div>`;
-      }).join('')
+  };
+  const activeErrHTML = activeErrSWs.length
+    ? activeErrSWs.map(renderActiveErrLine).join('')
     : '<div class="opp-line"><span class="snap-kpi-dim">No other active errors</span></div>';
 
   // Pass-ratio counts — eligible = same volume gate each column already uses
