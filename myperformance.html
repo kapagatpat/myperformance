@@ -512,6 +512,17 @@ tr:hover td{background:#F8F9FB}
 
 .opt-btn.selected{border-color:var(--blue);background:var(--bbg);}
 
+/* 5 Whys answer buttons — previously unstyled (rendered as raw browser default
+   buttons). Matches .opt-btn's visual language (same radius, border weight,
+   hover lift) with yes/no color-coding so the intent reads at a glance. */
+.why-opts{display:flex;flex-wrap:wrap;gap:10px;}
+.why-opt{flex:1;min-width:160px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:12px 16px;cursor:pointer;font-family:var(--f);font-size:13.5px;font-weight:700;text-align:center;transition:all .15s;color:var(--text);}
+.why-opt:hover{box-shadow:var(--shadow-hover);}
+.why-opt.yes{border-color:var(--tbd, var(--border));color:var(--teal);}
+.why-opt.yes:hover{border-color:var(--teal);background:var(--tsec);}
+.why-opt.no{border-color:var(--cbd, var(--border));color:var(--coral);}
+.why-opt.no:hover{border-color:var(--coral);background:var(--csec, var(--cbg));}
+
 .opt-label{font-size:14px;font-weight:700;color:var(--text);}
 
 .opt-desc{font-size:12px;color:var(--ts);line-height:1.5;}
@@ -2897,20 +2908,14 @@ tr:hover td{background:#F8F9FB}
             <div style="font-size:13px;color:var(--ts);line-height:1.65;" id="diag-node-desc">—</div>
           </div>
 
-          <!-- Alternative paths — bias and wellbeing only -->
+          <!-- Alternative paths — wellbeing and misconduct only. Bias and Wrong-execution
+               are now checked inline within the 5 Whys (see switchTo mechanism), so they
+               no longer need a bolt-on button here. -->
           <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tm);margin-bottom:10px;">Or — does one of these fit better?</div>
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
-            <button class="opt-btn" style="padding:10px 14px;" onclick="redirectToType('bias')">
-              <span class="opt-label" style="font-size:13px;">⚖️ Bias — patterned deviation in decisions</span>
-              <span class="opt-desc">Longitudinal data shows consistent harsher or more lenient decisions on specific content or demographics. Minimum 4 weeks of data required.</span>
-            </button>
             <button class="opt-btn" style="padding:10px 14px;" onclick="redirectToType('wellbeing')">
               <span class="opt-label" style="font-size:13px;">💙 Wellbeing — content exposure affecting performance</span>
               <span class="opt-desc">Quality dip maps to distressing content types. Reviewer shows signs of exposure-related distress. Support conversation required first.</span>
-            </button>
-            <button class="opt-btn" style="padding:10px 14px;" onclick="redirectToType('wrongaction')">
-              <span class="opt-label" style="font-size:13px;">🔀 Violation real — wrong execution</span>
-              <span class="opt-desc">Reviewer correctly identified the violation but cited the wrong policy or took the wrong enforcement action.</span>
             </button>
             <button class="opt-btn" style="padding:10px 14px;border-color:var(--coral);background:var(--cbg);" onclick="redirectToType('misconduct')">
               <span class="opt-label" style="font-size:13px;color:var(--coral);">🚨 Deliberate wrong answers — escalate immediately</span>
@@ -2926,20 +2931,11 @@ tr:hover td{background:#F8F9FB}
         <!-- STEP 6b: PKT ENTRY FORM -->
         <div class="tree-step" id="step-6b-pkt">
           <div class="step-header"><div class="step-num">6b</div><div><div class="step-title">RCA Commentary</div><div class="step-sub">Fill in the job-specific fields. Clause, RCA, and Policy are pre-filled from the tree.</div></div></div>
-          <div style="margin-bottom:14px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--tm);margin-bottom:8px;">First time or a pattern?</div>
-            <div style="display:flex;gap:10px;">
-              <button class="opt-btn" id="freq-btn-once" onclick="selectFreqInline(this,'once')" style="flex:1;padding:10px 14px;">
-                <span class="opt-label">✅ First time — isolated</span>
-                <span class="opt-desc">No history of this error type.</span>
-              </button>
-              <button class="opt-btn" id="freq-btn-recurring" onclick="selectFreqInline(this,'recurring')" style="flex:1;padding:10px 14px;">
-                <span class="opt-label">🔁 Recurring — pattern</span>
-                <span class="opt-desc">Same error across multiple jobs or sessions.</span>
-              </button>
-            </div>
-          </div>
           <div class="pkt-form" id="pkt-form-body">
+            <div class="pkt-field" style="background:var(--sa);border-bottom:1px solid var(--divider);padding:10px 18px;">
+              <div class="pkt-label" style="margin-bottom:4px;">Frequency <span style="color:var(--teal)">— auto-detected earlier</span><span class="pkt-prefilled-badge">Auto</span></div>
+              <div class="pkt-prefilled" id="pkt-freq-display" style="padding:6px 12px;">—</div>
+            </div>
             <div class="pkt-form-header">
               <div class="pkt-form-title">📝 RCA Commentary</div>
               <div class="pkt-form-sub">Signal and Anchor are required. Skip this step if you don't have a specific job to document.</div>
@@ -35682,7 +35678,13 @@ const L4={
       {q:'Did the reviewer review the same type of content recently and call it correctly?',note:'If they have never called this content type correctly, the gap may be wider than one boundary. Factor this into the coaching plan — more examples may be needed.'},
       {q:'Is the policy boundary clear in the written guidance — not just in practice?'},
       {q:'Has the reviewer received feedback on this specific boundary before?'},
-      {q:'Is this error isolated to one policy area?',redirect:'If errors span multiple policy areas, this reviewer likely has a broader Knowledge Gap, not a single comprehension failure. Consider a full policy health check and go back to select Knowledge Gap instead.'}
+      {q:'Is this error isolated to one policy area?',redirect:'If errors span multiple policy areas, this reviewer likely has a broader Knowledge Gap, not a single comprehension failure. Consider a full policy health check and go back to select Knowledge Gap instead.'},
+      {q:'Did the reviewer correctly identify the violation, but the real problem is which policy they cited or which action they took — not the boundary judgment itself?',
+        opts:[
+          {label:'✗ No — the boundary judgment itself is the problem',yes:true},
+          {label:'⚠️ Yes — they cited the wrong policy',yes:false,switchTo:'rev-wrong-citation',redirect:'The reviewer correctly identified the violation — the gap is in policy citation, not boundary judgment. Continuing will diagnose it as Wrong policy cited instead, using its own evidence checks.'},
+          {label:'⚠️ Yes — they took a disproportionate action',yes:false,switchTo:'rev-wrong-prop',redirect:'The reviewer correctly identified the violation — the gap is in the enforcement action selected, not boundary judgment. Continuing will diagnose it as Wrong enforcement action instead, using its own evidence checks.'}
+        ]}
     ]
   },
   'rev-missed-know-gap':{
@@ -35696,12 +35698,12 @@ const L4={
     successShort:'Policy locatable and describable on Fastball at 1 week.',
     actions:{
       once:['Deliver a targeted knowledge transfer session on this specific policy area only.','Assign SOP or e-learning material as follow-up.','Retest within one week — written check or Fastball.'],
-      recurring:['Full policy health check — run a Fastball across the 5 most recent error policy areas.','Check NHT records: was this policy covered in onboarding? If not — escalate to OM as a program gap.','Weekly knowledge checks until two consecutive weeks with no knowledge-gap errors.']
+      recurring:['Full policy health check — run a Fastball across the 5 most recent error policy areas.','Check Product Training records: was this policy covered in onboarding? If not — escalate to OM as a program gap.','Weekly knowledge checks until two consecutive weeks with no knowledge-gap errors.']
     },
     coachingNote:'On [job ID], the reviewer did not apply the correct policy because they were unaware it applied here. This is a knowledge gap — not a comprehension issue. Session focused on building policy awareness, not on the specific decision.',
     whys:[
       {q:'Did the reviewer apply any policy on this job?'},
-      {q:'Was this policy covered in the reviewer\'s NHT?',note:'If NHT did not cover this policy area, note this for OM separately — but continue coaching the Knowledge Gap with the reviewer.'},
+      {q:'Was this policy covered in the reviewer\'s Product Training?',note:'If Product Training did not cover this policy area, note this for OM separately — but continue coaching the Knowledge Gap with the reviewer.'},
       {q:'Was there a policy update in the last 30 days that the reviewer should have absorbed?'},
       {q:'Has this reviewer missed similar errors on other policy areas recently?',redirect:'If errors span multiple knowledge areas, a single knowledge transfer session will not be sufficient. Escalate to OM for a structured re-onboarding plan.'},
       {q:'Can the reviewer locate the correct policy in the Policy Bank when guided?'}
@@ -36096,7 +36098,7 @@ const L4={
       {q:'Does the reviewer appear engaged and present in Side-by-side observation?'},
       {q:'Are there any external factors (personal, workstation, schedule) that could be affecting focus?',redirect:'If personal or emotional factors are involved — this is a wellbeing concern, not a conduct issue. Stop this session and open rev-wellbeing-exposure instead. Do not continue coaching focus before the wellbeing conversation has happened.'},
       {q:'Is the error pattern evenly distributed across the full shift?',redirect:'If errors cluster at end of shift or after extended periods — this is fatigue, not distraction. Go back and select Fatigue instead.'},
-      {q:'Is this error pattern consistent across 4 or more weeks of audit data — and does it cluster on a specific content type or demographic?',redirect:'If the pattern is 4+ weeks old and tied to a specific content type or demographic — this may be unconscious bias, not distraction. Go back and select Bias instead. Do not raise this without longitudinal data.'},
+      {q:'Is this error pattern consistent across 4 or more weeks of audit data — and does it cluster on a specific content type or demographic?',switchTo:'rev-bias-unconscious',redirect:'If the pattern is 4+ weeks old and tied to a specific content type or demographic — this may be unconscious bias, not distraction. Continuing will diagnose it as Bias instead, using its own evidence checks. Do not raise this without longitudinal data.'},
       {q:'Is there direct evidence of deliberate incorrect answers — not just a pattern, but clear intent?',redirect:'If there is direct evidence of intentional wrong answers — this is misconduct, not a conduct issue. Do not continue this coaching session. Document all evidence and escalate to OM immediately before any conversation with the reviewer.'}
     ]
   },
@@ -36141,7 +36143,7 @@ const L4={
       {q:'Are required steps (UDT check, full element review) being skipped?'},
       {q:'Has the reviewer expressed concern about their throughput targets or queue volume?',note:'If yes — note for OM as a potential structural issue. Continue coaching the individual on step completion regardless.'},
       {q:'When shown the error job at a slower pace, does the reviewer catch the violation?',redirect:'If the reviewer still misses it at a slower pace — this is a knowledge or process issue, not rushing.'},
-      {q:'Is the rushing pattern consistent across 4 or more weeks — and does it cluster on a specific content type or demographic?',redirect:'If the pattern is 4+ weeks old and tied to a specific content type or demographic — this may be unconscious bias expressed through speed, not a pacing issue. Go back and select Bias instead. Do not raise this without longitudinal data.'},
+      {q:'Is the rushing pattern consistent across 4 or more weeks — and does it cluster on a specific content type or demographic?',switchTo:'rev-bias-unconscious',redirect:'If the pattern is 4+ weeks old and tied to a specific content type or demographic — this may be unconscious bias expressed through speed, not a pacing issue. Continuing will diagnose it as Bias instead, using its own evidence checks. Do not raise this without longitudinal data.'},
       {q:'Is there direct evidence of deliberate incorrect answers — not just a pattern, but clear intent?',redirect:'If there is direct evidence of intentional wrong answers — this is misconduct, not a conduct issue. Do not continue this coaching session. Document all evidence and escalate to OM immediately before any conversation with the reviewer.'}
     ]
   },
@@ -36505,6 +36507,38 @@ function initClauseDropdown(){
   });
 }
 
+// Category changed — populate L1 from the same category's keys.
+// (Previously called from HTML but never defined — Category 2/3 selections
+// silently did nothing because L1 never populated and stayed disabled.)
+function updateClauseL1(){
+  const cat=document.getElementById('clause-cat').value;
+  const l1=document.getElementById('clause-l1');
+  const l2=document.getElementById('clause-l2');
+  if(!l1||!l2) return;
+  l1.innerHTML='<option value="">Select level 1…</option>';
+  l2.innerHTML='<option value="">Select level 2…</option>';
+  l2.disabled=true;
+  if(!cat){ l1.disabled=true; return; }
+  const keys=Object.keys(CLAUSE_DATA[cat]||{});
+  keys.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;l1.appendChild(o);});
+  l1.disabled=keys.length===0;
+}
+
+// L1 changed — populate L2 from CLAUSE_DATA[category][l1] (the L3-equivalent
+// array in this taxonomy's two-level dropdown shape — see dispUpdateL2 for
+// the fuller three-dropdown version used by the Dispute panel).
+function updateClauseL2(){
+  const cat=document.getElementById('clause-cat').value;
+  const l1v=document.getElementById('clause-l1').value;
+  const l2=document.getElementById('clause-l2');
+  if(!l2) return;
+  l2.innerHTML='<option value="">Select level 2…</option>';
+  if(!cat||!l1v){ l2.disabled=true; return; }
+  const opts=(CLAUSE_DATA[cat]||{})[l1v]||[];
+  l2.disabled=opts.length===0;
+  opts.forEach(o=>{const el=document.createElement('option');el.value=o;el.textContent=o;l2.appendChild(el);});
+}
+
 function getClauseString(){
   const cat=document.getElementById('clause-cat').value;
   const l1=document.getElementById('clause-l1').value;
@@ -36539,14 +36573,21 @@ function populatePKTForm(){
   if(rnameDisplay) rnameDisplay.textContent=rnameVal||'—';
   if(swDisplay) swDisplay.textContent=swVal||'—';
   if(sigDisplay) sigDisplay.textContent=sigVal||'—';
+
+  // Frequency was auto-detected at step 1c (detectPattern) — display read-only
+  const freqDisplay=document.getElementById('pkt-freq-display');
+  if(freqDisplay){
+    if(RCA.freq==='recurring') freqDisplay.textContent='🔁 Recurring — pattern detected in the last 60 days';
+    else if(RCA.freq==='once') freqDisplay.textContent='✅ First time — no prior defects found';
+    else freqDisplay.textContent='—';
+  }
+
   // Clear coherence panel
   const cohPanel=document.getElementById('coherence-panel');
   if(cohPanel) cohPanel.classList.remove('show');
   // Clear commitment draft note
   const draftNote=document.getElementById('commitment-draft-note');
   if(draftNote) draftNote.style.display='none';
-  document.querySelectorAll('#freq-btn-once,#freq-btn-recurring').forEach(b=>b.classList.remove('selected'));
-
 
   // Show/hide Reviewer Commitment — only for People > Reviewer nodes
   const isReviewer=RCA.who==='reviewer';
@@ -37470,7 +37511,7 @@ function showWhy(idx){
   });
   const area=document.getElementById('why-question-area');
   const buttons=w.opts
-    ? w.opts.map(o=>`<button class="why-opt ${o.yes?'yes':'no'}" onclick="answerWhy(${idx},${o.yes})">${o.label}</button>`).join('')
+    ? w.opts.map((o,oi)=>`<button class="why-opt ${o.yes?'yes':'no'}" onclick="answerWhy(${idx},${o.yes},${oi})">${o.label}</button>`).join('')
     : `<button class="why-opt yes" onclick="answerWhy(${idx},true)">✓ Yes</button>
        <button class="why-opt no" onclick="answerWhy(${idx},false)">✗ No</button>`;
   area.innerHTML=`
@@ -37491,14 +37532,21 @@ function prevWhy(){
   if(cur>0) showWhy(cur-1);
 }
 
-function answerWhy(idx,yes){
+function answerWhy(idx,yes,optIdx){
   const node=L4[RCA.l4id];
   const w=node.whys[idx];
   RCA.whyAnswers[idx]=yes;
-  if(!yes && w.redirect){
+  // For multi-option questions (w.opts), an option's own redirect/switchTo/finding
+  // takes priority (used when different options should route to different
+  // outcomes — e.g. wrong-citation vs wrong-prop). If the option doesn't carry
+  // its own redirect, fall back to the top-level why entry (the original,
+  // still-common pattern of one shared redirect for a multi-option question).
+  const optSel = (w.opts && optIdx!==undefined) ? w.opts[optIdx] : null;
+  const selected = (optSel && (optSel.redirect || optSel.switchTo || optSel.finding)) ? optSel : w;
+  if(!yes && selected.redirect){
     RCA.confidenceDeductions++;
-    currentRedirectTarget=w.redirect;
-    if(w.finding){
+    currentRedirectTarget=selected.redirect;
+    if(selected.finding){
       RCA.patternRecog=true;
       nextWhy(idx+1);
       return;
@@ -37506,10 +37554,20 @@ function answerWhy(idx,yes){
     const box=document.getElementById('why-redirect');
     const title=document.getElementById('why-redirect-title');
     const btn=document.getElementById('btn-redirect');
-    document.getElementById('why-redirect-text').textContent=w.redirect;
+    document.getElementById('why-redirect-text').textContent=selected.redirect;
     box.classList.remove('is-finding');
-    title.textContent='⚠️ This answer suggests a different root cause';
-    btn.textContent='Go back and change selection';
+    if(selected.switchTo){
+      // Inline branch — evidence-gated overlay check (e.g. bias, wrong-execution).
+      // Continues diagnosing on a DIFFERENT node's own whys chain rather than
+      // sending the TL back to re-navigate the entry tree.
+      title.textContent='⚠️ This may be a different root cause';
+      btn.textContent='Continue diagnosing as '+(L4[selected.switchTo]?L4[selected.switchTo].label:'this');
+      btn.setAttribute('data-switch-to', selected.switchTo);
+    } else {
+      title.textContent='⚠️ This answer suggests a different root cause';
+      btn.textContent='Go back and change selection';
+      btn.removeAttribute('data-switch-to');
+    }
     box.style.display='block';
     document.getElementById('why-question-area').querySelector('.why-opts').style.display='none';
     return;
@@ -37517,8 +37575,21 @@ function answerWhy(idx,yes){
   nextWhy(idx+1);
 }
 
+function switchWhysTarget(newNodeId){
+  if(!L4[newNodeId]) return;
+  RCA.l4id=newNodeId;
+  RCA.whyStep=0;
+  RCA.whyAnswers=[];
+  currentRedirectTarget=null;
+  document.getElementById('why-redirect').style.display='none';
+  startWhys();
+}
+
 function doRedirect(){
   document.getElementById('why-redirect').style.display='none';
+  const btn=document.getElementById('btn-redirect');
+  const switchTo=btn?btn.getAttribute('data-switch-to'):null;
+  if(switchTo){ switchWhysTarget(switchTo); return; }
   if(RCA.revType==='missed'){ mcStart(); goStep('4c-missed-guide'); }
   else if(RCA.revType==='overenforce'){ ocStart(); goStep('4d-over-guide'); }
   else goStep('5-l4');
@@ -37854,14 +37925,10 @@ function buildCommitmentDraft(){
 }
 
 function validateAndGenerate(){
-  // Check frequency selected first
-  if(!RCA.freq){
-    const freqWrap=document.querySelector('#freq-btn-once').closest('div').parentElement;
-    document.querySelectorAll('#freq-btn-once,#freq-btn-recurring').forEach(b=>b.style.outline='2px solid var(--coral)');
-    setTimeout(()=>document.querySelectorAll('#freq-btn-once,#freq-btn-recurring').forEach(b=>b.style.outline=''),2000);
-    document.getElementById('freq-btn-once').scrollIntoView({behavior:'smooth',block:'center'});
-    return;
-  }
+  // Frequency (once/recurring) is now auto-detected at step 1c via detectPattern()
+  // and stored in RCA.freq before the TL can even reach this screen — no manual
+  // toggle exists here anymore, so this gate is a safety fallback only.
+  if(!RCA.freq){ RCA.freq='once'; }
   const required=[
     {id:'pkt-signal',   label:'Signal'},
     {id:'pkt-anchor',   label:'Anchor'},
@@ -38117,7 +38184,7 @@ function copyCommentary(){
     pkt.exec?'6. Executive Comment: '+pkt.exec:'',
     pkt.commitment?'7. Reviewer Commitment: '+pkt.commitment:'',
     pkt.actions?'8. Action Plan:\n'+pkt.actions:''
-  ].filter(Boolean).join('\n\n');
+  ].filter(Boolean).join('\n');
   const btn=document.querySelector('.btn-copy-col');
   copyToClipboard(lines,btn);
 }
