@@ -470,6 +470,7 @@ tr:hover td{background:#F8F9FB}
 .pkt-clause-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
 
 .pkt-select{width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:9px 12px;font-family:var(--f);font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;transition:border-color .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238E95A3' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;}
+.pkt-field-error{border-color:var(--coral)!important;background:var(--csec, var(--sa))!important;}
 
 .pkt-select:focus{outline:none;border-color:var(--blue);}
 
@@ -667,6 +668,22 @@ tr:hover td{background:#F8F9FB}
 .myrca-mode-btn.mode-active{border-color:var(--blue);background:var(--bsec);color:var(--blue);box-shadow:var(--shadow-hover);}
 
 .myrca-mode-btn.mode-active-dispute{border-color:var(--purple);background:var(--psec);color:var(--purple);box-shadow:var(--shadow-hover);}
+
+.myrca-mode-pill{font-size:12.5px;font-weight:700;padding:6px 14px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--border);background:var(--sa);color:var(--ts);transition:all .12s;}
+
+/* Shared prev/next pagination button style — used by every table pagination
+   control across the app (RCA Explorer, Job Detail Explorer, Non-Decision
+   Job Detail) so they render identically instead of each having its own
+   inline style or, worse, relying on unstyled browser defaults. */
+.pg-nav-btn{padding:3px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f);font-size:11px;font-weight:600;transition:all .12s;}
+.pg-nav-btn:hover:not(:disabled){border-color:var(--blue);color:var(--text);background:var(--surface);}
+.pg-nav-btn:disabled{opacity:.4;cursor:default;}
+
+.myrca-mode-pill:hover{border-color:var(--blue);color:var(--text);}
+
+.myrca-mode-pill.mode-active{border-color:var(--blue);background:var(--blue);color:#fff;}
+
+.myrca-mode-pill.mode-active-dispute{border-color:var(--purple);background:var(--purple);color:#fff;}
 
 .coherence-dismiss{font-size:11px;font-weight:700;color:var(--amber);background:none;border:none;cursor:pointer;padding:3px 8px;border-radius:var(--pill);border:1px solid var(--abd);font-family:var(--f);transition:background .12s;}
 
@@ -1116,6 +1133,13 @@ tr:hover td{background:#F8F9FB}
           </div>
 
           <div id="ti-priority-surface-body">
+            <!-- Subworkflow Health — 3-box summary (red/amber/green counts) -->
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+              <span style="font-size:11px;font-weight:800;color:var(--text)">Subworkflow Health</span>
+              <span style="font-size:10px;color:var(--tm)">&middot; count of subworkflows by status, this TL's team, MTD &middot;</span>
+            </div>
+            <div id="ti-sw-health-summary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px"></div>
+
             <!-- Priority Reviewer -->
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
               <span style="font-size:11px;font-weight:800;color:var(--text)">Priority Reviewer</span>
@@ -1148,15 +1172,6 @@ tr:hover td{background:#F8F9FB}
 
       <div class="kpi-section-label">TL Snapshot</div>
       <div id="ti-tl-cards" style="display:flex;flex-direction:column;gap:12px;margin-bottom:1.5rem"></div>
-
-      <div class="kpi-section-label" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span>Subworkflow Health</span>
-        <span style="font-size:10px;color:var(--tm)">&middot; sorted by Quality audits, then AHT decisions, both descending &middot;</span>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#F0FDF4;color:#15803D;border:1px solid #86EFAC">Both met = Green</span>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF9C3;color:#92400E;border:1px solid #FCD34D">AHT missed only = Yellow</span>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:#FEF2F2;color:#B91C1C;border:1px solid #FCA5A5">P&amp;R missed = Red</span>
-      </div>
-      <div id="ti-sw-health-cards" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.5rem"></div>
 
       <div class="kpi-section-label" style="display:flex;align-items:center;justify-content:space-between">
         <span>Performance Summary Table (Weekly Pivot) <span id="ti-table-legend"></span></span>
@@ -2641,75 +2656,41 @@ tr:hover td{background:#F8F9FB}
 
         <!-- RCA TREE WRAPPER -->
         <div id="myrca-tree-wrapper">
-        <div class="sec-banner banner-amber">
-          <div class="sec-banner-icon">🔍</div>
-          <div><div class="sec-banner-title">MyRCA</div><div class="sec-banner-sub">Step-by-step root cause diagnosis with 5 Whys confirmation, RCA Commentary form, and action plan generation.</div></div>
+        <div class="ph">
+          <h1>MyRCA</h1>
+          <p>Step-by-step root cause diagnosis with 5 Whys confirmation, RCA Commentary form, and action plan generation.</p>
         </div>
 
-        <!-- INSTRUCTIONS -->
-        <div id="myrca-instructions" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow-card);overflow:hidden;margin-bottom:1.75rem;">
-          <div style="padding:12px 16px;background:var(--sa);border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-size:12px;font-weight:800;color:var(--ts);letter-spacing:.06em;text-transform:uppercase;">How to use MyRCA</span>
-            <button onclick="toggleInstructions()" id="instr-toggle-btn" style="font-size:11px;font-weight:600;color:var(--blue);background:none;border:none;cursor:pointer;font-family:var(--f);">Hide ↑</button>
-          </div>
-          <div id="instr-body" style="padding:16px 18px;">
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;">
-              <div style="background:var(--bsec);border-radius:var(--rl);padding:12px;border:1px solid var(--bbd);">
-                <div style="font-size:18px;margin-bottom:6px;">🎯</div>
-                <div style="font-size:12px;font-weight:800;color:var(--blue);margin-bottom:4px;">1. Select your lens</div>
-                <div style="font-size:12px;color:var(--ts);line-height:1.5;">Choose Quality error, High AHT, or both. This filters the entire tree to relevant nodes only.</div>
-              </div>
-              <div style="background:var(--psec);border-radius:var(--rl);padding:12px;border:1px solid var(--pbd);">
-                <div style="font-size:18px;margin-bottom:6px;">🔍</div>
-                <div style="font-size:12px;font-weight:800;color:var(--purple);margin-bottom:4px;">2. Trace the origin</div>
-                <div style="font-size:12px;color:var(--ts);line-height:1.5;">Follow the steps — who, what type, and which specific L4 node. AHT lens adds subworkflow and evidence layer steps.</div>
-              </div>
-              <div style="background:var(--tsec);border-radius:var(--rl);padding:12px;border:1px solid var(--tbd);">
-                <div style="font-size:18px;margin-bottom:6px;">✅</div>
-                <div style="font-size:12px;font-weight:800;color:var(--teal);margin-bottom:4px;">3. Confirm with 5 Whys</div>
-                <div style="font-size:12px;color:var(--ts);line-height:1.5;">Answer Yes or No to each diagnostic question. A redirect means the root cause may be different — don't skip it.</div>
-              </div>
-              <div style="background:var(--abg);border-radius:var(--rl);padding:12px;border:1px solid var(--abd);">
-                <div style="font-size:18px;margin-bottom:6px;">📝</div>
-                <div style="font-size:12px;font-weight:800;color:var(--amber);margin-bottom:4px;">4. Fill RCA Commentary</div>
-                <div style="font-size:12px;color:var(--ts);line-height:1.5;">Signal, Clause, Anchor, and Executive Comment are required. Action plan and coaching note are pre-filled — edit to fit.</div>
-              </div>
-            </div>
-            <div style="background:var(--sa);border-radius:var(--r);padding:10px 14px;font-size:12.5px;color:var(--ts);line-height:1.7;border:1px solid var(--border);">
-              <strong style="color:var(--text);">Tips:</strong>
-              The <span style="font-weight:700;color:var(--amber);">confidence badge</span> on the output tells you how clean the diagnosis is — Medium or Low means at least one 5 Whys answer contradicted the node. Double-check before logging.
-              &nbsp;·&nbsp; Use <span style="font-weight:700;color:var(--teal);">Open coaching steps →</span> to jump directly to the right scenario with the category pre-filtered.
-              &nbsp;·&nbsp; The <span style="font-weight:700;color:var(--coral);">Markdown label</span> is the exact text to log in the QA tracker — copy it verbatim.
-            </div>
-          </div>
-        </div>
-
-        <!-- MODE SELECTOR -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem;">
-          <button class="myrca-mode-btn mode-active" id="mode-btn-rca" onclick="switchRCAMode('rca')">
-            <div style="font-size:22px;margin-bottom:6px;">🔍</div>
-            <div style="font-size:14px;font-weight:800;margin-bottom:3px;">Reviewer RCA</div>
-            <div style="font-size:12px;opacity:.8;line-height:1.5;">Step-by-step root cause diagnosis with 5 Whys, commentary form, and action plan.</div>
-          </button>
-          <button class="myrca-mode-btn" id="mode-btn-dispute" onclick="switchRCAMode('dispute')">
-            <div style="font-size:22px;margin-bottom:6px;">📝</div>
-            <div style="font-size:14px;font-weight:800;margin-bottom:3px;">Dispute RCA</div>
-            <div style="font-size:12px;opacity:.8;line-height:1.5;">Draft a dispute markdown. Reason out why the reviewer's original decision was correct.</div>
-          </button>
+        <!-- MODE SELECTOR — compact pill tabs, matches the decay-pill pattern used elsewhere -->
+        <div style="display:flex;gap:6px;margin-bottom:1rem;">
+          <button class="myrca-mode-pill mode-active" id="mode-btn-rca" onclick="switchRCAMode('rca')">🔍 Reviewer RCA</button>
+          <button class="myrca-mode-pill" id="mode-btn-dispute" onclick="switchRCAMode('dispute')">📝 Dispute RCA</button>
         </div>
 
         <div class="progress-wrap">
-          <div class="progress-label"><span id="prog-label">Step 1 of 8</span><span id="prog-pct">14%</span></div>
-          <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:14%;"></div></div>
+          <div class="progress-label"><span id="prog-label">Step 1 of 6</span><span id="prog-pct">17%</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:17%;"></div></div>
         </div>
 
-        <!-- STEP 1: Entry lens -->
+        <!-- STEP 1: Entry — combined lens + origin + who in one screen -->
         <div class="tree-step show" id="step-1">
-          <div class="step-header"><div class="step-num">1</div><div><div class="step-title">Why are you doing this RCA?</div><div class="step-sub">Choose the signal that triggered the investigation.</div></div></div>
+          <div class="step-header"><div class="step-num">1</div><div><div class="step-title">What's the problem, and who's it about?</div><div class="step-sub">Pick the option that best matches what triggered this RCA.</div></div></div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tm);margin-bottom:8px;">Reviewer</div>
+          <div class="option-grid cols-3" style="margin-bottom:16px;">
+            <button class="opt-btn" onclick="selectEntry(this,'reviewer','quality')"><span class="opt-icon">🎯</span><span class="opt-label">Quality error</span><span class="opt-desc">Wrong decision, missed violation, over-enforcement, or audit failure.</span></button>
+            <button class="opt-btn" onclick="selectEntry(this,'reviewer','aht')"><span class="opt-icon">⏱️</span><span class="opt-label">High AHT</span><span class="opt-desc">Reviewer is taking too long. AHT above threshold or team average.</span></button>
+            <button class="opt-btn" onclick="selectEntry(this,'reviewer','combined')"><span class="opt-icon">🔗</span><span class="opt-label">Both at the same time</span><span class="opt-desc">Quality errors and high AHT both present for the same reviewer.</span></button>
+          </div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tm);margin-bottom:8px;">Someone else</div>
+          <div class="option-grid cols-2" style="margin-bottom:16px;">
+            <button class="opt-btn" onclick="selectEntry(this,'auditor')"><span class="opt-icon">🔎</span><span class="opt-label">Auditor error</span><span class="opt-desc">The person who checked and scored the reviewer's decision made a mistake.</span></button>
+            <button class="opt-btn" onclick="selectEntry(this,'escalation')"><span class="opt-icon">⚠️</span><span class="opt-label">Escalation missed</span><span class="opt-desc">Content that needed to be escalated was not flagged.</span></button>
+          </div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tm);margin-bottom:8px;">Not a person</div>
           <div class="option-grid cols-3">
-            <button class="opt-btn" onclick="selectLens(this,'quality')"><span class="opt-icon">🎯</span><span class="opt-label">Quality error</span><span class="opt-desc">Wrong decision, missed violation, over-enforcement, or audit failure.</span></button>
-            <button class="opt-btn" onclick="selectLens(this,'aht')"><span class="opt-icon">⏱️</span><span class="opt-label">High AHT</span><span class="opt-desc">Reviewer is taking too long. AHT above threshold or team average.</span></button>
-            <button class="opt-btn" onclick="selectLens(this,'combined')"><span class="opt-icon">🔗</span><span class="opt-label">Both at the same time</span><span class="opt-desc">Quality errors and high AHT both present for the same reviewer.</span></button>
+            <button class="opt-btn" onclick="selectEntry(this,'policy')"><span class="opt-icon">📋</span><span class="opt-label">Policy is unclear</span><span class="opt-desc">Guidance is missing, ambiguous, or conflicting. A trained reviewer would reasonably make this error.</span></button>
+            <button class="opt-btn" onclick="selectEntry(this,'protocol')"><span class="opt-icon">🔄</span><span class="opt-label">Process not followed</span><span class="opt-desc">A workflow change was not cascaded, or internal guides are out of date.</span></button>
+            <button class="opt-btn" onclick="selectEntry(this,'tooling')"><span class="opt-icon">🔧</span><span class="opt-label">Tool or widget failed</span><span class="opt-desc">The tool did not work as expected and caused the error or delay.</span></button>
           </div>
         </div>
 
@@ -2731,25 +2712,15 @@ tr:hover td{background:#F8F9FB}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div>
                 <div class="pkt-label" style="margin-bottom:6px;">Reviewer name <span>— who is this RCA for?</span></div>
-                <input type="text" id="pkt-reviewer-name" placeholder="e.g. John Cruz" style="width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:8px 12px;font-family:var(--f);font-size:13.5px;color:var(--text);background:var(--surface);transition:border-color .15s;" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" oninput="clearFieldError(this);updatePatternBadge();"/>
+                <select id="pkt-reviewer-name" class="pkt-select" onchange="clearFieldError(this);updatePatternBadge();">
+                  <option value="">Select reviewer…</option>
+                </select>
               </div>
               <div>
-                <div class="pkt-label" style="margin-bottom:6px;">Subworkflow <span>— select or type queue name</span></div>
-                <input type="text" id="pkt-subworkflow" list="sw-datalist" placeholder="Select or type…" autocomplete="off" style="width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:8px 12px;font-family:var(--f);font-size:13px;color:var(--text);background:var(--surface);transition:border-color .15s;" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" oninput="clearFieldError(this);updatePatternBadge();"/>
-                <datalist id="sw-datalist">
-                  <option value="Underage"><option value="Underage Profile Review"><option value="Profile Review">
-                  <option value="Builder Profile"><option value="Profile Review Prevalence">
-                  <option value="Name Blocking"><option value="Video Review"><option value="Messaging">
-                  <option value="Event"><option value="World Review"><option value="CSAM Image Review">
-                  <option value="MMS Matching"><option value="Digigoods / Commerce"><option value="Group Name">
-                  <option value="World Subject Elements"><option value="Hyperscape"><option value="Workrooms">
-                  <option value="In-Depth Review"><option value="Public Asset Library"><option value="Asset Review">
-                  <option value="World Review Reactive"><option value="Content"><option value="Events">
-                  <option value="World NPC"><option value="World Thumbnail Labelling"><option value="Post">
-                  <option value="Messaging Subject Elements"><option value="Post Report"><option value="CSAM Video Review">
-                  <option value="Screenshots"><option value="MHE Asset Review"><option value="MHE BluePrint Labeling">
-                  <option value="World Reels">
-                </datalist>
+                <div class="pkt-label" style="margin-bottom:6px;">Subworkflow <span>— select the queue</span></div>
+                <select id="pkt-subworkflow" class="pkt-select" onchange="clearFieldError(this);updatePatternBadge();">
+                  <option value="">Select subworkflow…</option>
+                </select>
               </div>
             </div>
           </div>
@@ -2770,10 +2741,10 @@ tr:hover td{background:#F8F9FB}
             <button class="opt-btn" onclick="selectOrigin(this,'protocol')"><span class="opt-icon">🔄</span><span class="opt-label">The process was not followed or communicated</span><span class="opt-desc">A workflow change was not cascaded, or internal guides are out of date.</span></button>
             <button class="opt-btn" onclick="selectOrigin(this,'tooling')"><span class="opt-icon">🔧</span><span class="opt-label">A tool or widget failed</span><span class="opt-desc">The tool did not work as expected and caused the error or delay.</span></button>
           </div>
-          <div class="nav-row"><button class="btn-back" id="back-step2" onclick="goStep(1)">← Back</button></div>
+          <div class="nav-row"><button class="btn-back" onclick="goStep(1)">← Back</button></div>
         </div>
 
-        <!-- STEP 3: Who -->
+        <!-- STEP 3: Who (retained for downstream back-navigation only; not reachable from step 1 directly) -->
         <div class="tree-step" id="step-3-people">
           <div class="step-header"><div class="step-num">3</div><div><div class="step-title">Who made the error?</div><div class="step-sub">Identify whose decision caused the problem.</div></div></div>
           <div class="option-grid cols-2">
@@ -2795,7 +2766,7 @@ tr:hover td{background:#F8F9FB}
             <button class="opt-btn" onclick="selectAHTPhase(this,'inconsistent')"><span class="opt-icon">📊</span><span class="opt-label">Across all jobs with no pattern</span><span class="opt-desc">Fast on some content, slow on others — no stable review framework.</span></button>
             <button class="opt-btn" onclick="selectAHTPhase(this,'avoidance')"><span class="opt-icon">⚠️</span><span class="opt-label">Only on hard or ambiguous jobs</span><span class="opt-desc">Clean jobs are fast — delay is specific to borderline or difficult content.</span></button>
           </div>
-          <div class="nav-row"><button class="btn-back" onclick="goStep('3-people')">← Back</button></div>
+          <div class="nav-row"><button class="btn-back" onclick="goStep('1c-identity')">← Back</button></div>
         </div>
 
         <!-- STEP 3c: SUBWORKFLOW (only for during-review phase) -->
@@ -2834,7 +2805,7 @@ tr:hover td{background:#F8F9FB}
             <button class="opt-btn" onclick="selectRevType(this,'overenforce')" data-revtype="overenforce"><span class="opt-label">⛔ Overtagged — enforced when they should not have</span><span class="opt-desc">Content was not violating but the reviewer took action. Includes policy over-extension, context misread, or confused policy areas.</span></button>
             <button class="opt-btn" onclick="selectRevType(this,'aht-behavior')" data-revtype="aht-behavior"><span class="opt-label">⏱️ High AHT behavior</span><span class="opt-desc">Taking too long on jobs. Not a quality error.</span></button>
           </div>
-          <div class="nav-row"><button class="btn-back" onclick="goStep('3-people')">← Back</button></div>
+          <div class="nav-row"><button class="btn-back" onclick="goStep('1c-identity')">← Back</button></div>
         </div>
 
         <!-- STEP 4c: Missed violation — branching diagnostic -->
@@ -2948,7 +2919,7 @@ tr:hover td{background:#F8F9FB}
           </div>
           <div class="nav-row">
             <button class="btn-back" onclick="goStep('6-whys')">← Back to 5 Whys</button>
-            <button class="btn-primary" onclick="goStep('6b-pkt');setProgress(7,8);if(!RCA.freq){RCA.freq=null;}populatePKTForm();">Proceed to commentary →</button>
+            <button class="btn-primary" onclick="goStep('6b-pkt');setProgress(5,6);if(!RCA.freq){RCA.freq=null;}populatePKTForm();">Proceed to commentary →</button>
           </div>
         </div>
 
@@ -4766,6 +4737,7 @@ function renderActiveTab() {
     if(activeId === 'tab-incentive') renderIncentive();
     if(activeId === 'tab-jobdetail') renderJobDetail();
     if(activeId === 'tab-spotcheck' && window.scRenderTable) window.scRenderTable();
+    if(activeId === 'tab-rca') populateRCAIdentityDropdowns();
 }
 
 // ─── OUTLIER REVIEW (DSM weekly tracker) ─────────────────────────────────────
@@ -6129,7 +6101,68 @@ function renderTLCards(rows, tls) {
     el.innerHTML = cards || '<div style="color:var(--tm);font-size:12px;padding:1rem">No TL data available for selected filters.</div>';
 }
 
-// ── Subworkflow Health ───────────────────────────────────────────────────
+// ── Subworkflow Health — 3-box summary (red/amber/green counts) ────────────
+// Same underlying per-SW classification as the detailed view used to show
+// (P&R miss always wins red, then AHT-only miss yellow, then both-met green;
+// insufficient-data SWs are excluded from all three counts rather than
+// guessing a color). Lives at the top of the Priority Surface card, above
+// Priority Reviewer, as a fast at-a-glance read before drilling into
+// individual reviewers.
+function renderSWHealthSummary(rows, tls) {
+    const el = document.getElementById('ti-sw-health-summary');
+    if(!el) return;
+
+    const selTls = Array.isArray(tls) ? tls : [];
+    if(selTls.length !== 1) {
+        el.innerHTML = `<div style="grid-column:1/-1;background:var(--sa);border:1px solid var(--border);border-radius:var(--r);padding:1rem;text-align:center;color:var(--tm);font-size:12px">
+            ${selTls.length === 0 ? 'Select a TL from the top filter bar to see subworkflow health.' : 'Select exactly one TL to see subworkflow health.'}
+        </div>`;
+        return;
+    }
+    if(!rows.length) { el.innerHTML = ''; return; }
+
+    const swMap = {};
+    rows.forEach(r => {
+        if(!r.sw) return;
+        if(!swMap[r.sw]) swMap[r.sw] = {sw:r.sw, workflow:r.workflow||'', tpa:0,tna:0,fpa:0,fna:0, dht:0,nht:0, dec:0};
+        const m = swMap[r.sw];
+        m.tpa+=r.tpa; m.tna+=r.tna; m.fpa+=r.fpa; m.fna+=r.fna;
+        m.dht+=r.dht; m.nht+=r.nht; m.dec+=r.decisions;
+    });
+
+    let redCount=0, yellowCount=0, greenCount=0;
+    Object.values(swMap).forEach(m => {
+        const prec = (m.tpa+m.fpa)>0 ? m.tpa/(m.tpa+m.fpa) : null;
+        const rec  = (m.tpa+m.fna)>0 ? m.tpa/(m.tpa+m.fna) : null;
+        const aht  = m.dec>0 ? (m.dht+m.nht)/m.dec : null;
+
+        const targets = (typeof SW_TARGETS !== 'undefined' && SW_TARGETS[m.sw]) || {};
+        const precTgt = targets.prec !== undefined && targets.prec !== null ? targets.prec : 0.96;
+        const recTgt  = targets.rec  !== undefined && targets.rec  !== null ? targets.rec  : 0.96;
+        const ahtTgt  = targets.aht  !== undefined && targets.aht  !== null ? targets.aht  : null;
+
+        const prMet  = (prec===null || rec===null) ? null : (prec>=precTgt && rec>=recTgt);
+        const ahtMet = (aht===null || ahtTgt===null) ? null : (aht<=ahtTgt);
+
+        if(prMet === false) redCount++;
+        else if(ahtMet === false) yellowCount++;
+        else if(prMet === true && ahtMet === true) greenCount++;
+        // insufficient-data SWs (prMet/ahtMet both null) are excluded from all three counts
+    });
+
+    const boxes = [
+        {label:'Red — P&R missed', count:redCount, bg:'#FEF2F2', border:'#FCA5A5', fg:'#B91C1C'},
+        {label:'Amber — AHT missed only', count:yellowCount, bg:'#FEF9C3', border:'#FCD34D', fg:'#92400E'},
+        {label:'Green — both met', count:greenCount, bg:'#F0FDF4', border:'#86EFAC', fg:'#15803D'},
+    ];
+    el.innerHTML = boxes.map(b => `
+        <div style="background:${b.bg};border:1px solid ${b.border};border-radius:var(--r);padding:12px 14px;text-align:center">
+            <div style="font-size:26px;font-weight:800;color:${b.fg};line-height:1.1;margin-bottom:4px">${b.count}</div>
+            <div style="font-size:10.5px;font-weight:700;color:${b.fg};text-transform:uppercase;letter-spacing:.04em">${b.label}</div>
+        </div>`).join('');
+}
+
+// ── Subworkflow Health (detailed, per-SW) ───────────────────────────────
 // One card per sub-workflow this TL's team worked, showing whether P&R and
 // AHT both meet target, only AHT is missed, or P&R is missed (P&R miss
 // always wins the overall color — quality issues outrank speed issues).
@@ -6269,7 +6302,7 @@ function renderTeamInsights(){
   let tlCardRows = rows;
   if(_svLatestSupMode) tlCardRows = applyLatestSup(tlCardRows);
   renderTLCards(tlCardRows, tls);
-  renderSWHealthCards(tlCardRows, tls);
+  renderSWHealthSummary(tlCardRows, tls);
 
   let rowsLM = rows;
 
@@ -23963,8 +23996,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         pgEl.innerHTML = filtered.length <= PAGE_SIZE ? '' :
             `<span style="color:var(--tm)">Page ${MISC_PAGE} of ${totalPages} · ${filtered.length} results</span>
-             <button onclick="miscChangePage(-1)" style="padding:3px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--sa);cursor:pointer;font-family:var(--f);font-size:11px" ${MISC_PAGE===1?'disabled':''}>‹ Prev</button>
-             <button onclick="miscChangePage(1)"  style="padding:3px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--sa);cursor:pointer;font-family:var(--f);font-size:11px" ${MISC_PAGE===totalPages?'disabled':''}>Next ›</button>`;
+             <button class="pg-nav-btn" onclick="miscChangePage(-1)" ${MISC_PAGE===1?'disabled':''}>‹ Prev</button>
+             <button class="pg-nav-btn" onclick="miscChangePage(1)" ${MISC_PAGE===totalPages?'disabled':''}>Next ›</button>`;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -25271,8 +25304,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         pgEl.innerHTML = filtered.length <= JD_PAGE_SIZE ? '' :
             `<span style="color:var(--tm)">Page ${JD_PAGE} of ${totalPages} · ${filtered.length.toLocaleString()} jobs</span>
-             <button onclick="jdChangePage(-1)" style="padding:3px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--sa);cursor:pointer;font-family:var(--f);font-size:11px" ${JD_PAGE===1?'disabled':''}>‹ Prev</button>
-             <button onclick="jdChangePage(1)"  style="padding:3px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--sa);cursor:pointer;font-family:var(--f);font-size:11px" ${JD_PAGE===totalPages?'disabled':''}>Next ›</button>`;
+             <button class="pg-nav-btn" onclick="jdChangePage(-1)" ${JD_PAGE===1?'disabled':''}>‹ Prev</button>
+             <button class="pg-nav-btn" onclick="jdChangePage(1)" ${JD_PAGE===totalPages?'disabled':''}>Next ›</button>`;
     }
     window.jdChangePage = function(delta) {
         JD_PAGE += delta;
@@ -25670,11 +25703,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const pagEl = document.getElementById('ndjd-pagination');
         if (pagEl) {
-            const prevDisabled = NDJD_PAGE <= 1 ? 'disabled style="opacity:.4;cursor:default"' : `onclick="ndjdGoToPage(${NDJD_PAGE - 1})" style="cursor:pointer"`;
-            const nextDisabled = NDJD_PAGE >= totalPages ? 'disabled style="opacity:.4;cursor:default"' : `onclick="ndjdGoToPage(${NDJD_PAGE + 1})" style="cursor:pointer"`;
+            const prevDisabled = NDJD_PAGE <= 1 ? 'disabled' : `onclick="ndjdGoToPage(${NDJD_PAGE - 1})"`;
+            const nextDisabled = NDJD_PAGE >= totalPages ? 'disabled' : `onclick="ndjdGoToPage(${NDJD_PAGE + 1})"`;
             pagEl.innerHTML = `<span>${sorted.length.toLocaleString()} event${sorted.length !== 1 ? 's' : ''} · page ${NDJD_PAGE} of ${totalPages}</span>
-                <button ${prevDisabled}>← Prev</button>
-                <button ${nextDisabled}>Next →</button>`;
+                <button class="pg-nav-btn" ${prevDisabled}>‹ Prev</button>
+                <button class="pg-nav-btn" ${nextDisabled}>Next ›</button>`;
         }
     };
 
@@ -36731,14 +36764,14 @@ function selectAHTPhase(btn,phase){
   if(phase==='during'){
     // Go to subworkflow selection
     goStep('3c-subworkflow');
-    setProgress(5,8);
+    setProgress(3,6);
   } else {
     // Direct to L4
     const ids=PHASE_DIRECT_L4[phase]||['rev-aht-overthinking'];
     buildL4Menu(ids,'aht-behavior');
     goStep('5-l4');
     document.getElementById('l4-back-btn').onclick=()=>goStep('3b-ahtphase');
-    setProgress(6,8);
+    setProgress(4,6);
   }
 }
 
@@ -36748,7 +36781,7 @@ function selectSubworkflow(btn,sw){
   AHTContext.subworkflow=sw;
   buildEvidenceMenu(sw);
   goStep('3d-evidence');
-  setProgress(6,8);
+  setProgress(4,6);
 }
 
 function buildEvidenceMenu(sw){
@@ -36775,13 +36808,13 @@ function selectEvidenceLayer(btn,layer,sw){
     buildDetailMenu(detailKey);
     goStep('3e-detail');
     document.getElementById('l4-back-btn').onclick=()=>goStep('3e-detail');
-    setProgress(7,8);
+    setProgress(5,6);
   } else {
     // Direct to L4
     buildL4Menu(layer.l4s||['rev-aht-overthinking'],'aht-behavior');
     goStep('5-l4');
     document.getElementById('l4-back-btn').onclick=()=>goStep('3d-evidence');
-    setProgress(8,8);
+    setProgress(6,6);
   }
 }
 
@@ -36808,7 +36841,7 @@ function selectEvidenceDetail(btn,opt,key){
   buildL4Menu(opt.l4s||['rev-aht-overthinking'],'aht-behavior');
   goStep('5-l4');
   document.getElementById('l4-back-btn').onclick=()=>goStep('3e-detail');
-  setProgress(8,8);
+  setProgress(6,6);
 }
 
 function highlightContentTypeCard(){
@@ -36857,7 +36890,7 @@ function setProgress(step,total){
 function goStep(id){
   document.querySelectorAll('.tree-step').forEach(s=>s.classList.remove('show'));
   document.getElementById('step-'+id).classList.add('show');
-  const stepMap={'1':1,'1b':1,'1c-identity':2,'2':3,'3-people':4,'4-reviewer':5,'5-l4':6,'6-whys':7,'7-freq':8,'output':8};
+  const stepMap={'1':1,'1b':1,'1c-identity':2,'4-reviewer':3,'5-l4':4,'6-whys':5,'7-freq':6,'output':6};
   const n=stepMap[String(id)]||1;
   setProgress(n,8);
 }
@@ -36877,7 +36910,65 @@ function selectDriver(btn,driver){
   goStep('1c-identity');
 }
 
+// ── Combined entry screen — encodes lens + origin + who in one click ───────
+// personType: 'reviewer' | 'auditor' | 'escalation' | 'policy' | 'protocol' | 'tooling'
+// lens (only used when personType==='reviewer'): 'quality' | 'aht' | 'combined'
+function selectEntry(btn,personType,lens){
+  document.querySelectorAll('#step-1 .opt-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+
+  if(personType==='reviewer'){
+    RCA.origin='people';
+    RCA.who='reviewer';
+    RCA.lens=lens;
+    if(lens==='combined'){ goStep('1b'); return; }
+    RCA.driver=lens==='aht'?'aht-primary':'qual-primary';
+    goStep('1c-identity');
+    return;
+  }
+  if(personType==='auditor'){
+    RCA.origin='people'; RCA.who='auditor'; RCA.lens=null;
+    buildL4Menu(['aud-overturned','aud-missed'],'auditor');
+    goStep('5-l4');
+    document.getElementById('l4-back-btn').onclick=()=>goStep(1);
+    return;
+  }
+  if(personType==='escalation'){
+    RCA.origin='people'; RCA.who='escalation'; RCA.lens=null;
+    buildL4Menu(['esc-high-severity'],'escalation');
+    goStep('5-l4');
+    document.getElementById('l4-back-btn').onclick=()=>goStep(1);
+    return;
+  }
+  // Non-people origins: policy / protocol / tooling
+  RCA.origin=personType; RCA.who=null; RCA.lens=null;
+  const map={policy:['pol-wording','pol-ambiguous'],protocol:['prot-late-cascade'],tooling:['tool-widget']};
+  buildL4Menu(map[personType]||[],personType);
+  goStep('5-l4');
+  document.getElementById('l4-back-btn').onclick=()=>goStep(1);
+}
+
 // ── Front-loaded identity capture (Reviewer / Subworkflow / Signal) ────────
+function populateRCAIdentityDropdowns(){
+  const rSel=document.getElementById('pkt-reviewer-name');
+  const swSel=document.getElementById('pkt-subworkflow');
+  if(!rSel && !swSel) return;
+  if(typeof RAW_ROWS==='undefined' || !RAW_ROWS.length) return;
+
+  if(rSel){
+    const prevVal=rSel.value;
+    const reviewers=[...new Set(RAW_ROWS.map(r=>r.reviewer).filter(Boolean))].sort();
+    rSel.innerHTML='<option value="">Select reviewer…</option>'+reviewers.map(rv=>`<option value="${rv.replace(/"/g,'&quot;')}">${rv}</option>`).join('');
+    if(prevVal && reviewers.includes(prevVal)) rSel.value=prevVal;
+  }
+  if(swSel){
+    const prevVal=swSel.value;
+    const sws=[...new Set(RAW_ROWS.map(r=>r.sw).filter(Boolean))].sort();
+    swSel.innerHTML='<option value="">Select subworkflow…</option>'+sws.map(sw=>`<option value="${sw.replace(/"/g,'&quot;')}">${sw}</option>`).join('');
+    if(prevVal && sws.includes(prevVal)) swSel.value=prevVal;
+  }
+}
+
 function updatePatternBadge(){
   const rname=(document.getElementById('pkt-reviewer-name')||{}).value||'';
   const sw=(document.getElementById('pkt-subworkflow')||{}).value||'';
@@ -36926,12 +37017,15 @@ function confirmIdentityStep(){
   const sw=document.getElementById('pkt-subworkflow');
   const sig=document.getElementById('pkt-signal');
   let ok=true;
-  if(rname && !rname.value.trim()){ rname.style.borderColor='var(--coral)'; ok=false; }
-  if(sw && !sw.value.trim()){ sw.style.borderColor='var(--coral)'; ok=false; }
+  if(rname){ rname.classList.toggle('pkt-field-error', !rname.value.trim()); if(!rname.value.trim()) ok=false; }
+  if(sw){ sw.classList.toggle('pkt-field-error', !sw.value.trim()); if(!sw.value.trim()) ok=false; }
   if(!ok) return;
   updatePatternBadge();
-  goStep(2);
-  document.getElementById('back-step2').onclick=()=>goStep('1c-identity');
+  // RCA.origin/who/lens are already set by selectEntry() — route straight to the
+  // correct next screen for the reviewer path (AHT phase vs error-type).
+  const isAHT=RCA.lens==='aht'||(RCA.lens==='combined'&&(RCA.driver==='aht-primary'||RCA.driver==='equal'));
+  if(isAHT){ goStep('3b-ahtphase'); }
+  else{ filterStep4ByLens(); goStep('4-reviewer'); }
 }
 
 function selectOrigin(btn,origin){
@@ -36978,7 +37072,7 @@ function selectWho(btn,who){
   RCA.who=who;
   if(who==='reviewer'){
     const isAHT=RCA.lens==='aht'||(RCA.lens==='combined'&&(RCA.driver==='aht-primary'||RCA.driver==='equal'));
-    if(isAHT){goStep('3b-ahtphase');setProgress(5,8);}
+    if(isAHT){goStep('3b-ahtphase');setProgress(3,6);}
     else{filterStep4ByLens();goStep('4-reviewer');}
   }
   else if(who==='auditor'){buildL4Menu(['aud-overturned','aud-missed'],'auditor'); goStep('5-l4'); document.getElementById('l4-back-btn').onclick=()=>goStep('3-people');}
@@ -37012,7 +37106,7 @@ function selectRevType(btn,type){
   if(type==='aht-behavior'){
     document.querySelectorAll('#ahtdelay-options .opt-btn').forEach(b=>b.classList.remove('selected'));
     goStep('4b-ahtdelay');
-    setProgress(6,8);
+    setProgress(4,6);
     return;
   }
   const ids=menus[type]||[];
@@ -37049,20 +37143,13 @@ function mcRender(qid){
       ]
     },
     'q-all-elements':{
-      title:'Did the reviewer review all required elements of the job?',
+      title:'Did the reviewer review all required elements? If not, which was missed?',
       sub:'Check whether they reached every element — signal, UDT, background — before submitting.',
       opts:[
         {label:'✓ Yes — they reviewed everything',next:'q-policy-knowledge'},
-        {label:'✗ No — they skipped or missed an element',next:'q-which-element'}
-      ]
-    },
-    'q-which-element':{
-      title:'Which element was skipped or not reviewed?',
-      sub:'Select the element where the violation was found.',
-      opts:[
-        {label:'UDT tags — the final logging/tagging step',terminal:'rev-missed-udt'},
-        {label:'Background content — environment, secondary images, ambient audio',terminal:'rev-missed-background'},
-        {label:'Another element — part of the job was not reviewed at all',terminal:'rev-missed-incomplete'}
+        {label:'✗ No — UDT tags were skipped (final logging/tagging step)',terminal:'rev-missed-udt'},
+        {label:'✗ No — background content was skipped (environment, secondary images, ambient audio)',terminal:'rev-missed-background'},
+        {label:'✗ No — another element was skipped entirely',terminal:'rev-missed-incomplete'}
       ]
     },
     'q-policy-knowledge':{
@@ -37169,7 +37256,7 @@ function mcProceed(nodeId){
   const node=L4[nodeId];
   if(!node) return;
   if(node.whys&&node.whys.length>0) startWhys();
-  else{populateDiagCard();goStep('6c-diag-check');setProgress(7,8);}
+  else{populateDiagCard();goStep('6c-diag-check');setProgress(5,6);}
 }
 
 let _oc={stack:[]};
@@ -37288,7 +37375,7 @@ function ocProceed(nodeId){
   const node=L4[nodeId];
   if(!node) return;
   if(node.whys&&node.whys.length>0) startWhys();
-  else{populateDiagCard();goStep('6c-diag-check');setProgress(7,8);}
+  else{populateDiagCard();goStep('6c-diag-check');setProgress(5,6);}
 }
 
 function selectAHTDelay(btn,phase){
@@ -37359,7 +37446,7 @@ function selectL4(id){
   document.querySelectorAll('#l4-options .opt-btn').forEach(b=>b.classList.remove('selected'));
   const node=L4[id];
   if(node.whys && node.whys.length>0) startWhys();
-  else{populateDiagCard();goStep('6c-diag-check');setProgress(7,8);}
+  else{populateDiagCard();goStep('6c-diag-check');setProgress(5,6);}
 }
 
 function startWhys(){
@@ -37369,7 +37456,7 @@ function startWhys(){
   const dots=document.getElementById('whys-dots');
   dots.innerHTML=node.whys.map((_,i)=>`<div class="why-dot ${i===0?'active':''}" id="wdot-${i}"></div>`).join('');
   goStep('6-whys');
-  setProgress(7,8);
+  setProgress(5,6);
   showWhy(0);
 }
 
@@ -37463,7 +37550,7 @@ function nextWhy(idx){
     node.whys.forEach((_,i)=>{const d=document.getElementById('wdot-'+i);if(d)d.className='why-dot done';});
     populateDiagCard();
     goStep('6c-diag-check');
-    setProgress(7,8);
+    setProgress(5,6);
   }
 }
 
@@ -37857,7 +37944,7 @@ function buildOutput(){
   const node=L4[RCA.l4id];
   if(!node) return;
   goStep('output');
-  setProgress(8,8);
+  setProgress(6,6);
 
   // Confidence
   const conf=RCA.confidenceDeductions===0?'High':RCA.confidenceDeductions===1?'Medium':'Low';
@@ -38044,13 +38131,13 @@ function switchRCAMode(mode){
   if(mode==='rca'){
     tree.style.display='block';
     dispute.style.display='none';
-    btnRca.className='myrca-mode-btn mode-active';
-    btnDispute.className='myrca-mode-btn';
+    btnRca.className='myrca-mode-pill mode-active';
+    btnDispute.className='myrca-mode-pill';
   } else {
     tree.style.display='none';
     dispute.style.display='block';
-    btnRca.className='myrca-mode-btn';
-    btnDispute.className='myrca-mode-btn mode-active-dispute';
+    btnRca.className='myrca-mode-pill';
+    btnDispute.className='myrca-mode-pill mode-active-dispute';
     initDisputeDropdowns();
     dispute.scrollIntoView({behavior:'smooth',block:'start'});
   }
@@ -38775,12 +38862,13 @@ function startNewRCA(){
   currentRedirectTarget=null;
   document.querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('selected'));
   // Clear front-loaded identity fields and pattern badge
-  const rname=document.getElementById('pkt-reviewer-name');if(rname){rname.value='';rname.style.borderColor='var(--border)';}
-  const sw=document.getElementById('pkt-subworkflow');if(sw){sw.value='';sw.style.borderColor='var(--border)';}
+  populateRCAIdentityDropdowns();
+  const rname=document.getElementById('pkt-reviewer-name');if(rname){rname.value='';rname.classList.remove('pkt-field-error');}
+  const sw=document.getElementById('pkt-subworkflow');if(sw){sw.value='';sw.classList.remove('pkt-field-error');}
   const sig=document.getElementById('pkt-signal');if(sig)sig.value='';
   const badge=document.getElementById('pattern-badge-area');if(badge)badge.style.display='none';
   goStep(1);
-  setProgress(1,8);
+  setProgress(1,6);
 }
 </script>
 </body>
