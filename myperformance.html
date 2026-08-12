@@ -2740,7 +2740,11 @@ tr:hover td{background:#F8F9FB}
             <textarea class="pkt-textarea" id="pkt-signal" placeholder="e.g. Reportee: I cannot hear you. No, I'm not. I'm an innocent kid." rows="3" oninput="clearFieldError(this)"></textarea>
           </div>
           <div id="pattern-badge-area" style="display:none;margin-bottom:6px;padding:10px 14px;border-radius:var(--r);font-size:12.5px;font-weight:700;"></div>
-          <div class="nav-row"><button class="btn-back" onclick="goStep(RCA.lens==='combined'?'1b':1)">← Back</button><button class="btn-primary" onclick="confirmIdentityStep()">Continue →</button></div>
+          <div class="nav-row">
+            <button class="btn-back" onclick="goStep(RCA.lens==='combined'?'1b':1)">← Back</button>
+            <button class="btn-primary" onclick="confirmIdentityStep()">Continue →</button>
+            <button onclick="confirmReset()" style="margin-left:auto;background:none;border:none;font-family:var(--f);font-size:12px;font-weight:600;color:var(--tm);cursor:pointer;padding:4px 8px;border-radius:var(--r);" onmouseover="this.style.color='var(--coral)'" onmouseout="this.style.color='var(--tm)'">↺ Start over</button>
+          </div>
         </div>
 
         <!-- STEP 2: Origin -->
@@ -2892,7 +2896,7 @@ tr:hover td{background:#F8F9FB}
               <button class="btn-continue" onclick="continueAnyway()">Continue with current selection</button>
             </div>
           </div>
-          <div class="nav-row"><button class="btn-back" onclick="goStep('5-l4')">← Back</button><button class="btn-back" id="btn-prev-why" onclick="prevWhy()" style="display:none;">← Prev question</button></div>
+          <div class="nav-row"><button class="btn-back" id="btn-back-whys" onclick="goStep('5-l4')">← Back</button><button class="btn-back" id="btn-prev-why" onclick="prevWhy()" style="display:none;">← Prev question</button></div>
         </div>
 
 
@@ -37296,6 +37300,10 @@ function mcProceed(nodeId){
   currentRedirectTarget=null;
   const node=L4[nodeId];
   if(!node) return;
+  // 5-Whys "Back" should return to the missed-violation guide's own last
+  // screen (via mcBack, which pops its internal question stack correctly),
+  // not step 5 — this path never visits step 5 at all.
+  RCA.whysEntryPoint=()=>{ goStep('4c-missed-guide'); mcBack(); };
   if(node.whys&&node.whys.length>0) startWhys();
   else{populateDiagCard();goStep('6c-diag-check');setProgress(5,6);}
 }
@@ -37415,6 +37423,8 @@ function ocProceed(nodeId){
   currentRedirectTarget=null;
   const node=L4[nodeId];
   if(!node) return;
+  // Same fix as mcProceed — the overtagged guide's own back stack, not step 5.
+  RCA.whysEntryPoint=()=>{ goStep('4d-over-guide'); ocBack(); };
   if(node.whys&&node.whys.length>0) startWhys();
   else{populateDiagCard();goStep('6c-diag-check');setProgress(5,6);}
 }
@@ -37486,6 +37496,9 @@ function selectL4(id){
   currentRedirectTarget=null;
   document.querySelectorAll('#l4-options .opt-btn').forEach(b=>b.classList.remove('selected'));
   const node=L4[id];
+  // TL genuinely came from step 5 here — clear any stale entry point from a
+  // previous guided path so startWhys() falls back to the correct default.
+  RCA.whysEntryPoint=null;
   if(node.whys && node.whys.length>0) startWhys();
   else{populateDiagCard();goStep('6c-diag-check');setProgress(5,6);}
 }
@@ -37498,6 +37511,15 @@ function startWhys(){
   dots.innerHTML=node.whys.map((_,i)=>`<div class="why-dot ${i===0?'active':''}" id="wdot-${i}"></div>`).join('');
   goStep('6-whys');
   setProgress(5,6);
+  // The 5-Whys "Back" button previously always went to step 5 (L4 drilldown),
+  // but several paths (mc/oc branching guides, switchWhysTarget's inline
+  // bias/wrong-execution jump) reach the whys screen WITHOUT ever visiting
+  // step 5 — sending the TL there landed on a stale or empty screen with no
+  // working back button of its own. RCA.whysEntryPoint tracks the real
+  // previous screen for this session; falls back to 5-l4 (the original,
+  // still-correct behavior for the selectL4() path).
+  const backBtn=document.getElementById('btn-back-whys');
+  if(backBtn){ backBtn.onclick = RCA.whysEntryPoint || (()=>goStep('5-l4')); }
   showWhy(0);
 }
 
@@ -37573,6 +37595,17 @@ function answerWhy(idx,yes,optIdx){
     return;
   }
   nextWhy(idx+1);
+}
+
+// Safety-net fallback — the L4 drilldown's back button was calling this
+// function via its default HTML onclick, but it was never defined anywhere,
+// so any path that reached step 5 without an explicit .onclick override (see
+// the many `l4-back-btn').onclick=...` assignments throughout this file)
+// left the button silently broken. Every known live path now sets its own
+// override; this exists only to prevent a future ReferenceError if a new
+// path is added later without one.
+function goBack_l4(){
+  goStep(1);
 }
 
 function switchWhysTarget(newNodeId){
@@ -37776,6 +37809,60 @@ function dismissCoherence(){
   buildOutput();
 }
 
+// ── 5 Whys evidence extraction for Executive Comment support ───────────────
+// Walks the current node's whys array paired with RCA.whyAnswers (the actual
+// answers given) and classifies each ESSENTIAL answer — one carrying a
+// redirect, finding, or an opts-level redirect/switchTo, since those are the
+// only answers that could have sent the diagnosis somewhere else — into two
+// buckets:
+//   build: answers that positively construct why this node is correct
+//   clear: answers that rule out a more serious overlay (bias, wellbeing,
+//          misconduct) sitting on top of the diagnosis
+// Non-essential why-answers (no redirect/finding attached — pure context,
+// like "has the reviewer had feedback on this before") are excluded entirely,
+// matching the "essentials only" scope agreed for this feature.
+function getWhysEvidence(node){
+  const build=[], clear=[];
+  if(!node || !node.whys) return {build, clear};
+  const clearPattern=/\bbias\b|\bwellbeing\b|\bmisconduct\b|escalate to om/i;
+
+  node.whys.forEach((w,idx)=>{
+    const ans=RCA.whyAnswers[idx];
+    if(ans===undefined) return; // question was never reached this session
+
+    // Resolve which option (if any) was actually selected, so per-option
+    // redirect/switchTo/finding (the new inline-branch shape) is read
+    // correctly rather than always falling back to the top-level why entry.
+    let selected=w;
+    if(w.opts){
+      const match=w.opts.find(o=>o.yes===ans);
+      if(match && (match.redirect||match.switchTo||match.finding)) selected=match;
+    }
+
+    const hasEssentialSignal = selected.redirect || selected.finding || selected.switchTo;
+    if(!hasEssentialSignal) return; // context-only question, not essential
+
+    // Pick the label to show for what was actually answered
+    let answerLabel;
+    if(w.opts){
+      const opt=w.opts.find(o=>o.yes===ans);
+      answerLabel = opt ? opt.label.replace(/^[^\w]*/,'').trim() : (ans?'Yes':'No');
+    } else {
+      answerLabel = ans?'Yes':'No';
+    }
+
+    const entry={question:w.q, answer:answerLabel, redirectText:selected.redirect||'', switchTo:selected.switchTo||''};
+    const redirectText = selected.redirect || '';
+    if(clearPattern.test(redirectText) || clearPattern.test(selected.switchTo||'')){
+      clear.push(entry);
+    } else {
+      build.push(entry);
+    }
+  });
+
+  return {build, clear};
+}
+
 function buildExecDraft(){
   const node = L4[RCA.l4id];
   if(!node){
@@ -37796,45 +37883,73 @@ function buildExecDraft(){
     ? (anchor.includes(' — ') ? anchor.split(' — ').slice(1).join(' — ').trim() : anchor.trim())
     : '[what the reviewer read it as]';
 
-  const L5 = '[Explain the specific reasoning failure — what the reviewer thought and why this signal did not register correctly]';
-  const L5p = '[Explain the specific pattern — which content type, how many jobs, and what the consistent error is across them]';
+  const L5 = '[Explain the specific reasoning failure. What did the reviewer think, and why did this signal not register correctly?]';
+  const L5p = '[Explain the specific pattern. Which content type, how many jobs, and what is the consistent error across them?]';
+
+  // rev-missed-comp-fail's 5 Whys already distinguishes two genuinely different
+  // failure shapes via RCA.patternRecog (set from the "does the reviewer see
+  // it as a violation at all" why-question) — use that to narrow the bracket
+  // instead of leaving a fully generic placeholder. Still leaves the TL's
+  // specific reasoning ("what the reviewer thought") as a fill-in, since that
+  // part genuinely requires the actual conversation with the reviewer.
+  const L5_compFail = RCA.patternRecog
+    ? 'The signal did not register as violating at all. [Explain what the reviewer thought this content was instead, in their own words]'
+    : 'The reviewer recognised this as a possible violation but misjudged where the boundary sits. [Explain what boundary they applied instead, in their own words]';
 
   const execDraftTemplates = {
-    'rev-missed-comp-fail':  () => `${sigSnip} — ${anchorRead}. The specific element that crosses the threshold was present but not registered as violating. ${L5}. The correct decision is [action].`,
-    'rev-missed-know-gap':   () => `${sigSnip} — ${anchorRead}. This content falls under [correct policy area] because [reason], but the reviewer applied [incorrect policy / no policy]. ${L5}. The correct decision is [action].`,
-    'rev-missed-udt':        () => `${sigSnip} — ${anchorRead}. The violation was present in the UDT tags. Reviewer submitted without completing the UDT check step. ${L5}. The correct decision is [action].`,
-    'rev-missed-incomplete': () => `${sigSnip} — ${anchorRead}. The violation was in [element not reviewed]. Reviewer did not cover all required review elements before submitting. ${L5}. The correct decision is [action].`,
-    'rev-missed-background': () => `${sigSnip} — ${anchorRead}. The violation was in the background content. Reviewer checked the primary element only and did not extend review to the background. ${L5}. The correct decision is [action].`,
-    'rev-missed-context':    () => `${sigSnip} — ${anchorRead}. The [prior exchange / speaker tone / interaction pattern] changes the correct read to violating. ${L5}. The correct decision is [action].`,
-    'rev-over-broad':        () => `${sigSnip} — ${anchorRead}. The content does not meet the violating threshold because [specific criterion that would make it violating is absent]. ${L5}. The correct decision is no action.`,
-    'rev-over-confused':     () => `${sigSnip} — ${anchorRead}. Reviewer applied [incorrect policy] when the correct policy is [correct policy area]. Under [correct policy], this content is [violating / non-violating] because [reason]. ${L5}. The correct decision is [action / no action].`,
-    'rev-over-context':      () => `${sigSnip} — ${anchorRead}. The [gameplay / roleplay / self-referential] context makes this non-violating. ${L5}. The correct decision is no action.`,
-    'rev-over-cultural':     () => `${sigSnip} — ${anchorRead}. In the correct cultural context, [gesture/phrase/symbol] means [correct interpretation], not [violation applied]. ${L5}. The correct decision is no action.`,
-    'rev-wrong-citation':    () => `${sigSnip} — ${anchorRead}. The content violates [correct policy] because [reason], but the reviewer cited [incorrect policy]. ${L5}. The citation must be corrected.`,
-    'rev-wrong-prop':        () => `${sigSnip} — ${anchorRead}. The violation was correctly identified but the reviewer selected [incorrect enforcement action] instead of [correct action]. The correct tier is [correct tier] because [reason]. ${L5}.`,
-    'rev-focus-distraction': () => `${sigSnip} — ${anchorRead}. The violation is visible immediately on replay — the reviewer identified it when shown the job again. ${L5}. The correct decision is [action].`,
-    'rev-focus-rushing':     () => `${sigSnip} — ${anchorRead}. Reviewer skipped [required step] and submitted without completing the review sequence. When reviewed at normal pace, the correct decision was reached. ${L5}.`,
-    'rev-focus-fatigue':     () => `${sigSnip} — ${anchorRead}. Quality decline is consistent across content types and shift periods. ${L5}.`,
-    'rev-aht-anchoring':     () => `${sigSnip} — ${anchorRead}. Reviewer returned to [specific element] multiple times before submitting. The correct decision was reachable on first read. ${L5}.`,
-    'rev-aht-poor-signal':   () => `${sigSnip} — ${anchorRead}. Reviewer did not triage to the expected signal location first and spent time on non-violating elements. ${L5}.`,
-    'rev-aht-overthinking':  () => `${sigSnip} — ${anchorRead}. Reviewer reached the correct decision early but continued re-reviewing the same content before submitting. ${L5}.`,
-    'rev-aht-overvalidation':() => `${sigSnip} — ${anchorRead}. Reviewer completed all required steps but continued checking elements outside the required scope. ${L5}.`,
-    'rev-aht-exit-discipline':()=> `${sigSnip} — ${anchorRead}. Reviewer reached the correct decision but did not submit immediately. Job remained open after the decision point with no additional review steps taken. ${L5}.`,
-    'rev-aht-avoidance':     () => `${sigSnip} — ${anchorRead}. Reviewer spent significantly above-average time on this content type without escalating or deciding. ${L5}.`,
-    'rev-aht-inconsistent':  () => `${sigSnip} — ${anchorRead}. Reviewer AHT on this content type is inconsistent with their AHT on other content types. ${L5}.`,
-    'rev-bias-unconscious':  () => `${sigSnip} — ${anchorRead}. ${L5p}. The pattern is not attributable to a single knowledge or process gap.`,
-    'rev-wellbeing-exposure':() => `${sigSnip} — ${anchorRead}. Quality decline correlates with sustained exposure to distressing content types. ${L5}. This is not an isolated knowledge or process error.`,
-    'rev-wellbeing-personal':() => `${sigSnip} — ${anchorRead}. Quality decline correlates with known personal circumstances. ${L5}. This is not an isolated knowledge or process error.`,
-    'rev-misc-objection':    () => `${sigSnip} — ${anchorRead}. Decision does not align with the established policy standard and the pattern is consistent across comparable jobs. ${L5}.`,
-    'aud-overturned':        () => `${sigSnip} — ${anchorRead}. The reviewer's original decision was correct under [policy] because [reason]. The auditor's reversal applied [incorrect standard] and was not supported by policy. ${L5}. The reviewer's original decision should be restored.`,
-    'aud-missed':            () => `${sigSnip} — ${anchorRead}. The violation was present — [specific violating element]. Auditor did not identify this during the audit review. ${L5}. The correct audit outcome is [action].`,
-    'esc-high-severity':     () => `${sigSnip} — ${anchorRead}. Content meets escalation criteria for [escalation type] because [reason]. Reviewer identified the signal but submitted a standard decision instead of escalating. ${L5}.`,
+    'rev-missed-comp-fail':  () => `${sigSnip}. ${anchorRead}. The specific element that crosses the threshold was present but not registered as violating. ${L5_compFail}. The correct decision is [action].`,
+    'rev-missed-know-gap':   () => `${sigSnip}. ${anchorRead}. This content falls under [correct policy area] because [reason], but the reviewer applied [incorrect policy / no policy]. ${L5}. The correct decision is [action].`,
+    'rev-missed-udt':        () => `${sigSnip}. ${anchorRead}. The violation was present in the UDT tags. Reviewer submitted without completing the UDT check step. ${L5}. The correct decision is [action].`,
+    'rev-missed-incomplete': () => `${sigSnip}. ${anchorRead}. The violation was in [element not reviewed]. Reviewer did not cover all required review elements before submitting. ${L5}. The correct decision is [action].`,
+    'rev-missed-background': () => `${sigSnip}. ${anchorRead}. The violation was in the background content. Reviewer checked the primary element only and did not extend review to the background. ${L5}. The correct decision is [action].`,
+    'rev-missed-context':    () => `${sigSnip}. ${anchorRead}. The [prior exchange / speaker tone / interaction pattern] changes the correct read to violating. ${L5}. The correct decision is [action].`,
+    'rev-over-broad':        () => `${sigSnip}. ${anchorRead}. The content does not meet the violating threshold because [specific criterion that would make it violating is absent]. ${L5}. The correct decision is no action.`,
+    'rev-over-confused':     () => `${sigSnip}. ${anchorRead}. Reviewer applied [incorrect policy] when the correct policy is [correct policy area]. Under [correct policy], this content is [violating / non-violating] because [reason]. ${L5}. The correct decision is [action / no action].`,
+    'rev-over-context':      () => `${sigSnip}. ${anchorRead}. The [gameplay / roleplay / self-referential] context makes this non-violating. ${L5}. The correct decision is no action.`,
+    'rev-over-cultural':     () => `${sigSnip}. ${anchorRead}. In the correct cultural context, [gesture/phrase/symbol] means [correct interpretation], not [violation applied]. ${L5}. The correct decision is no action.`,
+    'rev-wrong-citation':    () => `${sigSnip}. ${anchorRead}. The content violates [correct policy] because [reason], but the reviewer cited [incorrect policy]. ${L5}. The citation must be corrected.`,
+    'rev-wrong-prop':        () => `${sigSnip}. ${anchorRead}. The violation was correctly identified but the reviewer selected [incorrect enforcement action] instead of [correct action]. The correct tier is [correct tier] because [reason]. ${L5}.`,
+    'rev-focus-distraction': () => `${sigSnip}. ${anchorRead}. The violation is visible immediately on replay. The reviewer identified it when shown the job again. ${L5}. The correct decision is [action].`,
+    'rev-focus-rushing':     () => `${sigSnip}. ${anchorRead}. Reviewer skipped [required step] and submitted without completing the review sequence. When reviewed at normal pace, the correct decision was reached. ${L5}.`,
+    'rev-focus-fatigue':     () => `${sigSnip}. ${anchorRead}. Quality decline is consistent across content types and shift periods. ${L5}.`,
+    'rev-aht-anchoring':     () => `${sigSnip}. ${anchorRead}. Reviewer returned to [specific element] multiple times before submitting. The correct decision was reachable on first read. ${L5}.`,
+    'rev-aht-poor-signal':   () => `${sigSnip}. ${anchorRead}. Reviewer did not triage to the expected signal location first and spent time on non-violating elements. ${L5}.`,
+    'rev-aht-overthinking':  () => `${sigSnip}. ${anchorRead}. Reviewer reached the correct decision early but continued re-reviewing the same content before submitting. ${L5}.`,
+    'rev-aht-overvalidation':() => `${sigSnip}. ${anchorRead}. Reviewer completed all required steps but continued checking elements outside the required scope. ${L5}.`,
+    'rev-aht-exit-discipline':()=> `${sigSnip}. ${anchorRead}. Reviewer reached the correct decision but did not submit immediately. Job remained open after the decision point with no additional review steps taken. ${L5}.`,
+    'rev-aht-avoidance':     () => `${sigSnip}. ${anchorRead}. Reviewer spent significantly above-average time on this content type without escalating or deciding. ${L5}.`,
+    'rev-aht-inconsistent':  () => `${sigSnip}. ${anchorRead}. Reviewer AHT on this content type is inconsistent with their AHT on other content types. ${L5}.`,
+    'rev-bias-unconscious':  () => `${sigSnip}. ${anchorRead}. ${L5p}. The pattern is not attributable to a single knowledge or process gap.`,
+    'rev-wellbeing-exposure':() => `${sigSnip}. ${anchorRead}. Quality decline correlates with sustained exposure to distressing content types. ${L5}. This is not an isolated knowledge or process error.`,
+    'rev-wellbeing-personal':() => `${sigSnip}. ${anchorRead}. Quality decline correlates with known personal circumstances. ${L5}. This is not an isolated knowledge or process error.`,
+    'rev-misc-objection':    () => `${sigSnip}. ${anchorRead}. Decision does not align with the established policy standard and the pattern is consistent across comparable jobs. ${L5}.`,
+    'aud-overturned':        () => `${sigSnip}. ${anchorRead}. The reviewer's original decision was correct under [policy] because [reason]. The auditor's reversal applied [incorrect standard] and was not supported by policy. ${L5}. The reviewer's original decision should be restored.`,
+    'aud-missed':            () => `${sigSnip}. ${anchorRead}. The violation was present in [specific violating element]. Auditor did not identify this during the audit review. ${L5}. The correct audit outcome is [action].`,
+    'esc-high-severity':     () => `${sigSnip}. ${anchorRead}. Content meets escalation criteria for [escalation type] because [reason]. Reviewer identified the signal but submitted a standard decision instead of escalating. ${L5}.`,
   };
 
   const fn = execDraftTemplates[RCA.l4id] ||
-    (() => `${sigSnip} — ${anchorRead}. [Describe the observable error]. ${L5}. The correct decision is [action / no action].`);
+    (() => `${sigSnip}. ${anchorRead}. [Describe the observable error]. ${L5}. The correct decision is [action / no action].`);
 
-  execEl.value = fn();
+  const evidence = getWhysEvidence(node);
+  let draft = fn();
+  if(evidence.clear.length>0){
+    const clearLine = evidence.clear.map(e=>{
+      // Render each cleared check as a short "not X" / "no evidence of Y" phrase
+      // rather than restating the full why-question, keeping the line compact.
+      // Classify off the redirect/switchTo text (what the check actually rules
+      // out), not the question wording itself, since a bias-clearance question
+      // rarely contains the literal word "bias" in how it's phrased.
+      const src=(e.redirectText+' '+e.switchTo).toLowerCase();
+      if(src.includes('bias')) return 'not a bias pattern';
+      if(src.includes('deliberate') || src.includes('misconduct') || src.includes('intent')) return 'no evidence of deliberate wrong answers';
+      if(src.includes('wellbeing') || src.includes('exposure') || src.includes('personal circumstances')) return 'no wellbeing factors identified';
+      return e.question; // fallback: show the raw question if it doesn't match a known pattern
+    }).join('; ');
+    draft += `\n\nChecked and cleared: ${clearLine}`;
+  }
+
+  execEl.value = draft;
   execEl.style.borderColor = 'var(--teal)';
   setTimeout(()=>execEl.style.borderColor='var(--border)', 1800);
   execEl.focus();
