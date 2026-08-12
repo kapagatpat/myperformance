@@ -840,6 +840,10 @@ tr:hover td{background:#F8F9FB}
         <span class="flbl dyn-item dyn-control" id="g-month-label" style="color:var(--tm)"></span>
 
         <div class="fsep"></div>
+        <select id="sv-recall" onchange="svRecall(this.value)" style="font-size:11px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--pill);background:var(--surface);color:var(--ts);font-family:var(--f);max-width:150px">
+            <option value="">💾 Saved Views</option>
+        </select>
+        <button class="freset" onclick="svSaveCurrent()" title="Save current filter selection as a named view">＋ Save View</button>
         <button class="freset" onclick="resetFilters()">Reset All</button>
     </div>
 
@@ -869,6 +873,11 @@ tr:hover td{background:#F8F9FB}
       <div class="kpi-row" id="e-alignment-cards" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:2rem"></div>
       <!-- End Tier 1 -->
 
+      <!-- Month-End Landing Forecast (Block 6) -->
+      <div class="kpi-section-label" style="display:flex;align-items:center">Month-End Landing Forecast</div>
+      <div id="e-forecast-strip"></div>
+
+
       <div class="kpi-section-label" style="margin-top:2rem;display:flex;align-items:center;gap:8px">Quality Trends <span id="e-trend-legend"></span>
         <div style="margin-left:auto;display:flex;gap:4px" id="chart-view-toggle-exec">
 <button onclick="setChartView('daily')" id="cvt-daily-exec" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--border);background:var(--surface);color:var(--tm)">Daily</button>
@@ -880,7 +889,18 @@ tr:hover td{background:#F8F9FB}
         <div class="chart-card"><div class="chart-title"><span id="lbl-acc-trend">Accuracy</span> <span id="vsf-acc-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-acc',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-acc"></canvas></div></div>
         <div class="chart-card"><div class="chart-title"><span id="lbl-prec-trend">Precision</span> <span id="vsf-prec-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-prec',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-prec"></canvas></div></div>
         <div class="chart-card"><div class="chart-title"><span id="lbl-rec-trend">Recall</span> <span id="vsf-rec-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-rec',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-rec"></canvas></div></div>
-        <div class="chart-card"><div class="chart-title">Action Rate <span id="vsf-ar-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-ar',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-ar"></canvas></div></div>
+      </div>
+
+      <!-- SPC Signals — Western Electric rule violations on quality/AHT trend charts -->
+      <div id="spc-signals-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-top:14px;display:none">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em">SPC Signals</span>
+          <span style="font-weight:500;font-size:11px;color:var(--tm);text-transform:none;letter-spacing:normal"> — statistical control rule violations, baseline from first 8 periods</span>
+        </div>
+        <div class="twrap" style="border-radius:0"><table style="min-width:400px">
+          <thead><tr><th>Signal</th><th>Rule</th><th>Window</th><th>Metric</th></tr></thead>
+          <tbody id="spc-signals-body"></tbody>
+        </table></div>
       </div>
 
       <div class="kpi-section-label" style="display:flex;align-items:center;gap:8px;margin-top:1.5rem">WFM Trends <span id="e-wfm-trend-legend"></span>
@@ -1144,7 +1164,11 @@ tr:hover td{background:#F8F9FB}
           </div>
 
           <div id="ti-priority-surface-body">
+            <!-- Month-End Landing Forecast (Block 6) -->
+            <div id="ti-forecast-strip"></div>
+
             <!-- Subworkflow Health — 3-box summary (red/amber/green counts) -->
+
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
               <span style="font-size:11px;font-weight:800;color:var(--text)">Subworkflow Health</span>
               <span style="font-size:10px;color:var(--tm)">&middot; count of subworkflows by status, this TL's team, MTD &middot;</span>
@@ -1338,6 +1362,8 @@ tr:hover td{background:#F8F9FB}
       </div>
       <div id="dr-snapshot-card" style="margin-bottom:1.25rem"></div>
       <div id="dr-opp-panel" style="margin-bottom:1.25rem"></div>
+      <!-- Month-End Landing Forecast (Block 6) -->
+      <div id="dr-forecast-strip" style="margin-bottom:1.25rem"></div>
 
       <div class="kpi-section-label" style="display:flex;align-items:center;justify-content:space-between">
         <span>Performance Summary Table (Weekly Pivot) <span id="d-summary-table-legend"></span></span>
@@ -1994,6 +2020,22 @@ tr:hover td{background:#F8F9FB}
             </div>
             <div style="font-size:11px;color:var(--tm)">= 1 recent error, 5 fading, 3 resolved — 9 lifetime total</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Defect Radar: Emerging + Contagion detectors -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em">Emerging Defects <span style="font-weight:500;font-size:11px;color:var(--tm);text-transform:none;letter-spacing:normal">(last 2 wks vs prior 8 wks, per 1,000 decisions)</span></span>
+          </div>
+          <div id="dr-emerging-body"></div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em">Contagion Watch <span style="font-weight:500;font-size:11px;color:var(--tm);text-transform:none;letter-spacing:normal">(≥3 reviewers, same TL, same policy, same week)</span></span>
+          </div>
+          <div id="dr-contagion-body"></div>
         </div>
       </div>
 
@@ -4702,11 +4744,121 @@ function resetFilters() {
     handleSWChange();
 }
 
+// ── Saved Views (Block 8.3) ──────────────────────────────────────────────
+// Names and stores the current g-* filter state in localStorage; a recall
+// dropdown in the fbar restores it. Reuses resetFilters()'s exact reset path
+// as the "clean slate" step before reapplying saved values, and the same
+// _rebuildOptions()/dispatch pattern used elsewhere in this file for
+// programmatic multi-select changes — no new mechanism invented.
+const SV_STORAGE_KEY = 'myperf_saved_views';
+
+function svLoadAll() {
+    try {
+        const raw = localStorage.getItem(SV_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch(e) { return {}; }
+}
+
+function svSaveAll(views) {
+    try { localStorage.setItem(SV_STORAGE_KEY, JSON.stringify(views)); } catch(e) { /* storage unavailable — no-op */ }
+}
+
+function svCaptureState() {
+    const state = {
+        months: SELECTED_MONTHS.slice(),
+        qualType: (document.getElementById('g-qual-type') || {}).value || null,
+        reviewer: (document.getElementById('g-reviewer') || {}).value || '',
+        sme: (document.getElementById('g-sme') || {}).value || '',
+        multi: {}
+    };
+    document.querySelectorAll('select[multiple]').forEach(sel => {
+        state.multi[sel.id] = getSel(sel.id);
+    });
+    return state;
+}
+
+function svSaveCurrent() {
+    const name = prompt('Name this view:');
+    if(!name || !name.trim()) return;
+    const views = svLoadAll();
+    views[name.trim()] = svCaptureState();
+    svSaveAll(views);
+    svRebuildRecallDropdown();
+    const sel = document.getElementById('sv-recall');
+    if(sel) sel.value = name.trim();
+}
+
+function svRebuildRecallDropdown() {
+    const sel = document.getElementById('sv-recall');
+    if(!sel) return;
+    const views = svLoadAll();
+    const names = Object.keys(views).sort();
+    const current = sel.value;
+    sel.innerHTML = '<option value="">💾 Saved Views</option>' +
+        names.map(n => `<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('');
+    if(names.includes(current)) sel.value = current;
+}
+
+// Restores a saved view. Guards against a saved value that no longer exists
+// in the current dataset (e.g. a TL or SW that was renamed or dropped since
+// the view was saved) by intersecting against the live <option> list before
+// applying — a stale reference is silently skipped rather than left in a
+// selected-but-invisible state or throwing.
+function svRecall(name) {
+    if(!name) return;
+    const views = svLoadAll();
+    const state = views[name];
+    if(!state) return;
+
+    // Clean slate first — exact same reset path as the Reset All button.
+    resetFilters();
+
+    // Restore multi-selects, filtering out any saved value absent from the
+    // live option list for that control.
+    Object.keys(state.multi || {}).forEach(selId => {
+        const sel = document.getElementById(selId);
+        if(!sel) return;
+        const liveValues = new Set(Array.from(sel.options).map(o => o.value));
+        const wanted = new Set((state.multi[selId] || []).filter(v => liveValues.has(v)));
+        Array.from(sel.options).forEach(o => { o.selected = wanted.has(o.value); });
+        if(sel._rebuildOptions) sel._rebuildOptions();
+    });
+
+    // Restore single selects (reviewer, SME, quality type), same guard.
+    const rSelSv = document.getElementById('g-reviewer');
+    if(rSelSv && state.reviewer) {
+        const exists = Array.from(rSelSv.options).some(o => o.value === state.reviewer);
+        if(exists) { rSelSv.value = state.reviewer; if(rSelSv._rebuildOptions) rSelSv._rebuildOptions(); }
+    }
+    const smeSel = document.getElementById('g-sme');
+    if(smeSel && state.sme) {
+        const exists = Array.from(smeSel.options).some(o => o.value === state.sme);
+        if(exists) { smeSel.value = state.sme; if(smeSel._rebuildOptions) smeSel._rebuildOptions(); }
+    }
+    const qtSel = document.getElementById('g-qual-type');
+    if(qtSel && state.qualType) qtSel.value = state.qualType;
+
+    // Restore month pill selection, guarding against months no longer in MONTHS.
+    if(state.months && state.months.length) {
+        const liveMonths = new Set(typeof MONTHS !== 'undefined' ? MONTHS : []);
+        SELECTED_MONTHS = state.months.filter(m => liveMonths.has(m) || liveMonths.size === 0);
+        document.querySelectorAll('.month-opt').forEach(o => {
+            o.classList.toggle('selected', SELECTED_MONTHS.includes(o.dataset.month));
+        });
+        if(typeof updateMonthPillLabel === 'function') updateMonthPillLabel();
+    }
+
+    handleSWChange();
+    renderActiveTab();
+}
+
+document.addEventListener('DOMContentLoaded', () => { if(typeof svRebuildRecallDropdown === 'function') svRebuildRecallDropdown(); });
+
 function handleSWChange() {
     const tls = getSel('g-tl'), tenures = getSel('g-tenure'), sws = getSel('g-sw'), workflows = getSel('g-workflow'), roles = getSel('g-role'), reviewTypes = getSel('g-review-type');
     let rows = filterRows(RAW_ROWS, tls, tenures, sws, workflows, roles, reviewTypes);
     let revs = [...new Set(rows.map(r => r.reviewer).filter(Boolean))].sort();
-    
+
     let rSel = document.getElementById('g-reviewer');
     let currentRev = rSel.value;
     rSel.innerHTML = '<option value="">-- Select Reviewer --</option>' + revs.map(rv => `<option value="${rv}">${rv}</option>`).join('');
@@ -5302,6 +5454,157 @@ function getQualLabel(type) {
     return 'Adjusted';
 }
 
+// ── Month-End Landing Forecast (Block 6) ────────────────────────────────────
+// Single shared helper called from all three surfaces (Site Health, Team
+// Insights, Reviewer Deep-Dive) per the spec's explicit constraint — never
+// three variants of this math.
+//
+//   requiredRate = (target * (mtdN + remN) - mtdCorrect) / remN
+//
+// For quality metrics (higherIsBetter=true), mtdCorrect/mtdN/remN are in the
+// "pass" direction (e.g. accurate decisions / total decisions). For AHT
+// (higherIsBetter=false), the same formula is applied to the complementary
+// "under-target" framing so a single formula covers both directions — see
+// call sites, which pass mtdCorrect as the AHT-equivalent "good" quantity.
+function forecastLanding(mtdCorrect, mtdN, remN, target, higherIsBetter = true) {
+    if (remN <= 0 || mtdN < 0) {
+        return { status: 'no-remaining', requiredRate: null, currentRate: mtdN > 0 ? mtdCorrect / mtdN : null };
+    }
+    const currentRate = mtdN > 0 ? mtdCorrect / mtdN : null;
+    const requiredRate = (target * (mtdN + remN) - mtdCorrect) / remN;
+
+    // Clamp 1: required rate is physically impossible.
+    // Quality metrics are 0-1 rates, so >100% pass rate needed is impossible.
+    // AHT (higherIsBetter=false) is an unbounded seconds value, so the
+    // impossible case there is a negative required time, not a >1 check.
+    const impossible = higherIsBetter ? requiredRate > 1 : requiredRate < 0;
+    if (impossible) {
+        return { status: 'not-recoverable', requiredRate, currentRate };
+    }
+    // Clamp 2: required rate is at or below current pace — already on track.
+    if (currentRate !== null && (higherIsBetter ? requiredRate <= currentRate : requiredRate >= currentRate)) {
+        return { status: 'on-track', requiredRate, currentRate };
+    }
+    return { status: 'needs-lift', requiredRate, currentRate };
+}
+
+// Formats a forecastLanding() result into a message string, given a
+// unit-aware value formatter (percentage for quality metrics, seconds for AHT).
+function forecastMessage(result, fmtVal) {
+    if (!result || result.status === 'no-remaining') return null;
+    if (result.status === 'not-recoverable') return 'Not recoverable this month';
+    if (result.status === 'on-track') return `On track · holds even at ${fmtVal(result.requiredRate)}`;
+    return `Need ${fmtVal(result.requiredRate)} the rest of the month`;
+}
+
+// Estimates remaining decision volume for the current month: trailing 4-week
+// daily average x working days left in the month. "Working day" here means
+// any day appearing in the dataset's own weekly cadence — approximated as a
+// 5-day week since RAW_ROWS carries no explicit business-calendar flag.
+function forecastRemainingVolume(rows, asOfMonth) {
+    if (!WEEKS.length) return 0;
+    const last4Weeks = WEEKS.slice(-4);
+    const last4Rows = rows.filter(r => last4Weeks.includes(r.week));
+    const totalDec = last4Rows.reduce((s, r) => s + (r.decisions || 0), 0);
+    // Each WEEKS entry represents one week-ending date; 4 weeks ~ 20 working days (5/wk).
+    const daysInSample = last4Weeks.length * 5;
+    const dailyAvg = daysInSample > 0 ? totalDec / daysInSample : 0;
+
+    const [y, m] = asOfMonth.split('-').map(Number);
+    if (!y || !m) return 0;
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === y && (today.getMonth() + 1) === m;
+    const refDate = isCurrentMonth ? today : new Date(y, m, 0); // if not current month, no remaining days
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const dayOfMonth = isCurrentMonth ? refDate.getDate() : daysInMonth;
+    const calendarDaysLeft = Math.max(0, daysInMonth - dayOfMonth);
+    // Approximate working days left as 5/7 of calendar days left.
+    const workingDaysLeft = Math.round(calendarDaysLeft * (5 / 7));
+    return dailyAvg * workingDaysLeft;
+}
+
+function forecastCardHTML(title, result, fmtVal) {
+    if (!result || result.status === 'no-remaining') {
+        return `<div style="background:var(--sa);border-radius:var(--r);padding:10px 12px">
+            <div style="font-size:11px;color:var(--tm);margin-bottom:2px">${title}</div>
+            <div style="font-size:12px;color:var(--tm)">No remaining volume to forecast</div>
+        </div>`;
+    }
+    const message = forecastMessage(result, fmtVal);
+    const color = result.status === 'not-recoverable' ? 'var(--coral)' : result.status === 'on-track' ? 'var(--green)' : 'var(--amber)';
+    return `<div style="background:var(--sa);border-radius:var(--r);padding:10px 12px">
+        <div style="font-size:11px;color:var(--tm);margin-bottom:2px">${title}</div>
+        <div style="font-size:13px;font-weight:700;color:${color}">${message}</div>
+    </div>`;
+}
+
+// Builds the 4-metric forecast strip (Adjusted Accuracy, Precision, Recall,
+// AHT) for a given row set and target lookup, applying the AR gate exactly as
+// used elsewhere in the app (ar !== null && ar >= 0.10 -> Precision+Recall
+// display, else Adjusted Accuracy) and SR_RV_EXCLUDE on team-level callers.
+function renderForecastStrip(containerId, rows, targetsFn, applyExclusion = false) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (applyExclusion) {
+        // Same exclusion list used by renderStackRank() team roll-ups —
+        // duplicated locally per this file's duplicate-over-refactor convention.
+        const SR_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
+        rows = rows.filter(r => !SR_RV_EXCLUDE.includes(r.reviewer));
+    }
+    if (!rows.length || !WEEKS.length) { el.innerHTML = ''; return; }
+
+    const currMonth = [...new Set(rows.map(r => r.month).filter(Boolean))].sort().slice(-1)[0];
+    if (!currMonth) { el.innerHTML = ''; return; }
+
+    const mtdRows = rows.filter(r => r.month === currMonth);
+    const tp = mtdRows.reduce((s, r) => s + (r.tpa || 0), 0);
+    const fp = mtdRows.reduce((s, r) => s + (r.fpa || 0), 0);
+    const fn = mtdRows.reduce((s, r) => s + (r.fna || 0), 0);
+    const tn = mtdRows.reduce((s, r) => s + (r.tna || 0), 0);
+    const dec = mtdRows.reduce((s, r) => s + (r.decisions || 0), 0);
+    const dht = mtdRows.reduce((s, r) => s + (r.dht || 0), 0);
+    const nht = mtdRows.reduce((s, r) => s + (r.nht || 0), 0);
+    const totalAudits = tp + fp + fn + tn;
+    const ar = totalAudits > 0 ? (tp + fp) / totalAudits : null;
+    const usesPR = ar !== null && ar >= 0.10;
+
+    const remVol = forecastRemainingVolume(rows, currMonth);
+    const targets = targetsFn(rows);
+
+    let cards = '';
+    const pctFmt = v => (v * 100).toFixed(1) + '%';
+    const secFmt = v => Number(v).toFixed(0) + 's';
+    if (usesPR) {
+        const precN = tp + fp, recN = tp + fn;
+        // Volume split proportionally to MTD mix for the remaining-audit estimate.
+        const remPrecN = precN > 0 && totalAudits > 0 ? remVol * (precN / dec || 0) : remVol;
+        const remRecN = recN > 0 && totalAudits > 0 ? remVol * (recN / dec || 0) : remVol;
+        const precResult = forecastLanding(tp, precN, remPrecN, targets.prec, true);
+        const recResult  = forecastLanding(tp, recN, remRecN, targets.rec, true);
+        cards += forecastCardHTML('Precision landing', precResult, pctFmt);
+        cards += forecastCardHTML('Recall landing', recResult, pctFmt);
+    } else {
+        const accN = tp + tn + fp + fn;
+        const accCorrect = tp + tn;
+        const remAccN = accN > 0 ? remVol * (accN / dec || 1) : remVol;
+        const accResult = forecastLanding(accCorrect, accN, remAccN, targets.acc, true);
+        cards += forecastCardHTML('Adj Accuracy landing', accResult, pctFmt);
+    }
+    // AHT: inverted (lower is better). mtdCorrect is the total seconds used
+    // MTD (dht+nht summed); mtdN/remN are decision counts; target is the
+    // per-decision AHT target in seconds. See dimensional check in the
+    // forecastLanding doc comment above — the formula holds for rate-vs-total
+    // pairs regardless of direction.
+    const ahtTarget = targets.aht;
+    if (ahtTarget && dec > 0) {
+        const usedBudget = dht + nht;
+        const ahtResult = forecastLanding(usedBudget, dec, remVol, ahtTarget, false);
+        cards += forecastCardHTML('AHT landing', ahtResult, secFmt);
+    }
+
+    el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(${usesPR ? 3 : 2},1fr);gap:10px;margin:0.75rem 0">${cards}</div>`;
+}
+
 function renderExec(){
   const selMonths=getSelMonths();
   const tls=getSel('g-tl'), tenures=getSel('g-tenure'), sws=getSel('g-sw'), workflows=getSel('g-workflow'), roles=getSel('g-role'), reviewTypes=getSel('g-review-type');
@@ -5675,6 +5978,15 @@ function renderExec(){
   let passRates = { acc: passPct(accPass,n), prec: passPct(precPass,rvPrecVals.length), rec: passPct(recPass,rvRecVals.length), aht: passPct(ahtPass,wn) };
 
   renderExecCharts(qualRows, wfmRows, {acc: accTarget, prec: accTarget, rec: accTarget, aht: ahtTarget, util: 0.87, abs: 0.05}, qualType, {acc: vsfAcc, prec: vsfPrec, rec: vsfRec, aht: vsfAHT}, passRates);
+
+  // Month-End Landing Forecast (Block 6) — site-wide, reuses the same
+  // accTarget/ahtTarget already computed above for the charts. Uses rows
+  // independent of the month pill so MTD is always the true current month,
+  // not whatever month happens to be pill-selected.
+  {
+    const _fAllRows = filterRows(RAW_ROWS, tls, tenures, sws, workflows);
+    renderForecastStrip('e-forecast-strip', _fAllRows, () => ({ acc: accTarget, prec: accTarget, rec: accTarget, aht: ahtTarget }));
+  }
 }
 
 
@@ -6307,6 +6619,17 @@ function renderTeamInsights(){
   if(_svLatestSupMode) tlCardRows = applyLatestSup(tlCardRows);
   renderTLCards(tlCardRows, tls);
   renderSWHealthSummary(tlCardRows, tls);
+
+  // Month-End Landing Forecast (Block 6) — TL-scoped, SR_RV_EXCLUDE applied
+  // per spec (team roll-ups exclude the standing exclusion list). Uses rows
+  // independent of the month pill so MTD is always the true current month.
+  {
+    const _singleSw = sws.length === 1 ? sws[0] : null;
+    const _fAcc = _singleSw && SW_TARGETS[_singleSw] ? SW_TARGETS[_singleSw].acc : (BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96);
+    const _fAht = _singleSw && SW_TARGETS[_singleSw] ? SW_TARGETS[_singleSw].aht : null;
+    const _fAllRows = filterRows(qaFilter(RAW_ROWS), tls, tenures, sws, workflows);
+    renderForecastStrip('ti-forecast-strip', _fAllRows, () => ({ acc: _fAcc, prec: _fAcc, rec: _fAcc, aht: _fAht }), true);
+  }
 
   let rowsLM = rows;
 
@@ -10650,6 +10973,16 @@ function renderDrillDown(){
       // Render Open Opportunities panel
       const oppPanel = document.getElementById('dr-opp-panel');
       if(oppPanel) renderDrillOppPanel(rows, rv, oppPanel);
+
+      // Month-End Landing Forecast (Block 6) — reviewer-scoped. Uses
+      // baseRvRows (full history, not month-pill restricted) so the forecast
+      // always finds the true current month regardless of the month pill.
+      {
+        const _singleSw = sws.length === 1 ? sws[0] : null;
+        const _fAcc = _singleSw && SW_TARGETS[_singleSw] ? SW_TARGETS[_singleSw].acc : (BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96);
+        const _fAht = _singleSw && SW_TARGETS[_singleSw] ? SW_TARGETS[_singleSw].aht : null;
+        renderForecastStrip('dr-forecast-strip', baseRvRows, () => ({ acc: _fAcc, prec: _fAcc, rec: _fAcc, aht: _fAht }));
+      }
   }
 }
 
@@ -15906,6 +16239,16 @@ function renderExecCharts(qRows, wfmRows, targetsObj, qualType, vsfs, passRates)
     buildLineCount('chart-e-dec',  qLabels, decData,  'Decisions',   '#6366F1');
     buildLineCount('chart-e-tput', qLabels, tputData, 'Throughput',  '#0EA5E9');
 
+    // SPC control-rule bands + signals — quality/AHT trend charts only (Block 7).
+    // Reset each render pass so stale signals from a prior filter selection
+    // don't linger in the table.
+    SPC_SIGNALS = [];
+    applySPCBands('chart-e-acc',  qLabels, accData,  'Accuracy',  'Site');
+    applySPCBands('chart-e-prec', qLabels, precData, 'Precision', 'Site');
+    applySPCBands('chart-e-rec',  qLabels, recData,  'Recall',    'Site');
+    applySPCBands('chart-e-aht',  qLabels, ahtData,  'AHT',       'Site');
+    renderSPCSignalsTable();
+
     // Inject VSF + R2 into chart title spans
     const accEl  = document.getElementById('vsf-acc-trend');
     const precEl = document.getElementById('vsf-prec-trend');
@@ -16848,6 +17191,140 @@ function renderStackRank() {
     el.innerHTML = `
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center">${pillHtml}</div>
         ${table}`;
+}
+
+// ── SPC Control Rules (Block 7) ─────────────────────────────────────────────
+// Retargeted from the spec's original tab-control/renderControl() location —
+// that surface is a month-over-month table with no chart/canvas at all.
+// Confirmed with Karl: bands + signals attach to the real weekly trend charts
+// on Site Health (chart-e-acc/prec/rec/aht), built by renderExecCharts()/buildLine().
+//
+// Mandatory guardrail: sigma is computed from a BASELINE PERIOD ONLY (first 8
+// points, or fewer if under 8 available) — never the full series. Computing
+// sigma across the whole series would inflate the bands with the drift itself
+// and hide the signal the chart exists to catch.
+//
+// Collector shape matches the frozen Block 2 interface, ready to push into
+// SIGNAL_COLLECTORS once Block 2 lands. SPC_SIGNALS holds current-run output.
+let SPC_SIGNALS = [];
+
+function spcBaselineStats(vals) {
+    const valid = vals.map((v, i) => ({ i, v })).filter(p => p.v !== null && p.v !== undefined);
+    if (!valid.length) return null;
+    const baseline = valid.slice(0, Math.min(8, valid.length));
+    const n = baseline.length;
+    const mean = baseline.reduce((s, p) => s + p.v, 0) / n;
+    const variance = n > 1 ? baseline.reduce((s, p) => s + (p.v - mean) * (p.v - mean), 0) / (n - 1) : 0;
+    const sigma = Math.sqrt(variance);
+    return { mean, sigma, n };
+}
+
+// Runs the 4 Western Electric rules against a series given baseline mean/sigma.
+// Returns violations as { idx, rule, window } — idx is the index in `vals`
+// where the rule condition is satisfied (the triggering point).
+function spcRunRules(vals, mean, sigma) {
+    const violations = [];
+    if (sigma === 0 || !isFinite(sigma)) return violations;
+    const z = vals.map(v => (v === null || v === undefined) ? null : (v - mean) / sigma);
+
+    // WE-1: 1 point beyond 3 sigma
+    z.forEach((zi, i) => { if (zi !== null && Math.abs(zi) > 3) violations.push({ idx: i, rule: 'WE-1', window: `pt ${i + 1}` }); });
+
+    // WE-2: 2 of 3 consecutive beyond 2 sigma, same side
+    for (let i = 2; i < z.length; i++) {
+        const win = [z[i - 2], z[i - 1], z[i]].filter(v => v !== null);
+        if (win.length < 3) continue;
+        const beyondPos = win.filter(v => v > 2).length;
+        const beyondNeg = win.filter(v => v < -2).length;
+        if (beyondPos >= 2 || beyondNeg >= 2) violations.push({ idx: i, rule: 'WE-2', window: `pts ${i - 1}-${i + 1}` });
+    }
+
+    // WE-3: 7 consecutive on one side of the mean
+    let sameSideRun = 1;
+    for (let i = 1; i < z.length; i++) {
+        if (z[i] === null || z[i - 1] === null) { sameSideRun = 1; continue; }
+        const sameSide = (z[i] > 0 && z[i - 1] > 0) || (z[i] < 0 && z[i - 1] < 0);
+        sameSideRun = sameSide ? sameSideRun + 1 : 1;
+        if (sameSideRun >= 7) violations.push({ idx: i, rule: 'WE-3', window: `pts ${i - 6}-${i + 1}` });
+    }
+
+    // WE-4: 8 consecutive trending one direction
+    let trendRun = 1, trendDir = null;
+    for (let i = 1; i < vals.length; i++) {
+        if (vals[i] === null || vals[i - 1] === null) { trendRun = 1; trendDir = null; continue; }
+        const dir = vals[i] > vals[i - 1] ? 1 : vals[i] < vals[i - 1] ? -1 : 0;
+        if (dir !== 0 && dir === trendDir) trendRun++;
+        else { trendRun = dir !== 0 ? 1 : 0; trendDir = dir; }
+        if (trendRun >= 8) violations.push({ idx: i, rule: 'WE-4', window: `pts ${i - 7}-${i + 1}` });
+    }
+
+    return violations;
+}
+
+// Attaches mean±2σ/3σ bands and WE-rule violation markers to an already-built
+// Chart.js instance in the global `charts` map. Call after buildLine() has
+// constructed the chart for canvasId. Pushes findings into SPC_SIGNALS.
+function applySPCBands(canvasId, labels, vals, metricLabel, subject) {
+    const chart = charts[canvasId];
+    if (!chart) return;
+    const stats = spcBaselineStats(vals);
+    if (!stats || stats.n < 3) return; // not enough baseline to compute meaningful bands
+    const { mean, sigma } = stats;
+    if (sigma === 0 || !isFinite(sigma)) return;
+
+    const violations = spcRunRules(vals, mean, sigma);
+
+    const band = (key, mult, color) => ({
+        [key]: {
+            type: 'box', yMin: mean - mult * sigma, yMax: mean + mult * sigma,
+            backgroundColor: color, borderWidth: 0
+        }
+    });
+    const annotations = Object.assign(
+        {},
+        band('spcBand3', 3, 'rgba(185,28,28,0.04)'),
+        band('spcBand2', 2, 'rgba(217,119,6,0.05)'),
+        { spcMean: { type: 'line', yMin: mean, yMax: mean, borderColor: 'rgba(107,114,128,0.5)', borderWidth: 1, borderDash: [3, 3] } }
+    );
+    violations.forEach((v, i) => {
+        annotations['spcViol' + i] = {
+            type: 'point', xValue: labels[v.idx], yValue: vals[v.idx],
+            backgroundColor: 'rgba(185,28,28,0.85)', borderColor: '#B91C1C', radius: 5, borderWidth: 2
+        };
+    });
+
+    chart.options.plugins = chart.options.plugins || {};
+    chart.options.plugins.annotation = { annotations };
+    chart.update();
+
+    violations.forEach(v => {
+        SPC_SIGNALS.push({
+            subject: subject || metricLabel,
+            sw: '',
+            reason: `${v.rule} at ${labels[v.idx]}`,
+            severity: 'coral',
+            score: v.rule === 'WE-1' ? 3 : v.rule === 'WE-2' ? 2 : 1,
+            suggestedAction: 'Review trend',
+            tab: 'tab-exec',
+            filters: {},
+            metric: metricLabel,
+            window: v.window
+        });
+    });
+}
+
+function renderSPCSignalsTable() {
+    const wrap = document.getElementById('spc-signals-wrap');
+    const body = document.getElementById('spc-signals-body');
+    if (!wrap || !body) return;
+    if (!SPC_SIGNALS.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    body.innerHTML = SPC_SIGNALS.map(s => `<tr>
+        <td>${s.reason}</td>
+        <td>${s.reason.split(' at ')[0]}</td>
+        <td>${s.window}</td>
+        <td>${s.metric}</td>
+    </tr>`).join('');
 }
 
 function buildLine(canvasId, labels, vals, target, label, dir, color, targetColor, showR2, onPointClick){
@@ -26750,6 +27227,148 @@ function decayMatchesSet(strikeDecay, set) {
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────
+// ── Defect Radar: Emerging + Contagion detectors (Block 4) ─────────────────
+// Rebucketed from the original 14-day/60-day day-granularity spec to match
+// this file's actual weekly grain (RAW_ROWS/_diAllRows are bucketed by
+// r.week, a YYYY-MM-DD string for the week-ending date; there is no
+// day-level date anywhere in the defect/policy data). Trailing 2 weeks vs
+// prior 8 weeks approximates the original 14:60 day ratio on the real grain.
+// Confirmed with Karl before building (see session notes).
+//
+// Collector shape matches the frozen Block 2 interface exactly, so these
+// detectors are ready to push into SIGNAL_COLLECTORS once Block 2 lands:
+//   { subject, sw, reason, severity, score, suggestedAction, tab, filters }
+// DR_EMERGING_SIGNALS / DR_CONTAGION_SIGNALS hold the current run's output
+// in that shape; nothing consumes them yet.
+let DR_EMERGING_SIGNALS = [];
+let DR_CONTAGION_SIGNALS = [];
+
+// \x96 (Windows-1252 en-dash byte) is not handled by clean() — only \x97
+// (em-dash byte) is. Local normalize so policy-string grouping here doesn't
+// silently split what should be one bucket into two.
+function drNormPolicy(pol) {
+    if (!pol) return '';
+    return String(pol).replace(/\x96/g, '–').trim();
+}
+
+// Given a week-ending date string and the latest week in the dataset,
+// returns days-ago (mirrors the daysAgo pattern in buildAllStrikeRows()).
+function drDaysAgo(week, latestWeek) {
+    return (new Date(latestWeek) - new Date(week)) / 86400000;
+}
+
+function computeDefectRadar(baseRows) {
+    DR_EMERGING_SIGNALS = [];
+    DR_CONTAGION_SIGNALS = [];
+    if (!baseRows.length || !WEEKS.length) return;
+
+    const latestWeek = WEEKS[WEEKS.length - 1];
+    // Trailing window: last 2 weeks (0-14 days ago). Baseline window: the
+    // preceding 8 weeks (14-70 days ago), excluding the trailing window so
+    // baseline rate isn't contaminated by the same errors being flagged.
+    const trailRows = baseRows.filter(r => { const d = drDaysAgo(r.week, latestWeek); return d >= 0 && d < 14; });
+    const baseRowsWin = baseRows.filter(r => { const d = drDaysAgo(r.week, latestWeek); return d >= 14 && d < 70; });
+
+    // Decision-volume denominators, per policy's sub-workflow, from RAW_ROWS
+    // directly (not from error rows) so the rate is normalized against real
+    // throughput, not against itself.
+    const volFor = (rows, sw) => rows.filter(r => r.sw === sw).reduce((s, r) => s + (r.decisions || 0), 0);
+
+    // ── Emerging: policy error rate per 1,000 decisions, trailing vs baseline
+    const trailByPol = {}, baseByPol = {};
+    trailRows.forEach(r => {
+        if (!r.pol || (r.fpa + r.fna) === 0) return;
+        const key = drNormPolicy(r.pol);
+        if (!trailByPol[key]) trailByPol[key] = { pol: key, count: 0, sws: new Set(), reviewers: new Set() };
+        trailByPol[key].count++; trailByPol[key].sws.add(r.sw); trailByPol[key].reviewers.add(r.reviewer);
+    });
+    baseRowsWin.forEach(r => {
+        if (!r.pol || (r.fpa + r.fna) === 0) return;
+        const key = drNormPolicy(r.pol);
+        if (!baseByPol[key]) baseByPol[key] = { pol: key, count: 0, sws: new Set() };
+        baseByPol[key].count++; baseByPol[key].sws.add(r.sw);
+    });
+
+    Object.values(trailByPol).forEach(t => {
+        if (t.count < 3) return; // minimum occurrence guard
+        const sw = [...t.sws][0] || ''; // dominant/first SW for volume lookup
+        const trailVol = volFor(trailRows, sw) || 1;
+        const baseVol = volFor(baseRowsWin, sw) || 1;
+        const trailRate = (t.count / trailVol) * 1000;
+        const b = baseByPol[t.pol];
+        const isNew = !b;
+        const baseRate = b ? (b.count / baseVol) * 1000 : 0;
+        const ratio = baseRate > 0 ? trailRate / baseRate : (isNew ? Infinity : 0);
+        if (isNew || ratio >= 2) {
+            DR_EMERGING_SIGNALS.push({
+                subject: t.pol,
+                sw,
+                reason: isNew ? `New policy, ${t.count} error${t.count === 1 ? '' : 's'} in last 2 wks` :
+                                `Rate ${trailRate.toFixed(1)}/1k vs baseline ${baseRate.toFixed(1)}/1k (${ratio.toFixed(1)}x)`,
+                severity: 'coral',
+                score: isNew ? t.count * 10 : t.count * ratio,
+                suggestedAction: 'Coach individual',
+                tab: 'tab-defint',
+                filters: {}
+            });
+        }
+    });
+    DR_EMERGING_SIGNALS.sort((a, b) => b.score - a.score);
+
+    // ── Contagion: same policy, ≥3 distinct reviewers, same TL, same week
+    const cellMap = {}; // key: tl|pol|week -> { tl, pol, week, reviewers:Set, sws:Set }
+    trailRows.concat(baseRowsWin).forEach(r => {
+        if (!r.pol || (r.fpa + r.fna) === 0 || !r.supervisor) return;
+        const pol = drNormPolicy(r.pol);
+        const key = r.supervisor + '|' + pol + '|' + r.week;
+        if (!cellMap[key]) cellMap[key] = { tl: r.supervisor, pol, week: r.week, reviewers: new Set(), sws: new Set() };
+        cellMap[key].reviewers.add(r.reviewer);
+        cellMap[key].sws.add(r.sw);
+    });
+    Object.values(cellMap).forEach(c => {
+        if (c.reviewers.size >= 3) {
+            DR_CONTAGION_SIGNALS.push({
+                subject: c.tl,
+                sw: [...c.sws][0] || '',
+                reason: `${c.reviewers.size} reviewers · ${c.pol} · week of ${c.week}`,
+                severity: 'coral',
+                score: c.reviewers.size,
+                suggestedAction: c.reviewers.size >= 5 ? 'Team cascade' : 'Calibration',
+                tab: 'tab-defint',
+                filters: {}
+            });
+        }
+    });
+    DR_CONTAGION_SIGNALS.sort((a, b) => b.score - a.score);
+}
+
+function drRowHTML(sig, kind) {
+    const badge = `<span style="background:var(--csec);color:var(--coral);border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 8px;white-space:nowrap">${sig.suggestedAction}</span>`;
+    return `<div style="padding:9px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="min-width:0">
+            <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sig.subject}${sig.sw ? ' · ' + sig.sw : ''}</div>
+            <div style="font-size:11px;color:var(--tm);margin-top:1px">${sig.reason}</div>
+        </div>
+        ${badge}
+    </div>`;
+}
+
+function renderDefectRadar(baseRows) {
+    computeDefectRadar(baseRows);
+    const emBody = document.getElementById('dr-emerging-body');
+    const coBody = document.getElementById('dr-contagion-body');
+    if (emBody) {
+        emBody.innerHTML = DR_EMERGING_SIGNALS.length
+            ? DR_EMERGING_SIGNALS.slice(0, 8).map(s => drRowHTML(s, 'emerging')).join('')
+            : '<div style="padding:1.5rem;text-align:center;color:var(--tm);font-size:12px">No emerging defects in the trailing 2 weeks.</div>';
+    }
+    if (coBody) {
+        coBody.innerHTML = DR_CONTAGION_SIGNALS.length
+            ? DR_CONTAGION_SIGNALS.slice(0, 8).map(s => drRowHTML(s, 'contagion')).join('')
+            : '<div style="padding:1.5rem;text-align:center;color:var(--tm);font-size:12px">No contagion patterns detected.</div>';
+    }
+}
+
 function renderDefectIntelligence() {
     if(!RAW_ROWS.length) {
         document.getElementById('di-summary-cards').innerHTML =
@@ -26803,6 +27422,8 @@ function renderDefectIntelligence() {
     });
 
     _diCurrentFiltered = baseRows;
+
+    renderDefectRadar(baseRows);
 
     const activeRows = monthRows.filter(r => r.strikeDecay === 'active');
     const watchRows  = monthRows.filter(r => r.strikeDecay === 'watch');
@@ -32237,6 +32858,173 @@ function closeExpandChart() {
   if(histWrap) histWrap.style.display = 'none';
 }
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChart(); });
+
+// ── Ctrl+K Command Palette (Block 8.2) ──────────────────────────────────────
+// Second, additive keydown listener — verified only one other listener exists
+// in the file (Escape-to-close-chart above) before adding this, per spec.
+// Searches tab names, reviewer names, and SW names; jumps with filters
+// pre-applied using the app's own real mechanisms (goToTab, the ms-* widget
+// _rebuildOptions pattern, and dispatched change events) rather than
+// reimplementing filter application.
+
+// Static tab list mirrors the sidebar nav exactly (id, class selector, label).
+const CMDK_TABS = [
+    { id: 'exec', sel: '.t-ex', label: 'Site Health' },
+    { id: 'dataexplorer', sel: '.t-de', label: 'Data Explorer' },
+    { id: 'pidx', sel: '.t-pidx', label: 'Performance Index' },
+    { id: 'stackrank', sel: '.t-sr', label: 'Stack Ranking' },
+    { id: 'incentive', sel: '.t-inc', label: 'Incentive' },
+    { id: 'team', sel: '.t-ti', label: 'Team Insights' },
+    { id: 'drill', sel: '.t-dr', label: 'Reviewer Deep-Dive' },
+    { id: 'sme', sel: '.t-sme', label: 'SME Deep Drive' },
+    { id: 'rca-explorer', sel: '.t-rca', label: 'RCA Explorer' },
+    { id: 'jobdetail', sel: '.t-jd', label: 'Job Detail Explorer' },
+    { id: 'spotcheck', sel: '.t-spot', label: 'Spotcheck' },
+    { id: 'defint', sel: '.t-defint', label: 'Defect Intelligence' },
+    { id: 'cp', sel: '.t-cp', label: 'Coaching Priorities' },
+    { id: 'outlier', sel: '.t-outlier', label: 'Outlier Review' },
+    { id: 'control', sel: '.t-ctrl', label: 'Improve & Control' },
+    { id: 'psp', sel: '.t-psp', label: 'PSP Tracker' },
+    { id: 'guide', sel: '.t-guide', label: 'TL Guide' },
+    { id: 'nrt', sel: '.t-nrt', label: 'NRT QA' },
+    { id: 'nrt-aht', sel: '.t-nrt-aht', label: 'NRT AHT' },
+    { id: 'rca', sel: '.t-myrca', label: 'MyRCA' },
+    { id: 'upload', sel: '.t-up', label: 'Load Dataset' }
+];
+
+let CMDK_SELECTED_IDX = 0;
+
+function cmdkBuildItems(query) {
+    const q = query.trim().toLowerCase();
+    const items = [];
+    // Tabs — always eligible, matched by label substring.
+    CMDK_TABS.forEach(t => {
+        if(!q || t.label.toLowerCase().includes(q)) {
+            items.push({ kind: 'tab', label: t.label, sub: 'Tab', data: t });
+        }
+    });
+    // Reviewers and sub-workflows only searched once a query exists (avoids
+    // dumping the entire reviewer roster into the list on open) and only if
+    // a dataset is loaded.
+    if(q && typeof RAW_ROWS !== 'undefined' && RAW_ROWS.length) {
+        const revSeen = new Set();
+        RAW_ROWS.forEach(r => {
+            if(r.reviewer && !revSeen.has(r.reviewer) && r.reviewer.toLowerCase().includes(q)) {
+                revSeen.add(r.reviewer);
+                items.push({ kind: 'reviewer', label: r.reviewer, sub: 'Reviewer', data: r.reviewer });
+            }
+        });
+        const swSeen = new Set();
+        RAW_ROWS.forEach(r => {
+            if(r.sw && !swSeen.has(r.sw) && r.sw.toLowerCase().includes(q)) {
+                swSeen.add(r.sw);
+                items.push({ kind: 'sw', label: r.sw, sub: 'Sub-workflow', data: r.sw });
+            }
+        });
+    }
+    // Cap total results so the list stays scannable.
+    return items.slice(0, 40);
+}
+
+function cmdkRenderResults() {
+    const input = document.getElementById('cmdk-input');
+    const resultsEl = document.getElementById('cmdk-results');
+    if(!input || !resultsEl) return;
+    const items = cmdkBuildItems(input.value);
+    CMDK_SELECTED_IDX = items.length ? Math.min(CMDK_SELECTED_IDX, items.length - 1) : 0;
+    if(!items.length) {
+        resultsEl.innerHTML = '<div style="padding:14px 12px;font-size:12px;color:var(--tm);text-align:center">No matches</div>';
+        return;
+    }
+    resultsEl.innerHTML = items.map((item, i) => `
+        <div class="cmdk-item" data-idx="${i}" onclick="cmdkSelect(${i})"
+             style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:var(--r);cursor:pointer;font-size:13px;${i===CMDK_SELECTED_IDX?'background:var(--sa)':''}">
+            <span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.label}</span>
+            <span style="font-size:10px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.06em;flex-shrink:0">${item.sub}</span>
+        </div>`).join('');
+    resultsEl._items = items;
+}
+
+function cmdkSelect(idx) {
+    const resultsEl = document.getElementById('cmdk-results');
+    const items = resultsEl && resultsEl._items;
+    if(!items || !items[idx]) return;
+    const item = items[idx];
+    closeCmdK();
+
+    if(item.kind === 'tab') {
+        goToTab(item.data.id, item.data.sel);
+        return;
+    }
+    if(item.kind === 'reviewer') {
+        const rSel = document.getElementById('g-reviewer');
+        if(rSel) {
+            rSel.value = item.data;
+            if(rSel._rebuildOptions) rSel._rebuildOptions();
+            rSel.dispatchEvent(new Event('change', {bubbles: true}));
+        }
+        goToTab('drill', '.t-dr');
+        return;
+    }
+    if(item.kind === 'sw') {
+        const swSel = document.getElementById('g-sw');
+        if(swSel) {
+            Array.from(swSel.options).forEach(o => { o.selected = (o.value === item.data); });
+            if(swSel._rebuildOptions) swSel._rebuildOptions();
+            swSel.dispatchEvent(new Event('change', {bubbles: true}));
+        }
+        // Data Explorer is this app's established "show me everything about
+        // this filter selection" landing surface (see goToDataExplorerFiltered).
+        goToTab('dataexplorer', '.t-de');
+        return;
+    }
+}
+
+function openCmdK() {
+    const overlay = document.getElementById('cmdk-overlay');
+    const input = document.getElementById('cmdk-input');
+    if(!overlay || !input) return;
+    overlay.style.display = 'block';
+    input.value = '';
+    CMDK_SELECTED_IDX = 0;
+    cmdkRenderResults();
+    setTimeout(() => input.focus(), 0);
+}
+
+function closeCmdK() {
+    const overlay = document.getElementById('cmdk-overlay');
+    if(overlay) overlay.style.display = 'none';
+}
+
+document.addEventListener('keydown', e => {
+    const isCmdK = (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'k' || e.key === 'K');
+    if(isCmdK) {
+        e.preventDefault();
+        const overlay = document.getElementById('cmdk-overlay');
+        if(overlay && overlay.style.display === 'block') closeCmdK();
+        else openCmdK();
+        return;
+    }
+    const overlay = document.getElementById('cmdk-overlay');
+    if(!overlay || overlay.style.display !== 'block') return;
+    if(e.key === 'Escape') { closeCmdK(); return; }
+    const resultsEl = document.getElementById('cmdk-results');
+    const items = resultsEl && resultsEl._items;
+    if(e.key === 'ArrowDown') {
+        e.preventDefault();
+        if(items && items.length) { CMDK_SELECTED_IDX = (CMDK_SELECTED_IDX + 1) % items.length; cmdkRenderResults(); }
+    } else if(e.key === 'ArrowUp') {
+        e.preventDefault();
+        if(items && items.length) { CMDK_SELECTED_IDX = (CMDK_SELECTED_IDX - 1 + items.length) % items.length; cmdkRenderResults(); }
+    } else if(e.key === 'Enter') {
+        e.preventDefault();
+        if(items && items.length) cmdkSelect(CMDK_SELECTED_IDX);
+    }
+});
+
+document.addEventListener('input', e => {
+    if(e.target && e.target.id === 'cmdk-input') { CMDK_SELECTED_IDX = 0; cmdkRenderResults(); }
+});
 // ─── END chart expand modal ───────────────────────────────────────────────────
 </script>
 <div id="chart-expand-modal" onclick="if(event.target===this)closeExpandChart()">
@@ -32244,6 +33032,16 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeExpandChar
     <div id="chart-expand-title"></div>
     <button id="chart-expand-close" onclick="closeExpandChart()">✕</button>
     <div id="chart-expand-wrap"><canvas id="chart-expand-canvas"></canvas></div>
+
+    <!-- Ctrl+K Command Palette (Block 8.2) -->
+    <div id="cmdk-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,.45);z-index:9000" onclick="closeCmdK()">
+      <div id="cmdk-modal" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);width:min(560px,92vw);background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden" onclick="event.stopPropagation()">
+        <input id="cmdk-input" type="text" placeholder="Jump to a tab, reviewer, or sub-workflow..." autocomplete="off"
+          style="width:100%;box-sizing:border-box;border:none;border-bottom:1px solid var(--border);padding:14px 16px;font-size:14px;font-family:var(--f);color:var(--text);outline:none;background:transparent" />
+        <div id="cmdk-results" style="max-height:50vh;overflow-y:auto;padding:6px"></div>
+      </div>
+    </div>
+
     <div id="psp-hist-expand-wrap" style="display:none;padding:8px 4px"></div>
   </div>
 </div>
