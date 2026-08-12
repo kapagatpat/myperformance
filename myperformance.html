@@ -1257,7 +1257,7 @@ tr:hover td{background:#F8F9FB}
         </div>
       </div>
 
-      <div class="kpi-section-label" style="display:flex;align-items:center;gap:8px">AHT vs Quality Relationship <span id="ti-scatter-legend"></span><span id="ti-scatter-n" style="font-size:10px;font-weight:700;color:var(--tm);margin-left:auto"></span><button id="scatter-label-toggle" onclick="toggleScatterLabels()" style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:var(--pill);border:1px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f);margin-left:8px">Show names</button></div>
+      <div class="kpi-section-label" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">AHT vs Quality Relationship <span id="ti-scatter-legend"></span><span id="ti-scatter-metric-pills" style="display:flex;gap:4px"></span><span id="ti-scatter-n" style="font-size:10px;font-weight:700;color:var(--tm);margin-left:auto"></span><button id="scatter-label-toggle" onclick="toggleScatterLabels()" style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:var(--pill);border:1px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f);margin-left:8px">Show names</button></div>
       <div style="margin-bottom:2rem">
         <div class="chart-card">
           <div class="chart-wrap" style="height:420px"><canvas id="chart-ti-scatter"></canvas></div>
@@ -1266,25 +1266,26 @@ tr:hover td{background:#F8F9FB}
         <div style="margin-top:10px;border-top:1px solid var(--divider);padding-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px">
           <div style="background:var(--gsec);border-left:3px solid var(--green);border-radius:var(--r);padding:7px 10px">
             <div style="font-size:11px;font-weight:800;color:var(--green)">⬤ Efficient</div>
-            <div style="font-size:10px;color:var(--ts);margin-top:2px;line-height:1.5">Low AHT + High Accuracy<br><span style="color:var(--tm)">Fast <em>and</em> accurate — benchmark these reviewers.</span></div>
+            <div style="font-size:10px;color:var(--ts);margin-top:2px;line-height:1.5">Low AHT + High <span id="ti-scatter-qlabel-1">Accuracy</span><br><span style="color:var(--tm)">Fast <em>and</em> accurate — benchmark these reviewers.</span></div>
           </div>
           <div style="background:var(--bsec);border-left:3px solid var(--blue);border-radius:var(--r);padding:7px 10px">
             <div style="font-size:11px;font-weight:800;color:var(--blue)">⬤ Careful</div>
-            <div style="font-size:10px;color:var(--ts);margin-top:2px;line-height:1.5">High AHT + High Accuracy<br><span style="color:var(--tm)">Accurate but slow — speed coaching only.</span></div>
+            <div style="font-size:10px;color:var(--ts);margin-top:2px;line-height:1.5">High AHT + High <span id="ti-scatter-qlabel-2">Accuracy</span><br><span style="color:var(--tm)">Accurate but slow — speed coaching only.</span></div>
           </div>
           <div style="background:var(--asec);border-left:3px solid var(--amber);border-radius:var(--r);padding:7px 10px">
             <div style="font-size:11px;font-weight:800;color:var(--amber)">⬤ Rushing</div>
-            <div style="font-size:10px;color:var(--ts);margin-top:2px;line-height:1.5">Low AHT + Low Accuracy<br><span style="color:var(--tm)">Cutting corners — slow down, check policy.</span></div>
+            <div style="font-size:10px;color:var(--ts);margin-top:2px;line-height:1.5">Low AHT + Low <span id="ti-scatter-qlabel-3">Accuracy</span><br><span style="color:var(--tm)">Cutting corners — slow down, check policy.</span></div>
           </div>
           <div style="background:var(--csec);border-left:3px solid var(--coral);border-radius:var(--r);padding:7px 10px">
             <div style="font-size:11px;font-weight:800;color:var(--coral)">⬤ Struggling</div>
-            <div style="font-size:10px;color:var(--ts);margin-top:2px;line-height:1.5">High AHT + Low Accuracy<br><span style="color:var(--tm)">Both issues — prioritise accuracy gap first.</span></div>
+            <div style="font-size:10px;color:var(--ts);margin-top:2px;line-height:1.5">High AHT + Low <span id="ti-scatter-qlabel-4">Accuracy</span><br><span style="color:var(--tm)">Both issues — prioritise accuracy gap first.</span></div>
           </div>
         </div>
         <div id="ti-scatter-callout" style="font-size:10px;color:var(--ts);line-height:1.55;padding:7px 12px;background:var(--sa);border-radius:var(--r);border-left:3px solid var(--border)"></div>
       </div>
 
       <div class="kpi-section-label" style="display:flex;align-items:center;gap:8px">AHT vs Quality Over Time <span id="ti-dual-legend"></span>
+        <span id="ti-dual-metric-pills" style="display:flex;gap:4px"></span>
         <div style="margin-left:auto;display:flex;gap:4px" id="chart-view-toggle-dual">
 <button onclick="setChartView('daily')" id="cvt-daily-dual" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--border);background:var(--surface);color:var(--tm)">Daily</button>
           <button onclick="setChartView('weekly')" id="cvt-weekly-dual" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid var(--blue);background:var(--blue);color:#fff">Weekly</button>
@@ -1293,7 +1294,7 @@ tr:hover td{background:#F8F9FB}
       </div>
       <div class="chart-card" style="margin-bottom:2rem">
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-          <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--blue)"><span style="width:20px;height:2.5px;background:var(--blue);display:inline-block;border-radius:2px"></span>Accuracy %</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--blue)"><span style="width:20px;height:2.5px;background:var(--blue);display:inline-block;border-radius:2px"></span><span id="ti-dual-swatch-label">Accuracy %</span></span>
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--amber)"><span style="width:20px;height:2.5px;background:#D97706;display:inline-block;border-radius:2px"></span>Avg AHT (s)</span>
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--tm)"><span style="width:20px;height:2px;background:var(--tm);display:inline-block;border-radius:2px;opacity:0.5;border-top:1px dashed var(--tm)"></span>Targets</span>
           <span id="ti-dual-callout" style="margin-left:auto;font-size:10px;font-weight:700;color:var(--ts);background:var(--sa);border-radius:var(--r);padding:4px 10px"></span>
@@ -1382,6 +1383,7 @@ tr:hover td{background:#F8F9FB}
       </div>
 
       <div class="kpi-section-label" style="display:flex;align-items:center;gap:8px">AHT vs Quality Over Time <span id="dr-dual-legend"></span>
+        <span id="dr-dual-metric-pills" style="display:flex;gap:4px"></span>
         <span id="dr-dual-callout" style="margin-left:auto;font-size:10px;font-weight:700;color:var(--ts);background:var(--sa);border-radius:var(--r);padding:4px 10px"></span>
       </div>
       <div style="margin-bottom:2rem">
@@ -6130,7 +6132,7 @@ function renderSWHealthSummary(rows, tls) {
         m.dht+=r.dht; m.nht+=r.nht; m.dec+=r.decisions;
     });
 
-    let redCount=0, yellowCount=0, greenCount=0;
+    const redSws = [], yellowSws = [], greenSws = [];
     Object.values(swMap).forEach(m => {
         const prec = (m.tpa+m.fpa)>0 ? m.tpa/(m.tpa+m.fpa) : null;
         const rec  = (m.tpa+m.fna)>0 ? m.tpa/(m.tpa+m.fna) : null;
@@ -6144,21 +6146,23 @@ function renderSWHealthSummary(rows, tls) {
         const prMet  = (prec===null || rec===null) ? null : (prec>=precTgt && rec>=recTgt);
         const ahtMet = (aht===null || ahtTgt===null) ? null : (aht<=ahtTgt);
 
-        if(prMet === false) redCount++;
-        else if(ahtMet === false) yellowCount++;
-        else if(prMet === true && ahtMet === true) greenCount++;
-        // insufficient-data SWs (prMet/ahtMet both null) are excluded from all three counts
+        if(prMet === false) redSws.push(m.sw);
+        else if(ahtMet === false) yellowSws.push(m.sw);
+        else if(prMet === true && ahtMet === true) greenSws.push(m.sw);
+        // insufficient-data SWs (prMet/ahtMet both null) are excluded from all three buckets
     });
+    [redSws, yellowSws, greenSws].forEach(list => list.sort((a,b) => a.localeCompare(b)));
 
     const boxes = [
-        {label:'Red — P&R missed', count:redCount, bg:'#FEF2F2', border:'#FCA5A5', fg:'#B91C1C'},
-        {label:'Amber — AHT missed only', count:yellowCount, bg:'#FEF9C3', border:'#FCD34D', fg:'#92400E'},
-        {label:'Green — both met', count:greenCount, bg:'#F0FDF4', border:'#86EFAC', fg:'#15803D'},
+        {label:'Red — P&R missed', sws:redSws, bg:'#FEF2F2', border:'#FCA5A5', fg:'#B91C1C', chipBg:'#FFFFFF'},
+        {label:'Amber — AHT missed only', sws:yellowSws, bg:'#FEF9C3', border:'#FCD34D', fg:'#92400E', chipBg:'#FFFFFF'},
+        {label:'Green — both met', sws:greenSws, bg:'#F0FDF4', border:'#86EFAC', fg:'#15803D', chipBg:'#FFFFFF'},
     ];
     el.innerHTML = boxes.map(b => `
         <div style="background:${b.bg};border:1px solid ${b.border};border-radius:var(--r);padding:12px 14px;text-align:center">
-            <div style="font-size:26px;font-weight:800;color:${b.fg};line-height:1.1;margin-bottom:4px">${b.count}</div>
-            <div style="font-size:10.5px;font-weight:700;color:${b.fg};text-transform:uppercase;letter-spacing:.04em">${b.label}</div>
+            <div style="font-size:26px;font-weight:800;color:${b.fg};line-height:1.1;margin-bottom:4px">${b.sws.length}</div>
+            <div style="font-size:10.5px;font-weight:700;color:${b.fg};text-transform:uppercase;letter-spacing:.04em;margin-bottom:${b.sws.length ? '8px' : '0'}">${b.label}</div>
+            ${b.sws.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center">${b.sws.map(sw => `<span style="background:${b.chipBg};border:1px solid ${b.border};color:${b.fg};font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--pill);white-space:nowrap">${mcdEsc(sw)}</span>`).join('')}</div>` : ''}
         </div>`).join('');
 }
 
@@ -6326,6 +6330,8 @@ function renderTeamInsights(){
 
   let rvAccs = [], rvAHTs = [], rvPrecs = [], rvRecs = [];
   let tiAccTarget = sws.length === 1 && SW_TARGETS[sws[0]] ? SW_TARGETS[sws[0]].acc : (BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96);
+  let tiPrecTarget = sws.length === 1 && SW_TARGETS[sws[0]] ? SW_TARGETS[sws[0]].prec : (BAND_TARGETS['Overall']?.['-']?.['Precision']?.ach || 0.96);
+  let tiRecTarget  = sws.length === 1 && SW_TARGETS[sws[0]] ? SW_TARGETS[sws[0]].rec  : (BAND_TARGETS['Overall']?.['-']?.['Recall']?.ach    || 0.96);
   let tiAhtTarget = sws.length === 1 && SW_TARGETS[sws[0]] ? SW_TARGETS[sws[0]].aht : 900;
   let accPass = 0, ahtPass = 0, precPass = 0, recPass = 0;
 
@@ -6570,8 +6576,8 @@ function renderTeamInsights(){
   // Diagnosis — Policy AHT Impact (team) — separate acc/aht
   diagPolAhtTeam('diag-ti-bleed-aht', tiAhtSorted, tiTeamAvgAht, sws);
 
-  renderScatterPanel(rvMap, tiAccTarget, tiAhtTarget, rangeLeg);
-  renderDualAxis(rows, tiAccTarget, tiAhtTarget, rangeLeg);
+  renderScatterPanel(rvMap, {acc:tiAccTarget, prec:tiPrecTarget, rec:tiRecTarget}, tiAhtTarget, rangeLeg);
+  renderDualAxis(rows, {acc:tiAccTarget, prec:tiPrecTarget, rec:tiRecTarget}, tiAhtTarget, rangeLeg);
 
   // ── Seed team projection calculator
   let tmTpa2=0,tmTna2=0,tmFpa2=0,tmFna2=0,tmDht2=0,tmNht2=0,tmDec2=0;
@@ -6612,7 +6618,7 @@ function renderTeamInsights(){
     allMonths: [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort(),
   };
 
-  renderPrioritySurface(rows);
+  renderPrioritySurface(rows, tls);
 
   } catch(e) {
     console.error('renderTeamInsights error:', e);
@@ -6736,10 +6742,23 @@ function goToPriorityCardTarget(destTab, tabSelector, reviewer, sw, mtdMonth) {
 // PRIORITY SURFACE — MTD, filter-aware
 // rows passed in are already filterRows()+qaFilter()'d by renderTeamInsights, so this
 // panel respects the universal filter (TL, tenure, SW, workflow, role, review type, month pills).
-function renderPrioritySurface(filteredRows) {
+function renderPrioritySurface(filteredRows, tls) {
   const cardsEl     = document.getElementById('ti-ps-cards');
   const legendEl    = document.getElementById('ti-ps-legend');
   if(!cardsEl) return;
+
+  // Priority Reviewer is a per-TL coaching surface — showing it across
+  // multiple/no TLs mixes reviewers from different teams into one ranked
+  // list, which isn't a meaningful read. Gate it the same way SW Health is
+  // gated: require exactly one TL selected from the top filter bar.
+  const selTls = Array.isArray(tls) ? tls : [];
+  if(selTls.length !== 1) {
+    cardsEl.innerHTML = `<div style="grid-column:1/-1;padding:18px;text-align:center;color:var(--tm);font-size:12px">
+        ${selTls.length === 0 ? 'Select a TL from the top filter bar to see priority reviewers.' : 'Select exactly one TL to see priority reviewers.'}
+    </div>`;
+    if(legendEl) legendEl.textContent = '';
+    return;
+  }
 
   // Priority Surface tracks frontline reviewers only — Agent and SME roles.
   // This is a hard restriction independent of the universal Role filter, since
@@ -9213,9 +9232,15 @@ function generateTLMonthlyDoc() {
 // ─── END MONTHLY TL DOC ───────────────────────────────────────────────────────
 
 
-function renderDrillDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
+function renderDrillDualAxis(rows, accTargets, ahtTarget, rangeLeg) {
     const legEl = document.getElementById('dr-dual-legend');
     if(legEl) legEl.innerHTML = rangeLeg;
+    const pillsEl = document.getElementById('dr-dual-metric-pills');
+    if(pillsEl) pillsEl.innerHTML = _qualityMetricPillsHTML('dr-dual-metric', DR_DUAL_METRIC);
+
+    const metric = DR_DUAL_METRIC; // 'acc' | 'prec' | 'rec'
+    const metricLabel = QUALITY_METRIC_LABELS[metric];
+    const accTarget = accTargets[metric];
 
     const periods = groupByPeriod(rows, CHART_VIEW, pRows => {
         let tpa=0,tna=0,fpa=0,fna=0,dht=0,nht=0,dec=0;
@@ -9230,9 +9255,11 @@ function renderDrillDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
     if(!periods.length) return;
 
     const labels  = periods.map(d=>d.label);
-    const accData = periods.map(d=>{const t=d.tpa+d.tna+d.fpa+d.fna;return t>0?parseFloat(((d.tpa+d.tna)/t*100).toFixed(2)):null;});
-    const precData = periods.map(d=>(d.tpa+d.fpa)>0?parseFloat((d.tpa/(d.tpa+d.fpa)*100).toFixed(2)):null);
-    const recData  = periods.map(d=>(d.tpa+d.fna)>0?parseFloat((d.tpa/(d.tpa+d.fna)*100).toFixed(2)):null);
+    const accData = periods.map(d=>{
+        if(metric === 'prec') return (d.tpa+d.fpa)>0 ? parseFloat((d.tpa/(d.tpa+d.fpa)*100).toFixed(2)) : null;
+        if(metric === 'rec')  return (d.tpa+d.fna)>0 ? parseFloat((d.tpa/(d.tpa+d.fna)*100).toFixed(2)) : null;
+        const t=d.tpa+d.tna+d.fpa+d.fna;return t>0?parseFloat(((d.tpa+d.tna)/t*100).toFixed(2)):null;
+    });
     const ahtData = periods.map(d=>d.dec>0?parseFloat(((d.dht+d.nht)/d.dec).toFixed(1)):null);
     const accTgt  = labels.map(()=>parseFloat((accTarget*100).toFixed(1)));
     const ahtTgt  = ahtTarget ? labels.map(()=>ahtTarget) : null;
@@ -9258,11 +9285,13 @@ function renderDrillDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
     const accPtColors = accData.map(v => v===null ? 'transparent' : v >= accTarget*100 ? '#0F766E' : '#B91C1C');
     const ahtPtColors = ahtData.map(v => v===null ? 'transparent' : (ahtTarget ? (v <= ahtTarget ? '#0F766E' : '#B91C1C') : '#1A56DB'));
 
+    // Single selected quality metric line + its target, plus AHT + its target.
+    // Previously this always drew Accuracy/Precision/Recall together; the
+    // metric toggle above now decides which one line shows, for a clean
+    // decluttered read on the metric that's currently relevant.
     const datasets = [
-        { label:'Accuracy %', data:accData, borderColor:'#1A56DB', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, pointBackgroundColor:accPtColors, spanGaps:true, tension:0.3, yAxisID:'yAcc' },
-        { label:'Accuracy Target', data:accTgt, borderColor:'#1A56DB', borderWidth:1.2, borderDash:[5,4], pointRadius:0, backgroundColor:'transparent', spanGaps:true, yAxisID:'yAcc' },
-        { label:'Adj Precision %', data:precData, borderColor:'#0F766E', backgroundColor:'transparent', borderWidth:1.5, pointRadius:2, spanGaps:true, tension:0.3, yAxisID:'yAcc' },
-        { label:'Adj Recall %', data:recData, borderColor:'#7C3AED', backgroundColor:'transparent', borderWidth:1.5, pointRadius:2, spanGaps:true, tension:0.3, yAxisID:'yAcc' },
+        { label:metricLabel+' %', data:accData, borderColor:'#1A56DB', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, pointBackgroundColor:accPtColors, spanGaps:true, tension:0.3, yAxisID:'yAcc' },
+        { label:metricLabel+' Target', data:accTgt, borderColor:'#1A56DB', borderWidth:1.2, borderDash:[5,4], pointRadius:0, backgroundColor:'transparent', spanGaps:true, yAxisID:'yAcc' },
         { label:'Avg AHT (s)', data:ahtData, borderColor:'#D97706', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, pointBackgroundColor:ahtPtColors, spanGaps:true, tension:0.3, yAxisID:'yAHT' },
     ];
     if(ahtTgt) datasets.push({ label:'AHT Target', data:ahtTgt, borderColor:'#D97706', borderWidth:1.2, borderDash:[5,4], pointRadius:0, backgroundColor:'transparent', spanGaps:true, yAxisID:'yAHT' });
@@ -9276,7 +9305,7 @@ function renderDrillDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
             plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:12, padding:10 } }, tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(ctx.dataset.yAxisID==='yAcc'?2:1)+(ctx.dataset.yAxisID==='yAcc'?'%':'s') : '—'}` } } },
             scales:{
                 x:{ ticks:{ font:{size:10}, maxRotation:45 }, grid:{ color:'#E8EBF0' } },
-                yAcc:{ type:'linear', position:'left', ticks:{ callback:v=>v+'%', font:{size:10} }, title:{ display:true, text:'Accuracy %', font:{size:10}, color:'#6B7280' }, grid:{ color:'#E8EBF0' } },
+                yAcc:{ type:'linear', position:'left', ticks:{ callback:v=>v+'%', font:{size:10} }, title:{ display:true, text:metricLabel+' %', font:{size:10}, color:'#6B7280' }, grid:{ color:'#E8EBF0' } },
                 yAHT:{ type:'linear', position:'right', ticks:{ callback:v=>v+'s', font:{size:10} }, title:{ display:true, text:'AHT (s)', font:{size:10}, color:'#6B7280' }, grid:{ drawOnChartArea:false } }
             }
         }
@@ -9289,6 +9318,40 @@ function renderDrillDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
 }
 
 // ─── P4: SCATTER — AHT vs Accuracy ────────────────────────────────────────────
+
+// ─── AHT vs Quality metric toggle (Accuracy / Precision / Recall) ─────────
+// Shared across all three AHT-vs-Quality charts (TI scatter, TI dual-axis,
+// DR dual-axis) so each can be viewed against whichever quality metric is
+// most relevant, independent of the others.
+let TI_SCATTER_METRIC = 'acc';
+let TI_DUAL_METRIC = 'acc';
+let DR_DUAL_METRIC = 'acc';
+
+const QUALITY_METRIC_LABELS = { acc: 'Accuracy', prec: 'Precision', rec: 'Recall' };
+
+function _qualityMetricPillsHTML(idPrefix, current) {
+    return Object.keys(QUALITY_METRIC_LABELS).map(k => `<button id="${idPrefix}-${k}" onclick="setQualityMetric('${idPrefix}','${k}')" style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:var(--pill);cursor:pointer;font-family:var(--f);border:1px solid ${k===current?'var(--bbd)':'var(--border)'};background:${k===current?'var(--blue)':'var(--sa)'};color:${k===current?'#fff':'var(--ts)'}">${QUALITY_METRIC_LABELS[k]}</button>`).join('');
+}
+
+function setQualityMetric(idPrefix, metric) {
+    if(idPrefix === 'ti-scatter-metric') TI_SCATTER_METRIC = metric;
+    else if(idPrefix === 'ti-dual-metric') TI_DUAL_METRIC = metric;
+    else if(idPrefix === 'dr-dual-metric') DR_DUAL_METRIC = metric;
+
+    // Re-render the pill row's own active state without a full chart rebuild first,
+    // so the click feels instant even if the data recompute takes a moment.
+    Object.keys(QUALITY_METRIC_LABELS).forEach(k => {
+        const btn = document.getElementById(`${idPrefix}-${k}`);
+        if(!btn) return;
+        const active = k === metric;
+        btn.style.border = `1px solid ${active?'var(--bbd)':'var(--border)'}`;
+        btn.style.background = active ? 'var(--blue)' : 'var(--sa)';
+        btn.style.color = active ? '#fff' : 'var(--ts)';
+    });
+
+    if(idPrefix === 'ti-scatter-metric' || idPrefix === 'ti-dual-metric') renderTeamInsights();
+    else if(idPrefix === 'dr-dual-metric') renderDrillDown();
+}
 
 // ─── Scatter label toggle ──────────────────────────────────────────────────
 let SCATTER_LABELS_ON = false;
@@ -9330,10 +9393,16 @@ function goToDeepDiveForReviewer(reviewer) {
   goToTab('drill', '.t-dr');
 }
 
-function renderScatterPanel(rvMap, accTarget, ahtTarget, rangeLeg) {
-    // ── Legend
+function renderScatterPanel(rvMap, accTargets, ahtTarget, rangeLeg) {
+    // ── Legend + metric pills
     const legEl = document.getElementById('ti-scatter-legend');
     if(legEl) legEl.innerHTML = rangeLeg;
+    const pillsEl = document.getElementById('ti-scatter-metric-pills');
+    if(pillsEl) pillsEl.innerHTML = _qualityMetricPillsHTML('ti-scatter-metric', TI_SCATTER_METRIC);
+
+    const metric = TI_SCATTER_METRIC; // 'acc' | 'prec' | 'rec'
+    const metricLabel = QUALITY_METRIC_LABELS[metric];
+    const target = accTargets[metric];
 
     // ── Build per-reviewer points
     const points = [];
@@ -9341,7 +9410,11 @@ function renderScatterPanel(rvMap, accTarget, ahtTarget, rangeLeg) {
         const m = rvMap[rv];
         const total = m.tpa + m.tna + m.fpa + m.fna;
         if(total < 1 || m.dec < 1) return; // skip zero-audit reviewers
-        const acc = (m.tpa + m.tna) / total;
+        let acc;
+        if(metric === 'prec') acc = (m.tpa+m.fpa) > 0 ? m.tpa/(m.tpa+m.fpa) : null;
+        else if(metric === 'rec') acc = (m.tpa+m.fna) > 0 ? m.tpa/(m.tpa+m.fna) : null;
+        else acc = (m.tpa + m.tna) / total;
+        if(acc === null) return; // skip reviewers with no basis for this metric (e.g. no FP for Precision)
         const aht = (m.dht + m.nht) / m.dec;
         points.push({ name: rv, acc, aht, sup: m.supervisor || '—' });
     });
@@ -9356,6 +9429,7 @@ function renderScatterPanel(rvMap, accTarget, ahtTarget, rangeLeg) {
         return;
     }
     if(nEl) nEl.textContent = `n = ${points.length} reviewers`;
+    [1,2,3,4].forEach(i => { const el = document.getElementById(`ti-scatter-qlabel-${i}`); if(el) el.textContent = metricLabel; });
 
     // ── Medians as quadrant split lines
     const sortedAcc = [...points].map(p=>p.acc).sort((a,b)=>a-b);
@@ -9455,8 +9529,8 @@ function renderScatterPanel(rvMap, accTarget, ahtTarget, rangeLeg) {
                     callbacks: {
                         label: function(ctx) {
                             const d = ctx.raw;
-                            if(!d.label) return `AHT: ${d.x}s | Acc: ${d.y}%`;
-                            return [`${d.label}`, `Supervisor: ${d.sup}`, `AHT: ${d.x}s | Acc: ${d.y}%`];
+                            if(!d.label) return `AHT: ${d.x}s | ${metricLabel}: ${d.y}%`;
+                            return [`${d.label}`, `Supervisor: ${d.sup}`, `AHT: ${d.x}s | ${metricLabel}: ${d.y}%`];
                         }
                     }
                 },
@@ -9471,7 +9545,7 @@ function renderScatterPanel(rvMap, accTarget, ahtTarget, rangeLeg) {
                 },
                 y: {
                     min: yMin, max: yMax,
-                    title: { display: true, text: 'Accuracy (%)', font: { size: 10 }, color: '#555B67' },
+                    title: { display: true, text: `${metricLabel} (%)`, font: { size: 10 }, color: '#555B67' },
                     ticks: { font: { size: 9 }, color: '#8E95A3', callback: v => v + '%' },
                     grid: { color: 'rgba(0,0,0,.04)' }
                 }
@@ -9555,17 +9629,18 @@ function renderScatterPanel(rvMap, accTarget, ahtTarget, rangeLeg) {
     // ── Callout box
     if(callout) {
         let msg, color;
+        const mlLower = metricLabel.toLowerCase();
         if(!showR2) {
             msg = `Showing ${points.length} reviewers. Trend direction visible — R² requires 8+ reviewers to display.`;
             color = 'var(--border)';
         } else if(Math.abs(R) >= 0.50) {
-            msg = `${prelimR2?'~':''}R² = ${R2.toFixed(2)}${prelimR2?' (preliminary — need 15+ reviewers)':''} — Moderate to strong link between AHT and accuracy. Higher-AHT reviewers do tend to score better. Speed coaching should account for this trade-off.`;
+            msg = `${prelimR2?'~':''}R² = ${R2.toFixed(2)}${prelimR2?' (preliminary — need 15+ reviewers)':''} — Moderate to strong link between AHT and ${mlLower}. Higher-AHT reviewers do tend to score better. Speed coaching should account for this trade-off.`;
             color = 'var(--amber)';
         } else if(Math.abs(R) >= 0.20) {
-            msg = `${prelimR2?'~':''}R² = ${R2.toFixed(2)}${prelimR2?' (preliminary — need 15+ reviewers)':''} — Weak relationship. AHT and accuracy move somewhat independently on this team. High AHT is not fully explained by high accuracy.`;
+            msg = `${prelimR2?'~':''}R² = ${R2.toFixed(2)}${prelimR2?' (preliminary — need 15+ reviewers)':''} — Weak relationship. AHT and ${mlLower} move somewhat independently on this team. High AHT is not fully explained by high ${mlLower}.`;
             color = 'var(--blue)';
         } else {
-            msg = `${prelimR2?'~':''}R² = ${R2.toFixed(2)}${prelimR2?' (preliminary — need 15+ reviewers)':''} — No meaningful relationship detected. High AHT is not explained by high accuracy for this group. Speed and quality are independent — use this in supervisor conversations.`;
+            msg = `${prelimR2?'~':''}R² = ${R2.toFixed(2)}${prelimR2?' (preliminary — need 15+ reviewers)':''} — No meaningful relationship detected. High AHT is not explained by high ${mlLower} for this group. Speed and quality are independent — use this in supervisor conversations.`;
             color = 'var(--teal)';
         }
         callout.style.borderLeftColor = color;
@@ -9578,10 +9653,20 @@ function renderScatterPanel(rvMap, accTarget, ahtTarget, rangeLeg) {
 }
 
 
-// ─── P5: DUAL-AXIS — AHT vs Accuracy Over Time ─────────────────────────────
-function renderDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
+// ─── P5: DUAL-AXIS — AHT vs Quality Over Time ─────────────────────────────
+function renderDualAxis(rows, accTargets, ahtTarget, rangeLeg) {
     const legEl = document.getElementById('ti-dual-legend');
     if(legEl) legEl.innerHTML = rangeLeg;
+    const pillsEl = document.getElementById('ti-dual-metric-pills');
+    if(pillsEl) pillsEl.innerHTML = _qualityMetricPillsHTML('ti-dual-metric', TI_DUAL_METRIC);
+
+    const metric = TI_DUAL_METRIC; // 'acc' | 'prec' | 'rec'
+    const metricLabel = QUALITY_METRIC_LABELS[metric];
+    const accTarget = accTargets[metric];
+
+    // ── Legend swatch label (static HTML span, updated here to match metric)
+    const swatchEl = document.getElementById('ti-dual-swatch-label');
+    if(swatchEl) swatchEl.textContent = metricLabel + ' %';
 
     // ── Aggregate by period
     const periods = groupByPeriod(rows, CHART_VIEW, pRows => {
@@ -9601,7 +9686,11 @@ function renderDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
     }
 
     const labels   = periods.map(d => d.label);
-    const accData  = periods.map(d => { const t=d.tpa+d.tna+d.fpa+d.fna; return t>0 ? parseFloat(((d.tpa+d.tna)/t*100).toFixed(2)) : null; });
+    const accData  = periods.map(d => {
+        if(metric === 'prec') return (d.tpa+d.fpa)>0 ? parseFloat((d.tpa/(d.tpa+d.fpa)*100).toFixed(2)) : null;
+        if(metric === 'rec')  return (d.tpa+d.fna)>0 ? parseFloat((d.tpa/(d.tpa+d.fna)*100).toFixed(2)) : null;
+        const t=d.tpa+d.tna+d.fpa+d.fna; return t>0 ? parseFloat(((d.tpa+d.tna)/t*100).toFixed(2)) : null;
+    });
     const ahtData  = periods.map(d => d.dec>0 ? parseFloat(((d.dht+d.nht)/d.dec).toFixed(1)) : null);
     const accTgt   = labels.map(() => parseFloat((accTarget*100).toFixed(1)));
     const ahtTgt   = labels.map(() => ahtTarget);
@@ -9635,7 +9724,7 @@ function renderDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
             labels,
             datasets: [
                 {
-                    label: 'Accuracy %',
+                    label: metricLabel + ' %',
                     data: accData,
                     borderColor: '#1A56DB',
                     backgroundColor: 'transparent',
@@ -9647,7 +9736,7 @@ function renderDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
                     yAxisID: 'yAcc'
                 },
                 {
-                    label: 'Accuracy Target',
+                    label: metricLabel + ' Target',
                     data: accTgt,
                     borderColor: '#1A56DB',
                     borderWidth: 1.2,
@@ -9695,7 +9784,7 @@ function renderDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
                             const v = ctx.raw;
                             if(v === null) return null;
                             return ctx.dataset.yAxisID === 'yAcc'
-                                ? `Accuracy: ${v}%`
+                                ? `${metricLabel}: ${v}%`
                                 : `AHT: ${Math.round(v)}s`;
                         }
                     }
@@ -9713,7 +9802,7 @@ function renderDualAxis(rows, accTarget, ahtTarget, rangeLeg) {
                     max: 100,
                     ticks: { font: { size: 9 }, color: '#1A56DB', callback: v => v + '%' },
                     grid: { color: 'rgba(26,86,219,.06)' },
-                    title: { display: true, text: 'Accuracy %', color: '#1A56DB', font: { size: 9, weight: '700' } }
+                    title: { display: true, text: metricLabel + ' %', color: '#1A56DB', font: { size: 9, weight: '700' } }
                 },
                 yAHT: {
                     type: 'linear',
@@ -10079,6 +10168,8 @@ function renderDrillDown(){
 
   let targetAht=sws.length===1&&SW_TARGETS[sws[0]]?SW_TARGETS[sws[0]].aht:null;
   let targetAcc=sws.length===1&&SW_TARGETS[sws[0]]?SW_TARGETS[sws[0]].acc:(BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach||0.96);
+  let targetPrec=sws.length===1&&SW_TARGETS[sws[0]]?SW_TARGETS[sws[0]].prec:(BAND_TARGETS['Overall']?.['-']?.['Precision']?.ach||0.96);
+  let targetRec=sws.length===1&&SW_TARGETS[sws[0]]?SW_TARGETS[sws[0]].rec:(BAND_TARGETS['Overall']?.['-']?.['Recall']?.ach||0.96);
 
   let accPassWeeks=0,ahtPassWeeks=0,totalAccWeeks=0,totalAhtWeeks=0;
   Object.keys(wMap).forEach(w=>{
@@ -10090,7 +10181,7 @@ function renderDrillDown(){
   document.getElementById('dr-acc-title-extra').textContent=totalAccWeeks>0?` | Passed ${accPassWeeks}/${totalAccWeeks} weeks (${Math.round(accPassWeeks/totalAccWeeks*100)})%`:'' ;
   document.getElementById('dr-aht-title-extra').textContent=totalAhtWeeks>0?` | Passed ${ahtPassWeeks}/${totalAhtWeeks} weeks (${Math.round(ahtPassWeeks/totalAhtWeeks*100)})%`:'';
 
-  renderDrillDualAxis(trendRows, targetAcc, targetAht, rangeLeg);
+  renderDrillDualAxis(trendRows, {acc:targetAcc, prec:targetPrec, rec:targetRec}, targetAht, rangeLeg);
 
   renderTrendCharts(rowsLM,'chart-dr-acc','chart-dr-aht',null,targetAht,targetAcc,sws.length!==1);
   renderPolicyPareto(rows);
@@ -13577,33 +13668,86 @@ function saveTargets() {
 }
 
 // COPY TAB AS HTML
-async function copyElementAsImage(elId, btnElem) {
-    const el = document.getElementById(elId);
-    if(!el) return;
-    const orig = btnElem.innerHTML;
-    btnElem.innerHTML = '⏳ Rendering...';
-    btnElem.disabled = true;
+//
+// ── Shared full-content capture helper ──────────────────────────────────
+// html2canvas renders elements exactly as currently laid out in the DOM.
+// It does NOT auto-expand ancestors that clip via overflow:auto/hidden
+// (e.g. .twrap{overflow-x:auto}, .de-tbl-shell{overflow:hidden}), so a
+// wide/tall table nested inside one of those only captures the visible,
+// scrolled-into-view slice. Fix: walk up from the target, temporarily
+// force every clipping ancestor (and the target itself) to overflow:visible
+// with an explicit natural width/height, capture, then restore every
+// inline style we touched — even on error/timeout — so the live page is
+// never left in a broken state.
+function _uncapClipping(el) {
+    const touched = [];
+    let node = el;
+    while(node && node !== document.body) {
+        const cs = getComputedStyle(node);
+        const clips = cs.overflow !== 'visible' || cs.overflowX !== 'visible' || cs.overflowY !== 'visible';
+        if(clips) {
+            touched.push({
+                node,
+                overflow: node.style.overflow,
+                overflowX: node.style.overflowX,
+                overflowY: node.style.overflowY,
+                width: node.style.width,
+                height: node.style.height,
+                maxWidth: node.style.maxWidth,
+                maxHeight: node.style.maxHeight
+            });
+            node.style.overflow = 'visible';
+            node.style.overflowX = 'visible';
+            node.style.overflowY = 'visible';
+            // scrollWidth/Height reflects the *full* content the ancestor was
+            // clipping — pin the box to that so nothing re-collapses once
+            // overflow is no longer constraining it.
+            node.style.width = node.scrollWidth + 'px';
+            node.style.maxWidth = 'none';
+            node.style.height = node.scrollHeight + 'px';
+            node.style.maxHeight = 'none';
+        }
+        node = node.parentElement;
+    }
+    return () => {
+        touched.forEach(t => {
+            t.node.style.overflow = t.overflow;
+            t.node.style.overflowX = t.overflowX;
+            t.node.style.overflowY = t.overflowY;
+            t.node.style.width = t.width;
+            t.node.style.height = t.height;
+            t.node.style.maxWidth = t.maxWidth;
+            t.node.style.maxHeight = t.maxHeight;
+        });
+    };
+}
 
-    const loadLib = () => new Promise((res, rej) => {
-        if(window.html2canvas) return res();
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = res; s.onerror = rej;
-        document.head.appendChild(s);
-    });
+const _loadHtml2Canvas = () => new Promise((res, rej) => {
+    if(window.html2canvas) return res();
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+});
 
+// Shared capture + clipboard/download flow used by both copyElementAsImage
+// and copyTabAsImage. scale:1.5 (down from 2) trims render time on large
+// tables noticeably with only a minor sharpness tradeoff at normal zoom.
+async function _captureElementFull(el, bgColor, downloadName, btnElem, orig) {
+    const restore = _uncapClipping(el);
     try {
-        await loadLib();
+        await _loadHtml2Canvas();
         const canvas = await html2canvas(el, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: bgColor,
             logging: false,
             scrollX: 0, scrollY: 0,
             windowWidth: el.scrollWidth,
             width: el.scrollWidth,
             height: el.scrollHeight
         });
+        restore();
         canvas.toBlob(async blob => {
             if(!blob) { btnElem.innerHTML = '❌ Failed'; btnElem.disabled = false; return; }
             try {
@@ -13612,17 +13756,27 @@ async function copyElementAsImage(elId, btnElem) {
             } catch {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = elId + '.png';
+                a.download = downloadName + '.png';
                 a.click();
                 btnElem.innerHTML = '📥 Downloaded';
             }
             setTimeout(() => { btnElem.innerHTML = orig; btnElem.disabled = false; }, 2500);
         }, 'image/png');
     } catch(e) {
+        restore();
         btnElem.innerHTML = '❌ Error';
         btnElem.disabled = false;
         setTimeout(() => { btnElem.innerHTML = orig; }, 2000);
     }
+}
+
+async function copyElementAsImage(elId, btnElem) {
+    const el = document.getElementById(elId);
+    if(!el) return;
+    const orig = btnElem.innerHTML;
+    btnElem.innerHTML = '⏳ Rendering...';
+    btnElem.disabled = true;
+    await _captureElementFull(el, '#FFFFFF', elId, btnElem, orig);
 }
 
 async function copyTabAsImage(tabId, btnElem) {
@@ -13631,48 +13785,7 @@ async function copyTabAsImage(tabId, btnElem) {
     const orig = btnElem.innerHTML;
     btnElem.innerHTML = '⏳ Rendering...';
     btnElem.disabled = true;
-
-    // Dynamically load html2canvas if not already loaded
-    const loadLib = () => new Promise((res, rej) => {
-        if(window.html2canvas) return res();
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = res; s.onerror = rej;
-        document.head.appendChild(s);
-    });
-
-    try {
-        await loadLib();
-        const canvas = await html2canvas(tab, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#F4F6F9',
-            logging: false,
-            scrollX: 0, scrollY: 0,
-            windowWidth: tab.scrollWidth,
-            width: tab.scrollWidth,
-            height: tab.scrollHeight
-        });
-        canvas.toBlob(async blob => {
-            if(!blob) { btnElem.innerHTML = '❌ Failed'; btnElem.disabled = false; return; }
-            try {
-                await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
-                btnElem.innerHTML = '✅ Copied!';
-            } catch {
-                // Fallback: download the image
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = tabId + '.png';
-                a.click();
-                btnElem.innerHTML = '📥 Downloaded';
-            }
-            setTimeout(() => { btnElem.innerHTML = orig; btnElem.disabled = false; }, 2500);
-        }, 'image/png');
-    } catch(e) {
-        btnElem.innerHTML = '❌ Error';
-        btnElem.disabled = false;
-        setTimeout(() => { btnElem.innerHTML = orig; }, 2000);
-    }
+    await _captureElementFull(tab, '#F4F6F9', tabId, btnElem, orig);
 }
 
 async function copyTabToHTML(tabId, title, btnElem) {
