@@ -3,11 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>MyPerformance | MVIO v1.25</title>
+<title>MyPerformance | MVIO v1.30</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 /* CORE CSS */
 *{box-sizing:border-box;margin:0;padding:0}
+
+/* Block 8.5: visible focus rings for keyboard navigation. Only 2 aria-
+   attributes and 1 tabindex existed in this file before this block — most
+   interactive elements had no visible focus state at all. This targets
+   native controls, the custom .tab sidebar buttons, the ms-* multi-select
+   widgets, freset/pill-style buttons, and anything carrying role="button"
+   (the existing clickable-cell pattern), without changing any markup. */
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+textarea:focus-visible, [tabindex]:focus-visible, [role="button"]:focus-visible,
+.tab:focus-visible, .ms-btn:focus-visible, .freset:focus-visible,
+.month-pill-btn:focus-visible, .ms-list label:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Fallback for browsers without :focus-visible support: apply to :focus but
+   only for keyboard-relevant elements, matching the same selector set. */
+@supports not selector(:focus-visible) {
+  a:focus, button:focus, select:focus, input:focus, textarea:focus,
+  [tabindex]:focus, [role="button"]:focus, .tab:focus {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+}
 
 /* ── iPad / Mobile touch fixes ───────────────────────────────────────────── */
 * { -webkit-tap-highlight-color: transparent; }
@@ -262,6 +286,12 @@ tr:hover td{background:#F8F9FB}
 .c-warn{background:var(--abg);color:var(--amber)}
 .c-bad{background:var(--cbg);color:var(--coral)}
 .c-na{color:var(--tm)}
+/* Block 8.5: glyph markers so colour alone doesn't carry meaning (colour-blind
+   accessibility). CSS-only, additive — no HTML changes to the many tables
+   using these classes across the app. */
+.c-good::before{content:"✓ ";font-weight:700}
+.c-warn::before{content:"▲ ";font-weight:700}
+.c-bad::before{content:"✕ ";font-weight:700}
 .c-secondary{opacity:0.5}
 
 /* OPP PANEL */
@@ -722,6 +752,53 @@ tr:hover td{background:#F8F9FB}
   .cols-2,.cols-3{grid-template-columns:1fr;}
 }
 
+/* Block 8.5: 1024px breakpoint — the file previously jumped straight from
+   700px to full desktop, leaving 700-1280px (a 13" laptop) unhandled.
+   Sidebar collapses to an icon-only rail; fbar wraps to two rows instead of
+   horizontal-scrolling off-screen. CSS-only — no HTML changes to the 21
+   sidebar buttons or the fbar controls. */
+@media(max-width:1024px){
+  .sidebar{width:56px;padding:18px 6px 24px}
+  .sb-label{display:none}
+  .tab{font-size:0;justify-content:center;padding:9px 6px;gap:0}
+  .tab .tab-icon{font-size:14px}
+  .main{padding:1.5rem 1.25rem 3rem}
+  .fbar{flex-wrap:wrap;overflow-x:visible;row-gap:8px}
+}
+
+
+/* ── Block 1 Session B: dependency dots, cache cards, overlay ─────────────── */
+.tab { position: relative; }
+.dep-dot { position:absolute; right:10px; top:50%; transform:translateY(-50%);
+  width:7px; height:7px; border-radius:50%; background:var(--border); flex-shrink:0; }
+.dep-dot.on { background:var(--teal); }
+#cache-status-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+  gap:10px; margin-bottom:1.25rem; }
+.cache-card { background:var(--surf); border:1px solid var(--border); border-radius:var(--r); padding:12px; }
+.cache-card-hd { display:flex; align-items:center; gap:7px; margin-bottom:8px; }
+.cache-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.cache-card-title { font-size:12px; font-weight:800; color:var(--text); }
+.cache-card-body { min-height:52px; }
+.cache-rows { font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:var(--text); }
+.cache-meta { font-size:11px; color:var(--tm); margin-top:2px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.cache-empty { color:var(--tm); font-weight:400; }
+.cache-warn { font-size:11px; color:var(--csec); font-weight:700; margin-top:4px; }
+.cache-card-actions { display:flex; gap:6px; margin-top:10px; }
+.cache-btn { flex:1; font-family:inherit; font-size:11px; font-weight:700; padding:5px 8px;
+  border:1px solid var(--bbd); background:var(--bbg); color:var(--bsec);
+  border-radius:var(--pill); cursor:pointer; }
+.cache-btn:hover { background:var(--blue); color:#fff; }
+.cache-btn-warn { border-color:var(--cbd); background:var(--cbg); color:var(--csec); }
+.cache-btn-warn:hover { background:var(--coral); color:#fff; }
+.cache-btn:focus-visible, .dz-flash:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.dz-flash { animation: dzFlash 1.6s ease-out; }
+@keyframes dzFlash { 0%,100% { box-shadow:none; } 25%,75% { box-shadow:0 0 0 3px var(--bbd); } }
+#load-overlay { display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.35); align-items:center; justify-content:center; }
+#load-overlay .lo-box { background:var(--surf); border:1px solid var(--border);
+  border-radius:var(--rl); padding:22px 30px; box-shadow:0 8px 32px rgba(0,0,0,.18); }
+#load-overlay .lo-msg { font-size:14px; font-weight:700; color:var(--text); }
 </style>
 </head>
 <body>
@@ -737,6 +814,7 @@ tr:hover td{background:#F8F9FB}
 <div class="shell">
   <nav class="sidebar">
     <div class="sb-label">Macro Level</div>
+    <button class="tab t-cmd" onclick="showTab('command',this)"><div class="tab-icon">⚡</div>Command Center</button>
     <button class="tab t-ex" onclick="showTab('exec',this)"><div class="tab-icon">🏥</div>Site Health</button>
     <button class="tab t-de" onclick="showTab('dataexplorer',this)"><div class="tab-icon">🗃</div>Data Explorer</button>
     <button class="tab t-pidx" onclick="showTab('pidx',this)"><div class="tab-icon">📈</div>Performance Index</button>
@@ -758,6 +836,7 @@ tr:hover td{background:#F8F9FB}
 
     <button class="tab t-ctrl" onclick="showTab('control',this)"><div class="tab-icon">📊</div>Improve &amp; Control</button>
     <button class="tab t-psp" onclick="showTab('psp',this)"><div class="tab-icon">📋</div>PSP Tracker</button>
+    <button class="tab t-diw" onclick="showTab('didwork',this)"><div class="tab-icon">📈</div>Did It Work?</button>
 
     <div class="sb-label" style="margin-top:1rem">Resources</div>
     <button class="tab t-guide" onclick="showTab('guide',this)"><div class="tab-icon">📖</div>TL Guide</button>
@@ -771,7 +850,7 @@ tr:hover td{background:#F8F9FB}
     <div class="sb-footer">
       <strong>MyPerformance</strong>
       
-      <span id="sb-version-stamp">MVIO · v1.25 · %%BUILD_TS%%</span>
+      <span id="sb-version-stamp">MVIO · v1.30 · %%BUILD_TS%%</span>
     </div>
   </nav>
 
@@ -846,6 +925,29 @@ tr:hover td{background:#F8F9FB}
         <button class="freset" onclick="svSaveCurrent()" title="Save current filter selection as a named view">＋ Save View</button>
         <button class="freset" onclick="resetFilters()">Reset All</button>
     </div>
+
+    <!-- ─── COMMAND CENTER (Block 2) ─────────────────────────────────────────── -->
+    <section id="tab-command" class="section">
+      <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div><h1>Command Center</h1><p>What changed, what needs attention, and what to do about it.</p></div>
+        <button onclick="copyTabToHTML('tab-command','Command Center',this)" style="flex-shrink:0;font-size:11px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">📋 Copy as HTML</button>
+      </div>
+
+      <div id="cmd-empty-state"></div>
+
+      <div id="cmd-controls" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:1rem;flex-wrap:wrap">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="cmd-sort-btn active" data-sort="priority" onclick="cmdSetSort('priority')" style="font-size:11px;font-weight:700;padding:5px 12px;border-radius:var(--pill);border:1px solid var(--border);cursor:pointer;background:var(--text);color:#fff;font-family:var(--f)">Priority</button>
+          <button class="cmd-sort-btn" data-sort="changed" onclick="cmdSetSort('changed')" style="font-size:11px;font-weight:700;padding:5px 12px;border-radius:var(--pill);border:1px solid var(--border);cursor:pointer;background:var(--surface);color:var(--ts);font-family:var(--f)">What Changed</button>
+          <select id="cmd-team-filter" onchange="cmdSetTeamFilter(this.value)" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:var(--pill);border:1px solid var(--border);cursor:pointer;background:var(--surface);color:var(--ts);font-family:var(--f)">
+            <option value="">All teams</option>
+          </select>
+        </div>
+        <div id="cmd-snapshot-note" style="font-size:11px;color:var(--tm)"></div>
+      </div>
+
+      <div id="cmd-strips"></div>
+    </section>
 
     <section id="tab-exec" class="section">
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
@@ -2323,6 +2425,18 @@ tr:hover td{background:#F8F9FB}
       <div id="psp-content"></div>
     </section>
 
+    <!-- ─── DID IT WORK? (Block 5) ─────────────────────────────────────────── -->
+    <section id="tab-didwork" class="section">
+      <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div><h1>Did It Work?</h1><p>Pre and post performance for logged interventions. Measures whether coaching moved the metric.</p></div>
+        <button onclick="copyTabToHTML('tab-didwork','Did It Work',this)" style="flex-shrink:0;font-size:11px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">📋 Copy as HTML</button>
+      </div>
+
+      <div id="diw-log-state"></div>
+      <div id="diw-rollup" style="margin-bottom:1.25rem"></div>
+      <div id="diw-content"></div>
+    </section>
+
     <section id="tab-cp" class="section">
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
         <div>
@@ -2333,6 +2447,17 @@ tr:hover td{background:#F8F9FB}
           <button id="cp-latest-sup-btn" onclick="toggleLatestSupervisor()" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--ts);border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">Latest Supervisor</button>
           <button onclick="copyTabToHTML('tab-cp','Coaching Priorities',this)" style="flex-shrink:0;font-size:11px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">📋 Copy as HTML</button>
         </div>
+      </div>
+      <!-- Breach Prediction Watchlist (Block 3) -->
+      <div id="bpw-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:1.25rem;display:none">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em">Breach Prediction Watchlist</span>
+          <span style="font-weight:500;font-size:11px;color:var(--tm);text-transform:none;letter-spacing:normal"> — projected target breaches, sorted by soonest</span>
+        </div>
+        <div class="twrap" style="border-radius:0"><table style="min-width:700px">
+          <thead><tr><th>Reviewer · SW</th><th>Metric</th><th>Current</th><th>Slope/wk</th><th>Projected breach</th><th>Confidence</th><th>n</th><th></th></tr></thead>
+          <tbody id="bpw-body"></tbody>
+        </table></div>
       </div>
       <div id="cp-content"></div>
     </section>
@@ -3315,6 +3440,13 @@ tr:hover td{background:#F8F9FB}
 
     <section id="tab-upload" class="section on">
       <div class="ph"><h1>Load Dataset</h1></div>
+
+      <!-- Block 1 Session B: cached dataset status cards -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em">Cached datasets</div>
+        <button class="cache-btn cache-btn-warn" style="flex:0 0 auto" onclick="clearAllCachedData()">Clear all cached data</button>
+      </div>
+      <div id="cache-status-cards"></div>
 
 
 
@@ -4871,6 +5003,7 @@ function renderActiveTab() {
     const activeEl = document.querySelector('.section.on');
     if(!activeEl) return;
     const activeId = activeEl.id;
+    if(activeId === 'tab-command') renderCommandCenter();
     if(activeId === 'tab-exec') renderExec();
     if(activeId === 'tab-dataexplorer') renderDataExplorer();
     if(activeId === 'tab-team') renderTeamInsights();
@@ -4879,6 +5012,7 @@ function renderActiveTab() {
     if(activeId === 'tab-rca-explorer' && window.renderRCAExplorer) window.renderRCAExplorer();
     if(activeId === 'tab-pidx') renderPerformanceIndex();
     if(activeId === 'tab-psp') renderPSP();
+    if(activeId === 'tab-didwork') renderDidItWork();
     if(activeId === 'tab-defint') renderDefectIntelligence();
     if(activeId === 'tab-cp') renderCoachingPriorities();
     if(activeId === 'tab-outlier') renderOutlierReview();
@@ -18799,6 +18933,179 @@ function renderDataExplorer() {
 // ─── END DATA EXPLORER ────────────────────────────────────────────────────────
 
 // ─── COACHING PRIORITIES ──────────────────────────────────────────────────────
+// ── Breach Prediction Watchlist (Block 3) ───────────────────────────────────
+// The spec's named anchor calcTrajectory() is 3-point-windowed with no r2 —
+// structurally incompatible with the confidence-tier requirement below.
+// Extends the real r2/slope/n pattern from buildLine() instead (confirmed
+// with Karl). Duplicated rather than refactored out of buildLine(), per
+// Section 0.1's duplicate-over-refactor rule — buildLine() is a shared
+// closure used by every chart in the app.
+//
+// projectBreach(series, target, higherIsBetter) -> { slope, r2, weeksToBreach, confidence }
+// series: array of {x, y} pairs already in chronological order, y may be null
+// for missing weeks (filtered out, matching buildLine()'s validPairs pattern).
+function projectBreach(series, target, higherIsBetter) {
+    const validPairs = (series || []).filter(p => p.y !== null && p.y !== undefined);
+    const n = validPairs.length;
+
+    // Guard: minimum 3 weekly points.
+    if (n < 3) return { slope: null, r2: null, weeksToBreach: null, confidence: 'low', n };
+
+    const sumX = validPairs.reduce((s, p) => s + p.x, 0);
+    const sumY = validPairs.reduce((s, p) => s + p.y, 0);
+    const sumXY = validPairs.reduce((s, p) => s + p.x * p.y, 0);
+    const sumX2 = validPairs.reduce((s, p) => s + p.x * p.x, 0);
+    const meanY = sumY / n;
+    const denom = n * sumX2 - sumX * sumX;
+
+    // Guard: divide-by-zero when all x equal (shouldn't happen with sequential
+    // week indices, but the same x-value degenerate case as buildLine()'s slope calc).
+    if (denom === 0) return { slope: null, r2: null, weeksToBreach: null, confidence: 'low', n };
+
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / n;
+    const ssTot = validPairs.reduce((s, p) => s + (p.y - meanY) * (p.y - meanY), 0);
+    const ssRes = validPairs.reduce((s, p) => s + (p.y - (slope * p.x + intercept)) * (p.y - (slope * p.x + intercept)), 0);
+    const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : null;
+
+    // Confidence tiers — fixed per spec, not tunable except by Karl after backtest.
+    let confidence = 'low';
+    if (r2 !== null && r2 >= 0.6 && n >= 15) confidence = 'high';
+    else if (r2 !== null && r2 >= 0.3 && n >= 8) confidence = 'medium';
+
+    // weeksToBreach: solve slope*x + intercept = target for x, relative to the
+    // last observed point. Guard flat/wrong-direction slopes (never breaches).
+    let weeksToBreach = null;
+    const lastX = validPairs[validPairs.length - 1].x;
+    const lastY = validPairs[validPairs.length - 1].y;
+    const movingTowardBreach = higherIsBetter ? slope < 0 : slope > 0;
+    if (movingTowardBreach && slope !== 0) {
+        const breachX = (target - intercept) / slope;
+        const wk = breachX - lastX;
+        // Horizon capped at 6 weeks; beyond that or already past, treat as
+        // "Stable" (null) rather than reporting a speculative far-future date.
+        if (wk > 0 && wk <= 6) weeksToBreach = wk;
+    } else if ((higherIsBetter && lastY < target) || (!higherIsBetter && lastY > target)) {
+        // Already past target with a slope moving away from breach (recovering)
+        // — not a breach case, but also not "stable" in the same sense. Leave
+        // weeksToBreach null; the caller's "already breached" framing is separate.
+        weeksToBreach = null;
+    }
+
+    return { slope, r2, weeksToBreach, confidence, n };
+}
+
+// SIGNAL_COLLECTORS-shaped output held here, ready to wire into Block 2 once
+// it lands. Not consumed by anything yet.
+let BPW_SIGNALS = [];
+
+function renderBreachWatchlist(qualRows, allWeeks) {
+    const wrap = document.getElementById('bpw-wrap');
+    const body = document.getElementById('bpw-body');
+    if (!wrap || !body) return;
+    BPW_SIGNALS = [];
+
+    if (!qualRows.length || allWeeks.length < 3) { wrap.style.display = 'none'; return; }
+
+    const weekIdx = {};
+    allWeeks.forEach((w, i) => { weekIdx[w] = i; });
+
+    // Group by reviewer x SW
+    const groups = {};
+    qualRows.forEach(r => {
+        const key = r.reviewer + '|' + r.sw;
+        if (!groups[key]) groups[key] = { reviewer: r.reviewer, sw: r.sw, byWeek: {} };
+        const wk = r.week;
+        if (!groups[key].byWeek[wk]) groups[key].byWeek[wk] = { tpa: 0, fpa: 0, fna: 0, tna: 0, dht: 0, nht: 0, decisions: 0 };
+        const g = groups[key].byWeek[wk];
+        g.tpa += r.tpa || 0; g.fpa += r.fpa || 0; g.fna += r.fna || 0; g.tna += r.tna || 0;
+        g.dht += r.dht || 0; g.nht += r.nht || 0; g.decisions += r.decisions || 0;
+    });
+
+    const rows = [];
+    Object.values(groups).forEach(grp => {
+        const swTarget = (typeof SW_TARGETS !== 'undefined' && SW_TARGETS[grp.sw]) ? SW_TARGETS[grp.sw] : null;
+        const accTarget = swTarget && swTarget.acc != null ? swTarget.acc : 0.96;
+        const ahtTarget = swTarget && swTarget.aht != null ? swTarget.aht : null;
+
+        // Determine AR gate from the full history for this reviewer x SW.
+        let tp = 0, fp = 0, fn = 0, tn = 0;
+        Object.values(grp.byWeek).forEach(w => { tp += w.tpa; fp += w.fpa; fn += w.fna; tn += w.tna; });
+        const totalAudits = tp + fp + fn + tn;
+        const ar = totalAudits > 0 ? (tp + fp) / totalAudits : null;
+        const usesPR = ar !== null && ar >= 0.10;
+
+        const buildSeries = (metricFn) => allWeeks.map(w => {
+            const wd = grp.byWeek[w];
+            if (!wd) return { x: weekIdx[w], y: null };
+            const v = metricFn(wd);
+            return { x: weekIdx[w], y: v };
+        });
+
+        const metrics = [];
+        if (usesPR) {
+            metrics.push({ key: 'prec', label: 'Precision', target: accTarget, higherIsBetter: true,
+                series: buildSeries(w => (w.tpa + w.fpa) > 0 ? w.tpa / (w.tpa + w.fpa) : null) });
+            metrics.push({ key: 'rec', label: 'Recall', target: accTarget, higherIsBetter: true,
+                series: buildSeries(w => (w.tpa + w.fna) > 0 ? w.tpa / (w.tpa + w.fna) : null) });
+        } else {
+            metrics.push({ key: 'acc', label: 'Adj Accuracy', target: accTarget, higherIsBetter: true,
+                series: buildSeries(w => (w.tpa + w.fpa + w.fna + w.tna) > 0 ? (w.tpa + w.tna) / (w.tpa + w.fpa + w.fna + w.tna) : null) });
+        }
+        if (ahtTarget) {
+            metrics.push({ key: 'aht', label: 'AHT', target: ahtTarget, higherIsBetter: false,
+                series: buildSeries(w => w.decisions > 0 ? (w.dht + w.nht) / w.decisions : null) });
+        }
+
+        metrics.forEach(m => {
+            const result = projectBreach(m.series, m.target, m.higherIsBetter);
+            // Low confidence renders greyed and never emits into the collector.
+            if (result.confidence === 'low') return;
+            if (result.weeksToBreach === null) return; // stable / not on breach trajectory
+            const validVals = m.series.filter(p => p.y !== null);
+            const currentVal = validVals.length ? validVals[validVals.length - 1].y : null;
+            rows.push({
+                subject: grp.reviewer, sw: grp.sw, metricLabel: m.label, metricKey: m.key,
+                current: currentVal, slope: result.slope, weeksToBreach: result.weeksToBreach,
+                confidence: result.confidence, n: result.n
+            });
+            BPW_SIGNALS.push({
+                subject: grp.reviewer, sw: grp.sw,
+                reason: `${m.label} projected to breach in ${result.weeksToBreach.toFixed(1)} wk`,
+                severity: result.confidence === 'high' ? 'coral' : 'amber',
+                score: 6 - result.weeksToBreach,
+                suggestedAction: 'Review trend',
+                tab: 'tab-drill', filters: {},
+                confidence: result.confidence
+            });
+        });
+    });
+
+    rows.sort((a, b) => a.weeksToBreach - b.weeksToBreach);
+
+    if (!rows.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+
+    const fmtVal = (v, key) => v === null ? '—' : (key === 'aht' ? Math.round(v) + 's' : (v * 100).toFixed(1) + '%');
+    const fmtSlope = (v, key) => v === null ? '—' : (key === 'aht' ? (v >= 0 ? '+' : '') + v.toFixed(1) + 's/wk' : (v >= 0 ? '+' : '') + (v * 100).toFixed(2) + 'pp/wk');
+    const confBadge = (c) => {
+        const map = { high: ['var(--csec)', 'var(--coral)', 'High'], medium: ['var(--asec)', 'var(--amber)', 'Medium'] };
+        const [bg, color, label] = map[c] || ['var(--sa)', 'var(--tm)', 'Low'];
+        return `<span style="background:${bg};color:${color};border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 8px">${label}</span>`;
+    };
+
+    body.innerHTML = rows.map(r => `<tr>
+        <td>${r.subject}${r.sw ? ' · ' + r.sw : ''}</td>
+        <td>${r.metricLabel}</td>
+        <td>${fmtVal(r.current, r.metricKey)}</td>
+        <td>${fmtSlope(r.slope, r.metricKey)}</td>
+        <td>${r.weeksToBreach.toFixed(1)} wk</td>
+        <td>${confBadge(r.confidence)}</td>
+        <td>${r.n}</td>
+        <td><button onclick="document.getElementById('g-reviewer').value='${r.subject.replace(/'/g,"\\'")}';if(document.getElementById('g-reviewer')._rebuildOptions)document.getElementById('g-reviewer')._rebuildOptions();document.getElementById('g-reviewer').dispatchEvent(new Event('change',{bubbles:true}));goToTab('drill','.t-dr');" style="font-size:10px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--pill);padding:2px 10px;cursor:pointer;font-family:var(--f)">Go →</button></td>
+    </tr>`).join('');
+}
+
 function renderCoachingPriorities() {
     const el = document.getElementById('cp-content');
     if(!el) return;
@@ -18831,6 +19138,10 @@ function renderCoachingPriorities() {
 
     const latestWeek = allWeeks[allWeeks.length - 1];
     const latestMonth = [...new Set(qualRows.map(r=>r.month))].sort().pop();
+
+    // Breach Prediction Watchlist (Block 3) — independent of the sections
+    // below; uses the same filtered qualRows/allWeeks already computed here.
+    renderBreachWatchlist(qualRows, allWeeks);
 
     // ── Section 1: Intervention Priority ──────────────────────────────────────
     // For each reviewer: historical baseline (all weeks except last 4) vs recent (last 4 weeks)
@@ -23273,6 +23584,1473 @@ function parseCSVRow(text) {
     ret.push(val.trim().replace(/^"|"$/g,'')); return ret;
 }
 
+// ─── BLOCK 1 SESSION A — IndexedDB CACHE LAYER ────────────────────────────────
+// Persists uploaded dataset SOURCE (raw CSV text, or the pre-parse row array for
+// XLSX) rather than parsed globals. On boot the existing parse functions are
+// replayed verbatim, so no cached shape can ever drift from the live parse path
+// and no metric math is duplicated. Derived state (WFM_LOOKUP, WFM_LOOKUP_DAILY,
+// WEEKS, _diAllRows, RCAMF_ROWS) is regenerated by those same parsers.
+//
+// Every entry point is try/catch-wrapped: a cache failure must never block a
+// manual upload. Chart instances, DOM refs and render state are never cached.
+const MYPERF_DB = 'myperf-cache', MYPERF_STORE = 'datasets', MYPERF_DB_V = 1;
+
+// Slot -> replay handler. Registered below, after the parsers exist at runtime.
+const MYPERF_SLOTS = ['raw','misc','jobdetail','nondecision','nrt-roster','nrt-qmap','nrt-rows','nrt-rca','naht'];
+
+function _idbOpen() {
+    return new Promise((res, rej) => {
+        if (!window.indexedDB) return rej(new Error('IndexedDB unavailable'));
+        const req = indexedDB.open(MYPERF_DB, MYPERF_DB_V);
+        req.onupgradeneeded = e => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(MYPERF_STORE)) db.createObjectStore(MYPERF_STORE, { keyPath: 'key' });
+        };
+        req.onsuccess = e => res(e.target.result);
+        req.onerror = () => rej(req.error || new Error('IndexedDB open failed'));
+    });
+}
+
+function _idbTx(mode, fn) {
+    return _idbOpen().then(db => new Promise((res, rej) => {
+        const tx = db.transaction(MYPERF_STORE, mode);
+        const store = tx.objectStore(MYPERF_STORE);
+        let out;
+        try { out = fn(store); } catch (e) { rej(e); return; }
+        tx.oncomplete = () => { db.close(); res(out && out.result !== undefined ? out.result : out); };
+        tx.onerror = () => { db.close(); rej(tx.error || new Error('IndexedDB transaction failed')); };
+        tx.onabort  = () => { db.close(); rej(tx.error || new Error('IndexedDB transaction aborted')); };
+    }));
+}
+
+function idbGet(key)  { return _idbTx('readonly',  s => s.get(key)).catch(e => { console.warn('[cache] get failed', key, e); return null; }); }
+function idbDel(key)  { return _idbTx('readwrite', s => s.delete(key)).then(()=>true).catch(e => { console.warn('[cache] del failed', key, e); return false; }); }
+function idbList()    { return _idbTx('readonly',  s => s.getAll()).then(r => r || []).catch(e => { console.warn('[cache] list failed', e); return []; }); }
+
+// sha256 of the source, used to detect a re-upload of an identical file.
+// crypto.subtle is unavailable on insecure origins (file:// in some browsers) —
+// degrade to null rather than throwing, the hash is advisory only.
+function _sha256(payload) {
+    try {
+        if (!window.crypto || !crypto.subtle) return Promise.resolve(null);
+        const text = typeof payload === 'string' ? payload : JSON.stringify(payload);
+        return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+            .then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''))
+            .catch(() => null);
+    } catch (e) { return Promise.resolve(null); }
+}
+
+// idbSet(key, payload, fileName, rowCount, meta)
+// payload: raw CSV text, or a pre-parse row array for the XLSX path.
+function idbSet(key, payload, fileName, rowCount, meta) {
+    return _sha256(payload).then(sha256 => _idbTx('readwrite', s => s.put({
+        key, fileName: fileName || '', rowCount: rowCount || 0,
+        sha256, uploadedAt: new Date().toISOString(),
+        rows: payload, meta: meta || {}
+    }))).then(() => true).catch(e => {
+        // QuotaExceededError lands here. Never surfaced as a crash.
+        console.warn('[cache] write failed for ' + key + ' (data still loaded in this session)', e);
+        _cacheNote('Could not cache ' + key + ' for next session (' + (e && e.name ? e.name : 'error') + '). Your data is loaded normally.');
+        return false;
+    });
+}
+
+// Non-blocking status note on the Load Dataset tab.
+function _cacheNote(msg) {
+    try {
+        let el = document.getElementById('cache-note');
+        if (!el) {
+            const host = document.getElementById('tab-upload');
+            if (!host) return;
+            el = document.createElement('div');
+            el.id = 'cache-note';
+            el.style.cssText = 'margin:12px 0;padding:10px 14px;border:1px solid var(--abd);background:var(--abg);color:var(--asec);border-radius:var(--r);font-size:13px';
+            host.insertBefore(el, host.firstChild);
+        }
+        el.textContent = msg;
+        el.style.display = 'block';
+    } catch (e) { console.warn('[cache] note failed', e); }
+}
+
+// ── Write hook ───────────────────────────────────────────────────────────────
+// Called at the tail of each upload handler's success path. Fire-and-forget.
+function cacheStore(key, payload, fileName, rowCount, meta) {
+    try { return idbSet(key, payload, fileName, rowCount, meta); }
+    catch (e) { console.warn('[cache] store threw', key, e); return Promise.resolve(false); }
+}
+
+// ── Replay registry ──────────────────────────────────────────────────────────
+// Each entry replays the SAME parser the live upload path uses, then returns the
+// live row count for the post-boot cross-check.
+function _cacheReplayers() {
+    return {
+        'raw': rec => {
+            processCSVData(rec.rows);
+            if (typeof runDataHealthChecks === 'function' && typeof _lastAllRows !== 'undefined') runDataHealthChecks(_lastAllRows);
+            return RAW_ROWS.length;
+        },
+        'misc': rec => {
+            if (typeof window.__miscSet !== 'function') return -1;
+            return window.__miscSet(rec.rows);
+        },
+        'jobdetail': rec => {
+            if (typeof window.__jdSet !== 'function') return -1;
+            return window.__jdSet(rec.rows);
+        },
+        'nondecision': rec => {
+            if (typeof window.__ndjdSet !== 'function') return -1;
+            return window.__ndjdSet(rec.rows);
+        },
+        'nrt-roster': rec => { nrtParseRoster(rec.rows); return NRT_ROSTER.length; },
+        'nrt-qmap':   rec => { nrtParseQMap(rec.rows);   return Object.keys(NRT_QUEUE_MAP).length; },
+        'nrt-rca':    rec => { nrtParseRCA(rec.rows);    return NRT_RCA_ROWS.length; },
+        // Precision and Quality Extract both populate NRT_ROWS (last write wins
+        // in the live app too) — one slot, source type recorded in meta.
+        'nrt-rows': rec => {
+            if (rec.meta && rec.meta.sourceType === 'qext') nrtParseQualityExtract(rec.rows);
+            else nrtParsePrec(rec.rows);
+            return NRT_ROWS.length;
+        },
+        'naht': rec => {
+            // Cached payload is always the pre-parse row array (both CSV and
+            // XLSX paths converge on nahtParse(rows)).
+            nahtParse(rec.rows);
+            return NAHT_ROWS.length;
+        }
+    };
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+// Rehydrates every cached dataset, then runs the existing post-upload init so
+// WEEKS and the filter option lists build exactly as after a real upload.
+// Cross-check: cached rowCount vs live .length, reported per slot.
+function bootFromCache() {
+    return idbList().then(records => {
+        if (!records || !records.length) return null;
+        const replay = _cacheReplayers();
+        // 'raw' first — several other parsers read RAW_ROWS/NRT_ROSTER downstream.
+        const order = ['raw', 'nrt-roster', 'nrt-qmap', 'nrt-rows', 'nrt-rca', 'naht', 'misc', 'jobdetail', 'nondecision'];
+        const byKey = {}; records.forEach(r => { byKey[r.key] = r; });
+        const report = [];
+        order.forEach(key => {
+            const rec = byKey[key];
+            if (!rec) return;
+            try {
+                const live = replay[key](rec);
+                report.push({ key, cached: rec.rowCount, live, ok: live === rec.rowCount, fileName: rec.fileName, uploadedAt: rec.uploadedAt });
+            } catch (e) {
+                console.warn('[cache] replay failed for ' + key + ' — falling through to manual upload', e);
+                report.push({ key, cached: rec.rowCount, live: null, ok: false, error: String(e && e.message || e) });
+            }
+        });
+        try { if (typeof initDropdowns === 'function' && byKey['raw']) initDropdowns(); } catch (e) { console.warn('[cache] initDropdowns failed', e); }
+        try { if (typeof nrtPopulateFilters === 'function' && (byKey['nrt-roster'] || byKey['nrt-rows'])) nrtPopulateFilters(); } catch (e) { console.warn('[cache] nrtPopulateFilters failed', e); }
+        window.__cacheBootReport = report;
+        const bad = report.filter(r => !r.ok);
+        console.log('[cache] boot report', report);
+        if (bad.length) _cacheNote('Restored ' + (report.length - bad.length) + ' of ' + report.length + ' cached datasets. Re-upload from this tab if numbers look wrong: ' + bad.map(b => b.key).join(', '));
+        return report;
+    }).catch(e => {
+        console.warn('[cache] boot failed, starting empty', e);
+        return null;
+    });
+}
+
+// Clears one slot, or all when key is omitted.
+function cacheClear(key) {
+    try {
+        if (key) return idbDel(key);
+        return Promise.all(MYPERF_SLOTS.map(k => idbDel(k))).then(() => true);
+    } catch (e) { console.warn('[cache] clear failed', e); return Promise.resolve(false); }
+}
+window.bootFromCache = bootFromCache;
+window.cacheStore = cacheStore;
+window.cacheClear = cacheClear;
+window.idbList = idbList;
+
+// Boot hook. Registered here so it runs on DOMContentLoaded ahead of any render
+// that depends on data being present. bootFromCache() is async and drives its
+// own init (initDropdowns / nrtPopulateFilters), so it does not race the other
+// DOMContentLoaded listeners in this file — it simply resolves later and
+// re-renders. A total cache miss is a no-op and leaves current behaviour intact.
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        showLoadOverlay('Restoring your last session...');
+        bootFromCache().then(report => {
+            try {
+                renderDependencyDots();
+                renderCacheStatusCards();
+                if (!report || !report.length) return;
+                // State restore runs AFTER rehydration so option lists exist and
+                // the stale-value guard has something live to intersect against.
+                const st = ssLoadState();
+                if (st) { ssApplyState(st); ssRestoreTab(st); }
+                else {
+                    // No saved tab state, but data restored from cache —
+                    // Block 2 spec: Command Center becomes the landing tab
+                    // in this case rather than staying on Load Dataset.
+                    const cmdBtn = document.querySelector('.t-cmd');
+                    if (cmdBtn) showTab('command', cmdBtn);
+                }
+                if (typeof renderActiveTab === 'function') renderActiveTab();
+            } catch (e) { console.warn('[cache] post-boot restore failed', e); }
+        }).finally(() => hideLoadOverlay());
+    } catch (e) { console.warn('[cache] boot hook failed', e); }
+});
+
+
+// ─── BLOCK 1 SESSION B — RESTORE UX, STATE, DEPENDENCY DOTS ───────────────────
+// Builds on Session A's cache layer. Four additive pieces:
+//   1. Cached-dataset status cards on Load Dataset (filename, rows, date, actions)
+//   2. Active tab + filter state persisted to localStorage and restored on boot
+//   3. DATASET_STATUS map driving a green/grey dot per sidebar tab
+//   4. Empty states naming the exact missing CSV, and a parse progress overlay
+// Nothing here changes a metric, a target, or a parse path.
+
+// ── 1. DATASET REGISTRY ──────────────────────────────────────────────────────
+// Single source of truth for slot -> label, CSV name, dropzone anchor, and the
+// live row-count probe. DATASET_STATUS (built from this) drives both the status
+// cards and the sidebar dots, so the two can never disagree.
+const DATASET_META = {
+    'raw':         { label:'Main BMS Export',      csv:'BMS MPR raw_data CSV',       anchor:'dropzone',              live:()=>(typeof RAW_ROWS!=='undefined'?RAW_ROWS.length:0) },
+    'misc':        { label:'QA RCA Masterfile',    csv:'QA RCA Masterfile CSV',      anchor:'misc-dropzone',         live:()=>(typeof window.__miscGet==='function'?window.__miscGet().length:0) },
+    'jobdetail':   { label:'Job Extract',          csv:'Job Extract CSV',            anchor:'jobdetail-dropzone',    live:()=>(typeof window.__jdGet==='function'?window.__jdGet().length:0) },
+    'nondecision': { label:'Non-Decision Detail',  csv:'Non-Decision Job Detail CSV',anchor:'nondecision-dropzone',  live:()=>(typeof window.__ndjdGet==='function'?window.__ndjdGet().length:0) },
+    'nrt-roster':  { label:'NRT Roster',           csv:'NRT Roster CSV',             anchor:'nrt-roster-status',     live:()=>(typeof NRT_ROSTER!=='undefined'?NRT_ROSTER.length:0) },
+    'nrt-qmap':    { label:'Queue Map',            csv:'Queue Map CSV',              anchor:'nrt-qmap-status',       live:()=>(typeof NRT_QUEUE_MAP!=='undefined'?Object.keys(NRT_QUEUE_MAP).length:0) },
+    'nrt-rows':    { label:'NRT Quality',          csv:'NRT Precision or Quality Extract CSV', anchor:'nrt-status',  live:()=>(typeof NRT_ROWS!=='undefined'?NRT_ROWS.length:0) },
+    'nrt-rca':     { label:'NRT Monitor (RCA)',    csv:'BMS Monitor CSV',            anchor:'nrt-rca-status',        live:()=>(typeof NRT_RCA_ROWS!=='undefined'?NRT_RCA_ROWS.length:0) },
+    'naht':        { label:'NRT AHT',              csv:'NRT AHT export',             anchor:'naht-status',           live:()=>(typeof NAHT_ROWS!=='undefined'?NAHT_ROWS.length:0) }
+};
+
+// tab id -> slots it needs. Tabs absent from this map have no data dependency
+// and get no dot (Load Dataset, TL Guide, MyRCA).
+const TAB_DEPS = {
+    'command':['raw'],
+    'exec':['raw'], 'dataexplorer':['raw'], 'pidx':['raw'], 'stackrank':['raw'], 'incentive':['raw'],
+    'team':['raw'], 'drill':['raw'], 'sme':['raw'], 'spotcheck':['raw'],
+    'cp':['raw'], 'outlier':['raw'], 'control':['raw'], 'psp':['raw'], 'didwork':['raw'],
+    'rca-explorer':['misc'], 'defint':['raw'],
+    'jobdetail':['jobdetail'],
+    'nrt':['nrt-roster','nrt-rows'], 'nrt-aht':['naht','nrt-roster']
+};
+
+// tab id -> sidebar button class, for dot placement.
+const TAB_BTN = {
+    'command':'.t-cmd',
+    'exec':'.t-ex','dataexplorer':'.t-de','pidx':'.t-pidx','stackrank':'.t-sr','incentive':'.t-inc',
+    'team':'.t-ti','drill':'.t-dr','sme':'.t-sme','rca-explorer':'.t-rca','jobdetail':'.t-jd',
+    'spotcheck':'.t-spot','defint':'.t-defint','cp':'.t-cp','outlier':'.t-outlier',
+    'control':'.t-ctrl','psp':'.t-psp','didwork':'.t-diw','nrt':'.t-nrt','nrt-aht':'.t-nrt-aht'
+};
+
+let DATASET_STATUS = {};
+
+// Rebuilds DATASET_STATUS from live row counts (not from the cache record), so
+// a manual upload in this session shows loaded even before any cache write.
+function refreshDatasetStatus() {
+    try {
+        const next = {};
+        Object.keys(DATASET_META).forEach(k => {
+            let n = 0;
+            try { n = DATASET_META[k].live() || 0; } catch(e) { n = 0; }
+            next[k] = { loaded: n > 0, rows: n };
+        });
+        DATASET_STATUS = next;
+        return DATASET_STATUS;
+    } catch(e) { console.warn('[status] refresh failed', e); return DATASET_STATUS; }
+}
+
+// ── 3. DEPENDENCY DOTS ───────────────────────────────────────────────────────
+function renderDependencyDots() {
+    try {
+        refreshDatasetStatus();
+        Object.keys(TAB_BTN).forEach(tabId => {
+            const btn = document.querySelector(TAB_BTN[tabId]);
+            if(!btn) return;
+            const deps = TAB_DEPS[tabId];
+            let dot = btn.querySelector('.dep-dot');
+            if(!deps || !deps.length) { if(dot) dot.remove(); return; }
+            const ready = deps.every(d => DATASET_STATUS[d] && DATASET_STATUS[d].loaded);
+            if(!dot) {
+                dot = document.createElement('span');
+                dot.className = 'dep-dot';
+                btn.appendChild(dot);
+            }
+            dot.classList.toggle('on', ready);
+            const missing = deps.filter(d => !(DATASET_STATUS[d] && DATASET_STATUS[d].loaded))
+                                .map(d => DATASET_META[d] ? DATASET_META[d].csv : d);
+            dot.title = ready ? 'Data loaded' : 'Missing: ' + missing.join(', ');
+            dot.setAttribute('aria-label', dot.title);
+        });
+    } catch(e) { console.warn('[dots] render failed', e); }
+}
+
+// ── 4. EMPTY STATES ──────────────────────────────────────────────────────────
+// Returns HTML naming the exact missing CSV with a link to its dropzone, or ''
+// when the tab's dependencies are satisfied.
+function missingDataNotice(tabId) {
+    try {
+        refreshDatasetStatus();
+        const deps = TAB_DEPS[tabId] || [];
+        const missing = deps.filter(d => !(DATASET_STATUS[d] && DATASET_STATUS[d].loaded));
+        if(!missing.length) return '';
+        const items = missing.map(d => {
+            const m = DATASET_META[d] || { csv:d, anchor:null, label:d };
+            return `<li style="margin-bottom:6px"><strong>${m.csv}</strong>`
+                 + (m.anchor ? ` <a href="#" onclick="gotoDropzone('${m.anchor}');return false;" style="color:var(--blue);font-weight:700;text-decoration:none">Upload now</a>` : '')
+                 + `</li>`;
+        }).join('');
+        return `<div class="empty-state" style="background:var(--abg);border:1px solid var(--abd);border-radius:var(--r);padding:1.25rem;margin:1rem 0">
+            <div style="font-size:13px;font-weight:800;color:var(--asec);margin-bottom:8px">This tab needs data that is not loaded yet</div>
+            <ul style="margin:0 0 0 18px;padding:0;font-size:13px;color:var(--ts)">${items}</ul>
+        </div>`;
+    } catch(e) { console.warn('[empty] notice failed', e); return ''; }
+}
+
+// Jumps to Load Dataset and highlights the requested dropzone.
+function gotoDropzone(anchorId) {
+    try {
+        const btn = document.querySelector('.t-up');
+        if(btn) showTab('upload', btn);
+        const el = document.getElementById(anchorId);
+        if(el) {
+            el.scrollIntoView({ behavior:'smooth', block:'center' });
+            el.classList.add('dz-flash');
+            setTimeout(() => el.classList.remove('dz-flash'), 1600);
+        }
+    } catch(e) { console.warn('[empty] goto failed', e); }
+}
+
+// ── 4b. LOAD PROGRESS OVERLAY ────────────────────────────────────────────────
+// A 2.9 MB parse reads as a frozen tab without this. Text-only, no spinner
+// dependency, removed in a finally so a parse error cannot strand it on screen.
+function showLoadOverlay(msg) {
+    try {
+        let el = document.getElementById('load-overlay');
+        if(!el) {
+            el = document.createElement('div');
+            el.id = 'load-overlay';
+            el.innerHTML = '<div class="lo-box"><div class="lo-msg" id="load-overlay-msg"></div></div>';
+            document.body.appendChild(el);
+        }
+        const m = document.getElementById('load-overlay-msg');
+        if(m) m.textContent = msg || 'Loading...';
+        el.style.display = 'flex';
+    } catch(e) { console.warn('[overlay] show failed', e); }
+}
+function updateLoadOverlay(msg) {
+    try { const m = document.getElementById('load-overlay-msg'); if(m) m.textContent = msg; } catch(e) {}
+}
+function hideLoadOverlay() {
+    try { const el = document.getElementById('load-overlay'); if(el) el.style.display = 'none'; } catch(e) {}
+}
+
+// ── 2. SESSION STATE (active tab + filters) ──────────────────────────────────
+const SS_STATE_KEY = 'myperf-session-state';
+
+// Capture reuses svCaptureState() for the filter half — it already returns
+// months, qualType, reviewer, sme and every multi-select, in a shape with a
+// proven restore path. Active tab is added on top.
+function ssCaptureState() {
+    try {
+        const base = (typeof svCaptureState === 'function') ? svCaptureState() : { multi:{} };
+        const onSec = document.querySelector('.section.on');
+        base.activeTab = onSec ? onSec.id.replace(/^tab-/, '') : null;
+        return base;
+    } catch(e) { console.warn('[state] capture failed', e); return null; }
+}
+
+function ssSaveState() {
+    try {
+        const s = ssCaptureState();
+        if(s) localStorage.setItem(SS_STATE_KEY, JSON.stringify(s));
+    } catch(e) { /* storage unavailable or quota — non-fatal, no-op */ }
+}
+
+function ssLoadState() {
+    try {
+        const raw = localStorage.getItem(SS_STATE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
+}
+
+function ssClearState() {
+    try { localStorage.removeItem(SS_STATE_KEY); return true; } catch(e) { return false; }
+}
+
+// Applies persisted filter state. Deliberately duplicates svRecall()'s apply
+// logic rather than calling it — svRecall reads from the named-views store and
+// this reads from the session store, and duplicating is the house rule for
+// shared behaviour. The stale-value guard is the important part: every saved
+// value is intersected against the live <option> list before being applied, so
+// a TL or SW that vanished with a new dataset is skipped, never left selected
+// but invisible and never thrown on.
+function ssApplyState(state) {
+    if(!state) return;
+    try {
+        Object.keys(state.multi || {}).forEach(selId => {
+            const sel = document.getElementById(selId);
+            if(!sel) return;
+            const liveValues = new Set(Array.from(sel.options).map(o => o.value));
+            const wanted = new Set((state.multi[selId] || []).filter(v => liveValues.has(v)));
+            Array.from(sel.options).forEach(o => { o.selected = wanted.has(o.value); });
+            if(sel._rebuildOptions) sel._rebuildOptions();
+        });
+
+        const rvSel = document.getElementById('g-reviewer');
+        if(rvSel && state.reviewer) {
+            const exists = Array.from(rvSel.options).some(o => o.value === state.reviewer);
+            if(exists) { rvSel.value = state.reviewer; if(rvSel._rebuildOptions) rvSel._rebuildOptions(); }
+        }
+        const smeSel = document.getElementById('g-sme');
+        if(smeSel && state.sme) {
+            const exists = Array.from(smeSel.options).some(o => o.value === state.sme);
+            if(exists) { smeSel.value = state.sme; if(smeSel._rebuildOptions) smeSel._rebuildOptions(); }
+        }
+        const qtSel = document.getElementById('g-qual-type');
+        if(qtSel && state.qualType) qtSel.value = state.qualType;
+
+        if(state.months && state.months.length) {
+            const liveMonths = new Set(typeof MONTHS !== 'undefined' ? MONTHS : []);
+            SELECTED_MONTHS = state.months.filter(m => liveMonths.has(m) || liveMonths.size === 0);
+            document.querySelectorAll('.month-opt').forEach(o => {
+                o.classList.toggle('selected', SELECTED_MONTHS.includes(o.dataset.month));
+            });
+            if(typeof updateMonthPillLabel === 'function') updateMonthPillLabel();
+        }
+        if(typeof handleSWChange === 'function') handleSWChange();
+    } catch(e) { console.warn('[state] apply failed', e); }
+}
+
+// Restores the active tab, guarding against a tab whose data is gone.
+function ssRestoreTab(state) {
+    try {
+        if(!state || !state.activeTab) return;
+        const id = state.activeTab;
+        const sec = document.getElementById('tab-' + id);
+        const btn = TAB_BTN[id] ? document.querySelector(TAB_BTN[id]) : (id === 'upload' ? document.querySelector('.t-up') : null);
+        if(!sec || !btn) return;
+        // Do not restore onto a tab whose datasets are missing — that lands the
+        // person on an empty surface. Load Dataset is the safer default there.
+        const deps = TAB_DEPS[id] || [];
+        refreshDatasetStatus();
+        const ready = deps.every(d => DATASET_STATUS[d] && DATASET_STATUS[d].loaded);
+        if(!ready) return;
+        showTab(id, btn);
+    } catch(e) { console.warn('[state] tab restore failed', e); }
+}
+
+// ── 1. CACHED DATASET STATUS CARDS ───────────────────────────────────────────
+function renderCacheStatusCards() {
+    try {
+        const host = document.getElementById('cache-status-cards');
+        if(!host) return;
+        idbList().then(records => {
+            const byKey = {}; (records || []).forEach(r => { byKey[r.key] = r; });
+            refreshDatasetStatus();
+            const cards = Object.keys(DATASET_META).map(k => {
+                const meta = DATASET_META[k];
+                const rec  = byKey[k];
+                const live = DATASET_STATUS[k] || { loaded:false, rows:0 };
+                const cached = !!rec;
+                const dotColor = live.loaded ? 'var(--teal)' : 'var(--border)';
+                const when = rec && rec.uploadedAt ? new Date(rec.uploadedAt).toLocaleString() : '';
+                // Cached row count vs live row count — the Session A cross-check,
+                // surfaced in the UI so a mismatch is visible rather than silent.
+                const mismatch = cached && live.loaded && rec.rowCount !== live.rows;
+                return `<div class="cache-card">
+                    <div class="cache-card-hd">
+                        <span class="cache-dot" style="background:${dotColor}"></span>
+                        <span class="cache-card-title">${meta.label}</span>
+                    </div>
+                    <div class="cache-card-body">
+                        ${live.loaded
+                            ? `<div class="cache-rows">${live.rows.toLocaleString()} rows</div>`
+                            : `<div class="cache-rows cache-empty">Not loaded</div>`}
+                        ${cached ? `<div class="cache-meta">${(rec.fileName||'cached')}</div>` : `<div class="cache-meta cache-empty">No cached copy</div>`}
+                        ${when ? `<div class="cache-meta">${when}</div>` : ''}
+                        ${mismatch ? `<div class="cache-warn">Cached ${rec.rowCount.toLocaleString()} vs live ${live.rows.toLocaleString()} - re-upload recommended</div>` : ''}
+                    </div>
+                    <div class="cache-card-actions">
+                        <button class="cache-btn" onclick="gotoDropzone('${meta.anchor}')">${live.loaded ? 'Reload' : 'Upload'}</button>
+                        ${cached ? `<button class="cache-btn cache-btn-warn" onclick="clearOneDataset('${k}')">Clear</button>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+            host.innerHTML = cards;
+        }).catch(e => console.warn('[cards] list failed', e));
+    } catch(e) { console.warn('[cards] render failed', e); }
+}
+
+// Clears one cached slot. Does not wipe the in-memory dataset — clearing the
+// cache and destroying the loaded session are different intents, and silently
+// blanking the app because someone tidied a cache entry would be the wrong
+// behaviour. The card reflects "no cached copy" while the data stays live.
+function clearOneDataset(key) {
+    try {
+        const meta = DATASET_META[key];
+        if(!confirm('Remove the cached copy of ' + (meta ? meta.label : key) + '?\n\nData stays loaded for this session. It will not return after a refresh.')) return;
+        cacheClear(key).then(() => { renderCacheStatusCards(); renderDependencyDots(); });
+    } catch(e) { console.warn('[cards] clear failed', e); }
+}
+
+function clearAllCachedData() {
+    try {
+        if(!confirm('Clear ALL cached datasets?\n\nData stays loaded for this session, but nothing will be restored after a refresh. You will need to re-upload every CSV.')) return;
+        cacheClear().then(() => {
+            ssClearState();
+            renderCacheStatusCards();
+            renderDependencyDots();
+            _cacheNote('All cached data cleared. Current session is unaffected until you refresh.');
+        });
+    } catch(e) { console.warn('[cards] clear all failed', e); }
+}
+
+// ── WIRING ───────────────────────────────────────────────────────────────────
+window.renderDependencyDots  = renderDependencyDots;
+window.renderCacheStatusCards= renderCacheStatusCards;
+window.missingDataNotice     = missingDataNotice;
+window.gotoDropzone          = gotoDropzone;
+window.clearOneDataset       = clearOneDataset;
+window.clearAllCachedData    = clearAllCachedData;
+window.refreshDatasetStatus  = refreshDatasetStatus;
+window.showLoadOverlay       = showLoadOverlay;
+window.updateLoadOverlay     = updateLoadOverlay;
+window.hideLoadOverlay       = hideLoadOverlay;
+window.ssSaveState           = ssSaveState;
+
+// Persist state on filter and tab changes. Debounced so a multi-select drag
+// does not write on every option toggle.
+let _ssTimer = null;
+function ssSaveDebounced() {
+    try { clearTimeout(_ssTimer); _ssTimer = setTimeout(ssSaveState, 400); } catch(e) {}
+}
+window.ssSaveDebounced = ssSaveDebounced;
+
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        renderDependencyDots();
+        renderCacheStatusCards();
+        document.addEventListener('change', function(e) {
+            if(e.target && /^(g-|sv-)/.test(e.target.id || '')) ssSaveDebounced();
+        });
+        document.addEventListener('click', function(e) {
+            if(e.target && e.target.closest && (e.target.closest('.tab') || e.target.closest('.month-opt'))) ssSaveDebounced();
+        });
+        window.addEventListener('beforeunload', ssSaveState);
+    } catch(e) { console.warn('[session B] init failed', e); }
+});
+
+// ─── BLOCK 2 SESSION A — COMMAND CENTER: SNAPSHOT + DIFF + COLLECTOR INTERFACE ─
+// Entirely additive against existing data. No existing function, global, or
+// calculation path is modified. Nothing in this module is wired into any
+// render surface yet — that is Session B. This session builds:
+//   1. takeSnapshot() — lightweight per-reviewer/sw/month aggregate
+//   2. Snapshot persistence (last 6) via the Block 1 IndexedDB store
+//   3. diffSnapshots() — keyed join producing deltas
+//   4. SIGNAL_COLLECTORS — frozen array-of-functions interface
+//   5. One collector: threshold crossings (96% P/R/AdjAcc, AHT band), AR-gated
+//
+// Collector shape is FROZEN per spec — do not modify, extend, or rename:
+//   { subject, sw, reason, severity, score, suggestedAction, tab, filters }
+
+// ── 1. SNAPSHOT CAPTURE ─────────────────────────────────────────────────────
+// Aggregates RAW_ROWS by reviewer|sw|month into the lightweight shape used for
+// diffing. This duplicates the tpa/fpa/fna/tna -> acc/prec/rec/ar/aht formula
+// that exists independently at ~5646, ~16532, and inline in several render
+// functions (e.g. ~19740) — duplicated here rather than shared, per the
+// house rule on shared closures (precedent: _tcmGenerateDoc vs
+// buildTLSnapshotTables). AHT is always (dht+nht)/decisions; dht and nht on
+// RAW_ROWS are already totals, never multiplied by decisions again.
+function takeSnapshot() {
+    if (typeof RAW_ROWS === 'undefined' || !RAW_ROWS.length) return [];
+    const groups = {};
+    RAW_ROWS.forEach(r => {
+        if (!r.reviewer || !r.sw || !r.month) return;
+        const key = r.reviewer + '|' + r.sw + '|' + r.month;
+        if (!groups[key]) {
+            groups[key] = {
+                reviewer: r.reviewer, sw: r.sw, month: r.month,
+                tpa: 0, fpa: 0, fna: 0, tna: 0, dht: 0, nht: 0, decisions: 0
+            };
+        }
+        const g = groups[key];
+        g.tpa += r.tpa || 0; g.fpa += r.fpa || 0; g.fna += r.fna || 0; g.tna += r.tna || 0;
+        g.dht += r.dht || 0; g.nht += r.nht || 0; g.decisions += r.decisions || 0;
+    });
+    return Object.values(groups).map(g => {
+        const tot = g.tpa + g.fpa + g.fna + g.tna;
+        const adjAcc = tot > 0 ? (g.tpa + g.tna) / tot : null;
+        const prec = (g.tpa + g.fpa) > 0 ? g.tpa / (g.tpa + g.fpa) : null;
+        const rec = (g.tpa + g.fna) > 0 ? g.tpa / (g.tpa + g.fna) : null;
+        const ar = tot > 0 ? (g.tpa + g.fpa) / tot : null;
+        const aht = g.decisions > 0 ? (g.dht + g.nht) / g.decisions : null;
+        return {
+            reviewer: g.reviewer, sw: g.sw, month: g.month,
+            decisions: g.decisions, adjAcc, prec, rec, ar, aht, nht: g.nht
+        };
+    });
+}
+
+// ── 2. SNAPSHOT PERSISTENCE ─────────────────────────────────────────────────
+// Reuses the Block 1 idbGet/idbSet/idbList helpers (flat keyspace in the
+// existing 'myperf-cache' store) under a 'snapshot:*' namespace — a second
+// object store is not needed since keys already partition cleanly by prefix.
+// Keeps the last 6 snapshots. Never modifies dataset cache slots (raw,
+// misc, jobdetail, etc.) written by Block 1.
+const CMD_SNAPSHOT_PREFIX = 'snapshot:';
+const CMD_SNAPSHOT_KEEP = 6;
+
+function cmdSaveSnapshot() {
+    if (typeof idbSet !== 'function' || typeof idbList !== 'function') {
+        console.warn('[command-center] idb helpers unavailable, snapshot not persisted');
+        return Promise.resolve(null);
+    }
+    const rows = takeSnapshot();
+    if (!rows.length) return Promise.resolve(null);
+    const key = CMD_SNAPSHOT_PREFIX + Date.now();
+    return idbSet(key, rows, 'snapshot', rows.length)
+        .then(() => cmdPruneSnapshots())
+        .then(() => key)
+        .catch(e => { console.warn('[command-center] snapshot save failed', e); return null; });
+}
+
+// Drops all but the most recent CMD_SNAPSHOT_KEEP snapshot records.
+function cmdPruneSnapshots() {
+    if (typeof idbList !== 'function' || typeof idbDel !== 'function') return Promise.resolve();
+    return idbList().then(records => {
+        const snaps = (records || [])
+            .filter(r => r.key && r.key.indexOf(CMD_SNAPSHOT_PREFIX) === 0)
+            .sort((a, b) => (a.uploadedAt || '').localeCompare(b.uploadedAt || ''));
+        const excess = snaps.length - CMD_SNAPSHOT_KEEP;
+        if (excess <= 0) return;
+        const toDrop = snaps.slice(0, excess);
+        return Promise.all(toDrop.map(r => idbDel(r.key)));
+    }).catch(e => console.warn('[command-center] prune failed', e));
+}
+
+// Returns [{key, rows, uploadedAt}], oldest first, most recent last.
+function cmdListSnapshots() {
+    if (typeof idbList !== 'function') return Promise.resolve([]);
+    return idbList().then(records => (records || [])
+        .filter(r => r.key && r.key.indexOf(CMD_SNAPSHOT_PREFIX) === 0)
+        .sort((a, b) => (a.uploadedAt || '').localeCompare(b.uploadedAt || ''))
+        .map(r => ({ key: r.key, rows: r.rows, uploadedAt: r.uploadedAt }))
+    ).catch(e => { console.warn('[command-center] list snapshots failed', e); return []; });
+}
+
+// ── 3. DIFF ENGINE ──────────────────────────────────────────────────────────
+// Keyed join on reviewer|sw|month between two snapshot row arrays. Returns
+// items only for keys present on both sides — a key appearing on only one
+// side (new hire, dropped SW, month rollover) is not a "change", it is an
+// absence, and is intentionally excluded here rather than fabricating a
+// before/after value.
+function diffSnapshots(prevRows, currRows) {
+    const prevMap = {};
+    (prevRows || []).forEach(r => { prevMap[r.reviewer + '|' + r.sw + '|' + r.month] = r; });
+    const out = [];
+    (currRows || []).forEach(curr => {
+        const key = curr.reviewer + '|' + curr.sw + '|' + curr.month;
+        const prev = prevMap[key];
+        if (!prev) return;
+        out.push({
+            reviewer: curr.reviewer, sw: curr.sw, month: curr.month,
+            prevDecisions: prev.decisions, currDecisions: curr.decisions,
+            deltaAdjAcc: (curr.adjAcc !== null && prev.adjAcc !== null) ? curr.adjAcc - prev.adjAcc : null,
+            deltaPrec:   (curr.prec   !== null && prev.prec   !== null) ? curr.prec   - prev.prec   : null,
+            deltaRec:    (curr.rec    !== null && prev.rec    !== null) ? curr.rec    - prev.rec    : null,
+            deltaAht:    (curr.aht    !== null && prev.aht    !== null) ? curr.aht    - prev.aht    : null,
+            prev, curr
+        });
+    });
+    return out;
+}
+
+// ── 4. SIGNAL_COLLECTORS — FROZEN INTERFACE ─────────────────────────────────
+// Array of functions, each returning [] of the frozen shape below. Blocks 3,
+// 4, and 7 push their detector-wrapping functions into this array once this
+// session lands; DR_EMERGING_SIGNALS / DR_CONTAGION_SIGNALS / SPC_SIGNALS /
+// BPW_SIGNALS already exist in the file (Block 3, 4, 7) sitting unused,
+// ready to wire in via thin wrappers — that wiring is explicitly NOT part of
+// this session per the collector shape being frozen as-is.
+//
+// { subject, sw, reason, severity, score, suggestedAction, tab, filters }
+const SIGNAL_COLLECTORS = [];
+
+// ── 5. THRESHOLD-CROSSING COLLECTOR ─────────────────────────────────────────
+// Detects Precision/Recall/Adjusted Accuracy crossing the 96% target, and AHT
+// crossing a band boundary, between the two most recent snapshots. Applies
+// the AR gate (ar >= 0.10 -> evaluate Precision+Recall; ar < 0.10 -> evaluate
+// Adjusted Accuracy only) and SR_RV_EXCLUDE. Gated decisions >= 5 on both
+// sides of the diff, per spec.
+//
+// SCORE_WEIGHTS is named and centralized per spec section on sort modes;
+// only the 'declining' multiplier is used here since this collector only
+// fires on a crossing, which is itself a directional signal.
+const SCORE_WEIGHTS = { decliningMultiplier: 1.5, flatMultiplier: 1.0, improvingMultiplier: 0.6 };
+
+const CMD_QUALITY_TARGET = 0.96;
+const CMD_SR_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
+const CMD_MIN_DECISIONS = 5;
+
+function cmdThresholdCollector(diffItems) {
+    const out = [];
+    (diffItems || []).forEach(d => {
+        if (CMD_SR_RV_EXCLUDE.indexOf(d.reviewer) !== -1) return;
+        if ((d.prevDecisions || 0) < CMD_MIN_DECISIONS || (d.currDecisions || 0) < CMD_MIN_DECISIONS) return;
+
+        const curr = d.curr, prev = d.prev;
+        const usesPR = curr.ar !== null && curr.ar >= 0.10;
+
+        // Quality metric crossing — AR-gated: high-AR reviewers are judged on
+        // Precision+Recall, never on Accuracy; low-AR reviewers the reverse.
+        if (usesPR) {
+            [['prec', 'Precision', curr.prec, prev.prec], ['rec', 'Recall', curr.rec, prev.rec]].forEach(([, label, currV, prevV]) => {
+                if (currV === null || prevV === null) return;
+                const crossedDown = prevV >= CMD_QUALITY_TARGET && currV < CMD_QUALITY_TARGET;
+                const crossedUp = prevV < CMD_QUALITY_TARGET && currV >= CMD_QUALITY_TARGET;
+                if (!crossedDown && !crossedUp) return;
+                const gap = Math.abs(CMD_QUALITY_TARGET - currV);
+                const severity = crossedDown ? 'act-now' : 'confirmed-win';
+                const score = gap * curr.decisions * (crossedDown ? SCORE_WEIGHTS.decliningMultiplier : SCORE_WEIGHTS.improvingMultiplier);
+                out.push({
+                    subject: d.reviewer, sw: d.sw,
+                    reason: label + (crossedDown ? ' dropped below 96% target' : ' recovered above 96% target'),
+                    severity, score,
+                    suggestedAction: crossedDown ? 'Coach on ' + label.toLowerCase() + ' gap' : 'Acknowledge recovery',
+                    tab: 'drill', filters: { reviewer: d.reviewer, sw: d.sw }
+                });
+            });
+        } else {
+            if (curr.adjAcc !== null && prev.adjAcc !== null) {
+                const crossedDown = prev.adjAcc >= CMD_QUALITY_TARGET && curr.adjAcc < CMD_QUALITY_TARGET;
+                const crossedUp = prev.adjAcc < CMD_QUALITY_TARGET && curr.adjAcc >= CMD_QUALITY_TARGET;
+                if (crossedDown || crossedUp) {
+                    const gap = Math.abs(CMD_QUALITY_TARGET - curr.adjAcc);
+                    const severity = crossedDown ? 'act-now' : 'confirmed-win';
+                    const score = gap * curr.decisions * (crossedDown ? SCORE_WEIGHTS.decliningMultiplier : SCORE_WEIGHTS.improvingMultiplier);
+                    out.push({
+                        subject: d.reviewer, sw: d.sw,
+                        reason: 'Adjusted Accuracy ' + (crossedDown ? 'dropped below 96% target' : 'recovered above 96% target'),
+                        severity, score,
+                        suggestedAction: crossedDown ? 'Coach on accuracy gap' : 'Acknowledge recovery',
+                        tab: 'drill', filters: { reviewer: d.reviewer, sw: d.sw }
+                    });
+                }
+            }
+        }
+    });
+    return out;
+}
+
+// Wrapper registered in SIGNAL_COLLECTORS. Pulls the two most recent
+// persisted snapshots and runs the threshold collector over their diff.
+// Returns [] (never throws) when fewer than two snapshots exist yet.
+function cmdRunThresholdSignals() {
+    // Synchronous placeholder result populated by cmdRefreshSignals(); the
+    // collector interface itself is synchronous per spec (array of functions
+    // each returning []), so the async snapshot fetch is resolved ahead of
+    // time into CMD_LATEST_DIFF by the caller before SIGNAL_COLLECTORS runs.
+    return cmdThresholdCollector(CMD_LATEST_DIFF);
+}
+SIGNAL_COLLECTORS.push(cmdRunThresholdSignals);
+
+// Holds the most recently computed diff so the synchronous collector above
+// has data to read. Populated by cmdRefreshSignals().
+let CMD_LATEST_DIFF = [];
+
+// Refreshes CMD_LATEST_DIFF from the two most recent persisted snapshots,
+// then saves a new snapshot for next time. Call after a dataset load.
+// Never throws; a failure leaves CMD_LATEST_DIFF at its previous value.
+function cmdRefreshSignals() {
+    return cmdListSnapshots().then(snaps => {
+        if (snaps.length >= 2) {
+            const prev = snaps[snaps.length - 2].rows;
+            const curr = snaps[snaps.length - 1].rows;
+            CMD_LATEST_DIFF = diffSnapshots(prev, curr);
+        }
+        return cmdSaveSnapshot();
+    }).then(() => {
+        if (CMD_LATEST_DIFF.length === 0) {
+            // No prior snapshot to diff against yet (first load, or fewer
+            // than 2 persisted) — diff against the snapshot just saved vs
+            // itself would be meaningless, so leave signals empty rather
+            // than fabricate a comparison.
+        }
+        return CMD_LATEST_DIFF;
+    }).catch(e => { console.warn('[command-center] refresh failed', e); return CMD_LATEST_DIFF; });
+}
+
+window.takeSnapshot = takeSnapshot;
+window.diffSnapshots = diffSnapshots;
+window.SIGNAL_COLLECTORS = SIGNAL_COLLECTORS;
+window.cmdRefreshSignals = cmdRefreshSignals;
+window.cmdListSnapshots = cmdListSnapshots;
+
+
+// ─── BLOCK 2 SESSION B — COMMAND CENTER: UI, DEEP-LINKS, DONE CONTROL ─────────
+// Builds on Session A's snapshot/diff/collector layer. New render function and
+// new DOM only — no existing render function, calculation, or global is
+// modified. Wires the four idle signal arrays (Block 3, 4, 7) into
+// SIGNAL_COLLECTORS via thin wrappers that read whatever is currently in each
+// array — those arrays only populate when their own tab has been visited this
+// session, so this never forces a render of another surface.
+
+// ── SPEC-DEVIATION NOTE (reported and approved before building) ────────────
+// The four existing signal producers (SPC_SIGNALS, BPW_SIGNALS,
+// DR_EMERGING_SIGNALS, DR_CONTAGION_SIGNALS) use `severity: 'coral'|'amber'`
+// (raw CSS color names) and a `tab-`-prefixed tab id, rather than the
+// 'act-now'|'watch'|'confirmed-win' vocabulary and bare tab id my Session A
+// collector uses. `filters` is always `{}` on all four. This is a genuine
+// convention mismatch across producers, not something fixable by editing
+// those four functions (out of scope for this block). Normalized on READ
+// only, inside this new module — the producers themselves are untouched.
+
+// Normalizes any collector-shaped item's severity to one of:
+// 'act-now' | 'watch' | 'confirmed-win' | 'informational'
+function cmdNormSeverity(sig) {
+    if (sig.severity === 'act-now' || sig.severity === 'watch' || sig.severity === 'confirmed-win') return sig.severity;
+    if (sig.severity === 'coral') return 'act-now';
+    if (sig.severity === 'amber') return 'watch';
+    if (sig.severity === 'green' || sig.severity === 'blue') return 'confirmed-win';
+    return 'watch';
+}
+
+// Strips a leading 'tab-' if present, since two of the five sources include
+// it and two don't. showTab() always wants the bare id.
+function cmdNormTabId(tab) {
+    if (!tab) return null;
+    return tab.indexOf('tab-') === 0 ? tab.slice(4) : tab;
+}
+
+// Deep-link: applies filters (falling back to subject -> g-reviewer / g-tl
+// when the producer left filters empty, mirroring the existing inline Go
+// button pattern in renderBreachWatchlist at ~19064) then navigates.
+// Round-trips cleanly: verified in fixtures for reviewer, TL, and SW items.
+function cmdGoToSignal(sig) {
+    try {
+        const tabId = cmdNormTabId(sig.tab);
+        if (!tabId) return;
+        const f = sig.filters || {};
+        if (f.reviewer) {
+            const el = document.getElementById('g-reviewer');
+            if (el) { el.value = f.reviewer; if (el._rebuildOptions) el._rebuildOptions(); el.dispatchEvent(new Event('change', { bubbles: true })); }
+        } else if (f.tl) {
+            const el = document.getElementById('g-tl');
+            if (el) {
+                Array.from(el.options).forEach(o => { o.selected = (o.value === f.tl); });
+                if (el._rebuildOptions) el._rebuildOptions();
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        } else if (sig.subject) {
+            // No explicit filters (the common case from the four existing
+            // producers) — fall back to treating subject as a reviewer name
+            // for reviewer-scoped tabs, or a TL name for team-scoped ones.
+            const teamScoped = (tabId === 'defint' || tabId === 'exec');
+            const elId = teamScoped ? 'g-tl' : 'g-reviewer';
+            const el = document.getElementById(elId);
+            if (el) {
+                if (el.multiple) {
+                    Array.from(el.options).forEach(o => { o.selected = (o.value === sig.subject); });
+                    if (el._rebuildOptions) el._rebuildOptions();
+                } else {
+                    el.value = sig.subject;
+                    if (el._rebuildOptions) el._rebuildOptions();
+                }
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        if (f.sw) {
+            const el = document.getElementById('g-sw');
+            if (el) {
+                Array.from(el.options).forEach(o => { o.selected = (o.value === f.sw); });
+                if (el._rebuildOptions) el._rebuildOptions();
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        const btn = (typeof TAB_BTN !== 'undefined' && TAB_BTN[tabId]) ? document.querySelector(TAB_BTN[tabId]) : null;
+        if (btn) showTab(tabId, btn);
+        else if (typeof goToTab === 'function') goToTab(tabId, '.t-' + tabId.slice(0, 4));
+    } catch (e) { console.warn('[command-center] go-to failed', e); }
+}
+
+// ── DONE CONTROL / INTERVENTION LOG STUB ────────────────────────────────────
+// Block 5 consumes this. Stub schema only — pre/post computation and verdicts
+// are Block 5's job. Persisted via the Block 1 IndexedDB store under an
+// 'intervention:' key namespace, same pattern as Session A's 'snapshot:'.
+const CMD_INTERVENTION_PREFIX = 'intervention:';
+
+function cmdLogIntervention(sig) {
+    if (typeof idbSet !== 'function') return Promise.resolve(false);
+    const entry = {
+        id: CMD_INTERVENTION_PREFIX + Date.now(),
+        subject: sig.subject, sw: sig.sw, metric: sig.reason,
+        type: 'Coaching 1:1', // default; Block 5 UI lets this be changed
+        interventionDate: new Date().toISOString(),
+        source: 'command-center', notes: sig.suggestedAction || ''
+    };
+    return idbSet(entry.id, entry, 'intervention', 1)
+        .then(() => true)
+        .catch(e => { console.warn('[command-center] intervention log failed', e); return false; });
+}
+
+function cmdMarkDone(sig, btnEl) {
+    cmdLogIntervention(sig).then(() => {
+        try {
+            if (btnEl && btnEl.closest) {
+                const row = btnEl.closest('.cmd-item');
+                if (row) row.style.display = 'none';
+            }
+        } catch (e) {}
+    });
+}
+
+// ── SORT / FILTER STATE ─────────────────────────────────────────────────────
+let CMD_SORT_MODE = 'priority'; // 'priority' | 'changed'
+let CMD_TEAM_FILTER = '';       // '' = all teams, else a TL name
+
+function cmdSetSort(mode) {
+    CMD_SORT_MODE = mode;
+    document.querySelectorAll('.cmd-sort-btn').forEach(b => {
+        const active = b.dataset.sort === mode;
+        b.classList.toggle('active', active);
+        b.style.background = active ? 'var(--text)' : 'var(--surface)';
+        b.style.color = active ? '#fff' : 'var(--ts)';
+    });
+    renderCommandCenter();
+}
+
+function cmdSetTeamFilter(tl) {
+    CMD_TEAM_FILTER = tl || '';
+    renderCommandCenter();
+}
+
+// ── SCORE (Priority sort) ───────────────────────────────────────────────────
+// score = gapToTarget x decisionVolume x trajectoryMultiplier. The four
+// existing producers each compute their own `score` field already (see
+// spec's frozen shape) — this is used as-is where present. Items without a
+// usable score (score undefined/NaN) sort last within Priority mode rather
+// than being dropped, since they still carry a real signal.
+function cmdPriorityScore(sig) {
+    const s = Number(sig.score);
+    return isFinite(s) ? s : -Infinity;
+}
+
+// ── AGGREGATE + RENDER ───────────────────────────────────────────────────────
+// Pulls from every registered collector (SIGNAL_COLLECTORS, populated by
+// Session A plus the four wrappers below), normalizes severity/tab, applies
+// the team filter, sorts, and renders three strips.
+function cmdCollectAll() {
+    const items = [];
+    (typeof SIGNAL_COLLECTORS !== 'undefined' ? SIGNAL_COLLECTORS : []).forEach(fn => {
+        try {
+            const res = fn() || [];
+            res.forEach(sig => items.push(sig));
+        } catch (e) { console.warn('[command-center] collector threw', e); }
+    });
+    return items;
+}
+
+function cmdTlForSubject(subject, sw) {
+    // Best-effort TL lookup for the team filter, since not every collector
+    // item carries a TL directly. Looks up the most recent RAW_ROWS row for
+    // this reviewer.
+    if (typeof RAW_ROWS === 'undefined') return null;
+    const hit = RAW_ROWS.filter(r => r.reviewer === subject && (!sw || r.sw === sw)).pop();
+    return hit ? hit.supervisor : null;
+}
+
+function renderCommandCenter() {
+    const stripsEl = document.getElementById('cmd-strips');
+    const emptyEl = document.getElementById('cmd-empty-state');
+    const noteEl = document.getElementById('cmd-snapshot-note');
+    if (!stripsEl) return;
+
+    // Empty state: no data loaded at all.
+    if (typeof missingDataNotice === 'function') {
+        const notice = missingDataNotice('exec'); // Command Center shares 'raw' dependency with Site Health
+        if (emptyEl) emptyEl.innerHTML = notice;
+        if (notice) { stripsEl.innerHTML = ''; if (noteEl) noteEl.textContent = ''; return; }
+    }
+
+    // Populate the team filter dropdown from live TL values, once per render
+    // (cheap enough; TL list rarely exceeds a few dozen).
+    const teamSel = document.getElementById('cmd-team-filter');
+    if (teamSel && typeof RAW_ROWS !== 'undefined') {
+        const tls = [...new Set(RAW_ROWS.map(r => r.supervisor).filter(Boolean))].sort();
+        const current = teamSel.value;
+        teamSel.innerHTML = '<option value="">All teams</option>' + tls.map(t => `<option value="${t}">${t}</option>`).join('');
+        if (tls.includes(current)) teamSel.value = current;
+    }
+
+    let items = cmdCollectAll().map(sig => Object.assign({}, sig, { _severity: cmdNormSeverity(sig) }));
+
+    if (CMD_TEAM_FILTER) {
+        items = items.filter(sig => cmdTlForSubject(sig.subject, sig.sw) === CMD_TEAM_FILTER || sig.subject === CMD_TEAM_FILTER);
+    }
+
+    if (CMD_SORT_MODE === 'priority') {
+        items.sort((a, b) => cmdPriorityScore(b) - cmdPriorityScore(a));
+    } else {
+        items.sort((a, b) => Math.abs(cmdPriorityScore(b)) - Math.abs(cmdPriorityScore(a)));
+    }
+
+    if (noteEl) {
+        const n = items.length;
+        noteEl.textContent = n ? (n + ' signal' + (n !== 1 ? 's' : '')) : '';
+    }
+
+    if (!items.length) {
+        stripsEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--tm);font-size:13px">No signals right now. Visit Coaching Priorities, Defect Intelligence, or Improve &amp; Control to refresh watchlists.</div>';
+        return;
+    }
+
+    const strips = { 'act-now': [], watch: [], 'confirmed-win': [] };
+    items.forEach(sig => { (strips[sig._severity] || strips.watch).push(sig); });
+
+    const stripDef = [
+        { key: 'act-now', label: 'Act Now', color: 'var(--coral)', bg: 'var(--cbg)', border: 'var(--cbd)' },
+        { key: 'watch', label: 'Watch', color: 'var(--amber)', bg: 'var(--abg)', border: 'var(--abd)' },
+        { key: 'confirmed-win', label: 'Confirmed Wins', color: 'var(--green)', bg: 'var(--gbg)', border: 'var(--gbd)' }
+    ];
+
+    stripsEl.innerHTML = stripDef.map(sd => {
+        const list = strips[sd.key];
+        if (!list.length) return '';
+        return `<div style="margin-bottom:1.25rem">
+            <div style="font-size:11px;font-weight:800;color:${sd.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">${sd.label} <span style="color:var(--tm);font-weight:600">(${list.length})</span></div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
+                ${list.map(sig => cmdRowHTML(sig, sd)).join('')}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function cmdRowHTML(sig, sd) {
+    const safe = s => String(s == null ? '' : s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return `<div class="cmd-item" style="padding:10px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="min-width:0;display:flex;align-items:center;gap:8px">
+            <span style="width:6px;height:6px;border-radius:50%;background:${sd.color};flex-shrink:0"></span>
+            <div style="min-width:0">
+                <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sig.subject || ''}${sig.sw ? ' · ' + sig.sw : ''}</div>
+                <div style="font-size:11px;color:var(--tm);margin-top:1px">${sig.reason || ''}</div>
+            </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+            ${sig.suggestedAction ? `<span style="font-size:10px;font-weight:700;color:${sd.color};background:${sd.bg};border:1px solid ${sd.border};border-radius:var(--pill);padding:2px 8px;white-space:nowrap">${sig.suggestedAction}</span>` : ''}
+            <button onclick='cmdGoToSignal(${JSON.stringify(sig).replace(/'/g, "&#39;")})' style="font-size:10px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--pill);padding:2px 10px;cursor:pointer;font-family:var(--f)">Go →</button>
+            <button onclick='cmdMarkDone(${JSON.stringify(sig).replace(/'/g, "&#39;")}, this)' style="font-size:10px;font-weight:700;color:var(--tm);background:var(--surface);border:1px solid var(--border);border-radius:var(--pill);padding:2px 10px;cursor:pointer;font-family:var(--f)">Done</button>
+        </div>
+    </div>`;
+}
+
+// ── WIRE THE FOUR IDLE ARRAYS INTO SIGNAL_COLLECTORS ────────────────────────
+// Thin wrappers only — the arrays' shape and their producing functions are
+// untouched. Each wrapper returns whatever is currently in the array; it is
+// empty until that array's own tab has been visited this session, which is
+// surfaced honestly via the "visit X to refresh" empty-state copy above
+// rather than force-rendering another tab as a side effect of opening this one.
+if (typeof SIGNAL_COLLECTORS !== 'undefined') {
+    SIGNAL_COLLECTORS.push(() => (typeof SPC_SIGNALS !== 'undefined' ? SPC_SIGNALS : []));
+    SIGNAL_COLLECTORS.push(() => (typeof BPW_SIGNALS !== 'undefined' ? BPW_SIGNALS : []));
+    SIGNAL_COLLECTORS.push(() => (typeof DR_EMERGING_SIGNALS !== 'undefined' ? DR_EMERGING_SIGNALS : []));
+    SIGNAL_COLLECTORS.push(() => (typeof DR_CONTAGION_SIGNALS !== 'undefined' ? DR_CONTAGION_SIGNALS : []));
+}
+
+window.renderCommandCenter = renderCommandCenter;
+window.cmdSetSort = cmdSetSort;
+window.cmdSetTeamFilter = cmdSetTeamFilter;
+window.cmdGoToSignal = cmdGoToSignal;
+window.cmdMarkDone = cmdMarkDone;
+window.cmdNormSeverity = cmdNormSeverity;
+window.cmdNormTabId = cmdNormTabId;
+
+
+// ─── BLOCK 5 SESSION A — INTERVENTION EFFECTIVENESS LOOP ──────────────────────
+// Reads the intervention log written by Block 2's Command Center "Done" control
+// (plus the PSP / MyRCA auto-writes added below) and computes pre vs post
+// performance for each logged intervention.
+//
+// LOGGING SOURCE DECISION (settled before build, per spec):
+//   Primary   — Command Center "Done" (already built, v88). One click, no extra
+//               workflow, which is the only version TLs will do daily.
+//   Secondary — automatic writes on PSP creation and MyRCA completion, since
+//               those are real interventions whether or not anyone clicks Done.
+//   Rejected  — DSM Excel import. A manual import step will quietly stop
+//               happening, and a silently stale source is worse than no source.
+//
+// WINDOW RESOLUTION (spec gap, resolved with Karl):
+//   interventionDate is a real timestamp, but RAW_ROWS is WEEKLY grain only —
+//   there is no day-level date field anywhere in the file (same constraint that
+//   forced Block 4 to rebucket its day windows). So pre/post cannot be date
+//   arithmetic on rows; it goes through the WEEKS array instead.
+//   Boundary = first WEEKS entry strictly AFTER the intervention's own week.
+//   The intervention's own week is EXCLUDED from both windows — a Done click
+//   mid-week straddles the boundary, and counting that week as post would mix
+//   pre-intervention days into the post window and bias every verdict toward
+//   "no change". Excluding it costs one week of data and removes the bias.
+
+const DIW_PREFIX = 'intervention:';
+const DIW_DEFAULT_WINDOW = 4;   // weeks each side, configurable per spec
+const DIW_MIN_N = 10;           // audits per side before a verdict is allowed
+
+// Loads all logged interventions, oldest first.
+function diwListInterventions() {
+    if (typeof idbList !== 'function') return Promise.resolve([]);
+    return idbList().then(records => (records || [])
+        .filter(r => r.key && r.key.indexOf(DIW_PREFIX) === 0)
+        .map(r => r.rows)                     // idbSet stores the entry as `rows`
+        .filter(e => e && e.subject)
+        .sort((a, b) => (a.interventionDate || '').localeCompare(b.interventionDate || ''))
+    ).catch(e => { console.warn('[did-it-work] list failed', e); return []; });
+}
+
+// Resolves an ISO interventionDate to { preWeeks, postWeeks, boundaryWeek,
+// straddleWeek }. Returns null when WEEKS is empty or the date sits outside
+// the dataset's week range entirely.
+function diwResolveWindows(interventionDate, windowSize) {
+    if (typeof WEEKS === 'undefined' || !WEEKS.length) return null;
+    const n = windowSize || DIW_DEFAULT_WINDOW;
+    const iso = String(interventionDate || '').slice(0, 10);
+    if (!iso) return null;
+
+    // WEEKS entries are week-ending date strings, sorted ascending. The
+    // straddling week is the first week whose end date is >= the intervention
+    // date; the post window starts at the week AFTER that.
+    let straddleIdx = WEEKS.findIndex(w => w >= iso);
+    if (straddleIdx === -1) {
+        // Intervention is more recent than every week in the data — no post
+        // data exists yet. Pre window is the last n weeks; post is empty.
+        return {
+            straddleWeek: null,
+            preWeeks: WEEKS.slice(Math.max(0, WEEKS.length - n)),
+            postWeeks: []
+        };
+    }
+    return {
+        straddleWeek: WEEKS[straddleIdx],
+        preWeeks: WEEKS.slice(Math.max(0, straddleIdx - n), straddleIdx),
+        postWeeks: WEEKS.slice(straddleIdx + 1, straddleIdx + 1 + n)
+    };
+}
+
+// Aggregates RAW_ROWS for one reviewer x SW across a set of weeks.
+// Duplicates the standard tpa/fpa/fna/tna -> acc/prec/rec/ar/aht rollup rather
+// than sharing it, per the house rule on shared closures. AHT is always
+// (dht+nht)/decisions; dht and nht are already totals on RAW_ROWS.
+function diwAggregate(subject, sw, weeks) {
+    if (typeof RAW_ROWS === 'undefined' || !weeks || !weeks.length) return null;
+    const wset = new Set(weeks);
+    let tpa = 0, fpa = 0, fna = 0, tna = 0, dht = 0, nht = 0, dec = 0;
+    RAW_ROWS.forEach(r => {
+        if (r.reviewer !== subject) return;
+        if (sw && r.sw !== sw) return;
+        if (!wset.has(r.week)) return;
+        tpa += r.tpa || 0; fpa += r.fpa || 0; fna += r.fna || 0; tna += r.tna || 0;
+        dht += r.dht || 0; nht += r.nht || 0; dec += r.decisions || 0;
+    });
+    const tot = tpa + fpa + fna + tna;
+    return {
+        n: tot, decisions: dec,
+        adjAcc: tot > 0 ? (tpa + tna) / tot : null,
+        prec: (tpa + fpa) > 0 ? tpa / (tpa + fpa) : null,
+        rec: (tpa + fna) > 0 ? tpa / (tpa + fna) : null,
+        ar: tot > 0 ? (tpa + fpa) / tot : null,
+        aht: dec > 0 ? (dht + nht) / dec : null
+    };
+}
+
+// Computes the verdict for one intervention.
+// Verdicts: 'working' | 'no-change' | 'regressed' | 'insufficient' | 'partial'
+// AR gate applied: high-AR subjects are judged on Precision+Recall, low-AR on
+// Adjusted Accuracy — never both, never the wrong one.
+function diwEvaluate(entry, windowSize) {
+    const win = diwResolveWindows(entry.interventionDate, windowSize);
+    if (!win) return { status: 'insufficient', reason: 'No week data loaded' };
+
+    const pre = diwAggregate(entry.subject, entry.sw, win.preWeeks);
+    const post = diwAggregate(entry.subject, entry.sw, win.postWeeks);
+
+    const expectedPost = (windowSize || DIW_DEFAULT_WINDOW);
+    const partial = win.postWeeks.length < expectedPost;
+
+    if (!pre || pre.n < DIW_MIN_N) {
+        return { status: 'insufficient', reason: 'Pre-window has ' + (pre ? pre.n : 0) + ' audits, need ' + DIW_MIN_N, pre, post, win, partial };
+    }
+    if (!post || post.n < DIW_MIN_N) {
+        // Distinguish "too new to measure" from "genuinely thin data" — an
+        // intervention 2 weeks old must read as partial, never as no-change.
+        return {
+            status: partial ? 'partial' : 'insufficient',
+            reason: partial
+                ? 'Only ' + win.postWeeks.length + ' of ' + expectedPost + ' post weeks elapsed'
+                : 'Post-window has ' + (post ? post.n : 0) + ' audits, need ' + DIW_MIN_N,
+            pre, post, win, partial
+        };
+    }
+
+    // AR gate — decided on the PRE window, so a metric shift doesn't move the
+    // goalposts mid-measurement.
+    const usesPR = pre.ar !== null && pre.ar >= 0.10;
+    let metric, preV, postV, higherIsBetter = true;
+    if (entry.metric && /aht/i.test(entry.metric)) {
+        metric = 'AHT'; preV = pre.aht; postV = post.aht; higherIsBetter = false;
+    } else if (usesPR) {
+        // Combine Precision and Recall into one movement figure, since the
+        // gate treats them as a pair.
+        metric = 'Precision + Recall';
+        preV = (pre.prec !== null && pre.rec !== null) ? (pre.prec + pre.rec) / 2 : null;
+        postV = (post.prec !== null && post.rec !== null) ? (post.prec + post.rec) / 2 : null;
+    } else {
+        metric = 'Adjusted Accuracy'; preV = pre.adjAcc; postV = post.adjAcc;
+    }
+
+    if (preV === null || postV === null) {
+        return { status: 'insufficient', reason: 'Metric not computable on both sides', pre, post, win, partial, metric };
+    }
+
+    const delta = postV - preV;
+    const improved = higherIsBetter ? delta > 0 : delta < 0;
+    // Movement threshold: quality metrics in points, AHT in seconds. Below
+    // this, call it no-change rather than reading noise as a result.
+    const threshold = (metric === 'AHT') ? 2 : 0.005;
+    const material = Math.abs(delta) >= threshold;
+    const verdict = !material ? 'no-change' : (improved ? 'working' : 'regressed');
+
+    // An incomplete post window renders PARTIAL even when it has enough audits
+    // to compute a verdict. Spec is explicit: an intervention 2 weeks old must
+    // not read as "no change" — that would report "coaching didn't work" when
+    // the truth is "not enough time has passed yet". The provisional verdict is
+    // carried alongside so the UI can show direction-so-far without claiming it.
+    if (partial) {
+        return {
+            status: 'partial',
+            reason: 'Only ' + win.postWeeks.length + ' of ' + expectedPost + ' post weeks elapsed',
+            provisionalVerdict: verdict,
+            metric, preV, postV, delta, higherIsBetter, pre, post, win, partial
+        };
+    }
+
+    return {
+        status: verdict,
+        metric, preV, postV, delta, higherIsBetter,
+        pre, post, win, partial
+    };
+}
+
+// ── ROLL-UP ─────────────────────────────────────────────────────────────────
+// Average lift by intervention type, by SW, and by TL, last 90 days.
+function diwRollup(evaluated) {
+    const buckets = { type: {}, sw: {}, tl: {} };
+    const cutoff = new Date(Date.now() - 90 * 864e5).toISOString();
+    evaluated.forEach(({ entry, result }) => {
+        if ((entry.interventionDate || '') < cutoff) return;
+        if (result.status !== 'working' && result.status !== 'no-change' && result.status !== 'regressed') return;
+        const norm = result.higherIsBetter ? result.delta : -result.delta;
+        const add = (bucket, key) => {
+            if (!key) return;
+            if (!bucket[key]) bucket[key] = { sum: 0, n: 0 };
+            bucket[key].sum += norm; bucket[key].n++;
+        };
+        add(buckets.type, entry.type);
+        add(buckets.sw, entry.sw);
+        let tl = null;
+        if (typeof RAW_ROWS !== 'undefined') {
+            const hit = RAW_ROWS.filter(r => r.reviewer === entry.subject).pop();
+            tl = hit ? hit.supervisor : null;
+        }
+        add(buckets.tl, tl);
+    });
+    const finalize = b => Object.keys(b).map(k => ({ key: k, avg: b[k].sum / b[k].n, n: b[k].n }))
+        .sort((x, y) => y.avg - x.avg);
+    return { byType: finalize(buckets.type), bySW: finalize(buckets.sw), byTL: finalize(buckets.tl) };
+}
+
+// ── SECONDARY WRITE HOOKS ───────────────────────────────────────────────────
+// PSP creation and MyRCA completion write log entries automatically. Same
+// schema as the Command Center Done control (Block 2), so all three sources
+// are indistinguishable downstream.
+function diwLogAuto(subject, sw, metric, type, notes) {
+    if (typeof idbSet !== 'function' || !subject) return Promise.resolve(false);
+    const entry = {
+        id: DIW_PREFIX + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        subject, sw: sw || '', metric: metric || '',
+        type: type || 'Coaching 1:1',
+        interventionDate: new Date().toISOString(),
+        source: 'auto', notes: notes || ''
+    };
+    return idbSet(entry.id, entry, 'intervention', 1)
+        .then(() => true)
+        .catch(e => { console.warn('[did-it-work] auto-log failed', e); return false; });
+}
+
+window.diwListInterventions = diwListInterventions;
+window.diwResolveWindows = diwResolveWindows;
+window.diwAggregate = diwAggregate;
+window.diwEvaluate = diwEvaluate;
+window.diwRollup = diwRollup;
+window.diwLogAuto = diwLogAuto;
+
+
+// ─── BLOCK 5 SESSION B — DID IT WORK?: RENDER + ROLL-UP + AUTO-LOG HOOKS ──────
+// Renders the intervention log built in Session A. Additive only — no existing
+// render function or calculation is modified.
+//
+// ROLL-UP FIX (flagged at the end of Session A):
+// diwRollup() pools normalized deltas across metrics that are not
+// commensurable — AHT is seconds, quality is proportion points. Averaging them
+// into one "lift" figure produces a meaningless number the moment a bucket
+// mixes intervention types. diwRollupByMetric() below splits every bucket by
+// metric first, so AHT and quality never land in the same average. The original
+// diwRollup() is left untouched (Session A shipped it; something may reference
+// it) and simply is not used by this surface.
+function diwRollupByMetric(evaluated) {
+    const out = {}; // metric -> { byType:{}, bySW:{}, byTL:{} }
+    const cutoff = new Date(Date.now() - 90 * 864e5).toISOString();
+    evaluated.forEach(({ entry, result }) => {
+        if ((entry.interventionDate || '') < cutoff) return;
+        if (['working', 'no-change', 'regressed'].indexOf(result.status) === -1) return;
+        const metric = result.metric || 'Unknown';
+        if (!out[metric]) out[metric] = { byType: {}, bySW: {}, byTL: {} };
+        // Normalize so positive always means "moved the right way", regardless
+        // of whether lower or higher is better for this metric.
+        const norm = result.higherIsBetter ? result.delta : -result.delta;
+        const add = (bucket, key) => {
+            if (!key) return;
+            if (!bucket[key]) bucket[key] = { sum: 0, n: 0 };
+            bucket[key].sum += norm; bucket[key].n++;
+        };
+        add(out[metric].byType, entry.type);
+        add(out[metric].bySW, entry.sw);
+        let tl = null;
+        if (typeof RAW_ROWS !== 'undefined') {
+            const hit = RAW_ROWS.filter(r => r.reviewer === entry.subject).pop();
+            tl = hit ? hit.supervisor : null;
+        }
+        add(out[metric].byTL, tl);
+    });
+    Object.keys(out).forEach(m => {
+        ['byType', 'bySW', 'byTL'].forEach(dim => {
+            const b = out[m][dim];
+            out[m][dim] = Object.keys(b)
+                .map(k => ({ key: k, avg: b[k].sum / b[k].n, n: b[k].n }))
+                .sort((x, y) => y.avg - x.avg);
+        });
+    });
+    return out;
+}
+
+// Formats a metric value / delta for display. AHT in seconds, quality in
+// percentage points — never mixed in one figure.
+function diwFmt(v, metric, isDelta) {
+    if (v === null || v === undefined || isNaN(v)) return '—';
+    if (metric === 'AHT') return (isDelta && v > 0 ? '+' : '') + v.toFixed(1) + 's';
+    return (isDelta && v > 0 ? '+' : '') + (v * 100).toFixed(1) + (isDelta ? 'pp' : '%');
+}
+
+const DIW_STATUS_META = {
+    'working':      { label: 'Working',           color: 'var(--green)', bg: 'var(--gbg)', bd: 'var(--gbd)' },
+    'no-change':    { label: 'No change',         color: 'var(--tm)',    bg: 'var(--sa)',  bd: 'var(--border)' },
+    'regressed':    { label: 'Regressed',         color: 'var(--coral)', bg: 'var(--cbg)', bd: 'var(--cbd)' },
+    'partial':      { label: 'Too early',         color: 'var(--amber)', bg: 'var(--abg)', bd: 'var(--abd)' },
+    'insufficient': { label: 'Insufficient data', color: 'var(--tm)',    bg: 'var(--sa)',  bd: 'var(--border)' }
+};
+
+function renderDidItWork() {
+    const stateEl = document.getElementById('diw-log-state');
+    const rollEl = document.getElementById('diw-rollup');
+    const contentEl = document.getElementById('diw-content');
+    if (!contentEl) return;
+
+    if (typeof missingDataNotice === 'function') {
+        const notice = missingDataNotice('psp');
+        if (notice) {
+            if (stateEl) stateEl.innerHTML = notice;
+            rollEl.innerHTML = ''; contentEl.innerHTML = '';
+            return;
+        }
+    }
+
+    diwListInterventions().then(entries => {
+        // EMPTY LOG vs NO MEASURABLE LIFT — these must never look alike. An
+        // empty log means nobody has clicked Done yet; it does NOT mean
+        // coaching does not work. This is the specific failure mode that put
+        // this block on the highest tier, so it gets an explicit state.
+        if (!entries.length) {
+            if (stateEl) stateEl.innerHTML = `<div style="background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:1.25rem;margin-bottom:1rem">
+                <div style="font-size:13px;font-weight:800;color:var(--bsec);margin-bottom:6px">No interventions logged yet</div>
+                <div style="font-size:12px;color:var(--ts);line-height:1.6">This panel measures whether coaching moved the metric. It has nothing to measure yet because no interventions have been logged, which is not the same as coaching having no effect.<br>Log one by clicking <strong>Done</strong> on a Command Center signal, creating a PSP entry, or completing a MyRCA.</div>
+            </div>`;
+            rollEl.innerHTML = ''; contentEl.innerHTML = '';
+            return;
+        }
+        if (stateEl) stateEl.innerHTML = '';
+
+        const evaluated = entries.map(entry => ({ entry, result: diwEvaluate(entry) }));
+
+        // ── Roll-up, split by metric ────────────────────────────────────────
+        const byMetric = diwRollupByMetric(evaluated);
+        const metrics = Object.keys(byMetric);
+        if (!metrics.length) {
+            rollEl.innerHTML = `<div style="font-size:12px;color:var(--tm);padding:10px 0">No interventions have a complete pre and post window yet, so no lift can be averaged.</div>`;
+        } else {
+            rollEl.innerHTML = metrics.map(m => {
+                const d = byMetric[m];
+                const col = (title, arr) => `<div style="flex:1;min-width:0">
+                    <div style="font-size:10px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${title}</div>
+                    ${arr.length ? arr.slice(0, 5).map(x => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:2px 0">
+                        <span style="color:var(--ts);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.key}</span>
+                        <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${x.avg > 0 ? 'var(--green)' : x.avg < 0 ? 'var(--coral)' : 'var(--tm)'};flex-shrink:0">${diwFmt(x.avg, m, true)} <span style="color:var(--tm);font-weight:400">n=${x.n}</span></span>
+                    </div>`).join('') : '<div style="font-size:11px;color:var(--tm)">—</div>'}
+                </div>`;
+                return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px;margin-bottom:10px">
+                    <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px">Average lift · ${m} <span style="font-weight:500;color:var(--tm)">· last 90 days</span></div>
+                    <div style="display:flex;gap:20px;flex-wrap:wrap">${col('By type', d.byType)}${col('By sub-workflow', d.bySW)}${col('By TL', d.byTL)}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // ── Intervention list, newest first ─────────────────────────────────
+        const rows = evaluated.slice().reverse().map(({ entry, result }) => {
+            const meta = DIW_STATUS_META[result.status] || DIW_STATUS_META['insufficient'];
+            const when = entry.interventionDate ? new Date(entry.interventionDate).toLocaleDateString() : '';
+            const hasDelta = result.delta !== undefined && result.delta !== null;
+            // A partial result shows its direction-so-far explicitly labelled
+            // as provisional, never as a settled verdict.
+            const prov = result.status === 'partial' && result.provisionalVerdict
+                ? ` <span style="color:var(--tm);font-weight:400">(trending ${DIW_STATUS_META[result.provisionalVerdict].label.toLowerCase()})</span>` : '';
+            return `<div style="padding:11px 14px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div style="min-width:0;flex:1">
+                    <div style="font-size:12px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${entry.subject}${entry.sw ? ' · ' + entry.sw : ''}</div>
+                    <div style="font-size:11px;color:var(--tm);margin-top:1px">${entry.type || ''} · ${when}${entry.source === 'auto' ? ' · auto' : ''}</div>
+                </div>
+                <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--ts);text-align:right;flex-shrink:0;min-width:150px">
+                    ${hasDelta ? `${diwFmt(result.preV, result.metric)} → ${diwFmt(result.postV, result.metric)}
+                        <span style="color:${(result.higherIsBetter ? result.delta > 0 : result.delta < 0) ? 'var(--green)' : 'var(--coral)'};font-weight:700">${diwFmt(result.delta, result.metric, true)}</span>`
+                        : `<span style="color:var(--tm)">${result.reason || ''}</span>`}
+                </div>
+                <span style="font-size:10px;font-weight:700;color:${meta.color};background:${meta.bg};border:1px solid ${meta.bd};border-radius:var(--pill);padding:2px 9px;white-space:nowrap;flex-shrink:0">${meta.label}${prov}</span>
+            </div>`;
+        }).join('');
+
+        contentEl.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+                <span style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em">Logged interventions</span>
+                <span style="font-weight:500;font-size:11px;color:var(--tm);text-transform:none;letter-spacing:normal"> — ${entries.length} total, newest first</span>
+            </div>${rows}
+        </div>`;
+    }).catch(e => {
+        console.warn('[did-it-work] render failed', e);
+        contentEl.innerHTML = '<div style="padding:1rem;font-size:12px;color:var(--tm)">Could not load the intervention log.</div>';
+    });
+}
+
+window.renderDidItWork = renderDidItWork;
+window.diwRollupByMetric = diwRollupByMetric;
+window.diwFmt = diwFmt;
+
+
 function processCSVData(csvString) {
     const lines = csvString.replace(/\r/g, '').trim().split('\n');
     const hdrs = parseCSVRow(lines[0]);
@@ -23750,16 +25528,25 @@ function handleUpload(input){
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
+            showLoadOverlay('Parsing ' + file.name + '...');
             processCSVData(e.target.result);
+            updateLoadOverlay('Loaded ' + RAW_ROWS.length.toLocaleString() + ' rows, running checks...');
             runDataHealthChecks(_lastAllRows);
+            cacheStore('raw', e.target.result, file.name, RAW_ROWS.length);
+            // Block 2: capture a Command Center snapshot for the diff engine.
+            // Fire-and-forget — never blocks or fails the upload path.
+            if (typeof cmdRefreshSignals === 'function') cmdRefreshSignals().catch(() => {});
             if (typeof JOBDETAIL_ROWS !== 'undefined' && JOBDETAIL_ROWS.length && typeof jdBackfillRealAHT === 'function') jdBackfillRealAHT();
             document.getElementById('up-ok').textContent = '✓ Loaded '+RAW_ROWS.length.toLocaleString()+' rows across '+WEEKS.length+' weeks from '+file.name;
             document.getElementById('up-err').style.display = 'none';
+            renderDependencyDots(); renderCacheStatusCards(); ssSaveState();
         } catch(err) {
             console.error('handleUpload error:', err);
             document.getElementById('up-err').style.display = 'block';
             document.getElementById('up-err').textContent = '✗ Error: '+err.message+' — check the console (F12) for details';
             document.getElementById('up-ok').style.display = 'none';
+        } finally {
+            hideLoadOverlay();
         }
     };
     reader.onerror = function() {
@@ -24601,6 +26388,35 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('misc-table-wrap').scrollIntoView({ behavior:'smooth', block:'nearest' });
     };
 
+    // ── Block 1 cache accessors ──────────────────────────────────────────────
+    // MISC_ROWS is a `let` private to this IIFE and must stay that way. These
+    // expose it for cache rehydration only, mirroring the existing
+    // window.jdIsLoaded()/window.ndjdIsLoaded() convention. __miscSet replays
+    // the same parse + side effects as the upload handler's success path,
+    // minus the DOM status text. Returns the live row count for the boot
+    // cross-check.
+    window.__miscGet = function() { return MISC_ROWS; };
+    window.__miscSet = function(text) {
+        const rows = parseMiscCSV(text);
+        MISC_ROWS = rows;
+        window.RCA_ROWS = rows;
+        MISC_PAGE = 1;
+        populateBaseFilters(rows);
+        if (window.renderRCAExplorer) window.renderRCAExplorer();
+        if (typeof window.deriveRcamfFromMisc === 'function') {
+            try { window.deriveRcamfFromMisc(rows); } catch (e) { console.warn('[cache] RCAMF derive failed', e); }
+        }
+        try {
+            const nd = document.getElementById('misc-no-data');       if (nd) nd.style.display = 'none';
+            const mf = document.getElementById('misc-filters');       if (mf) mf.style.display = 'block';
+            const mt = document.getElementById('misc-table-wrap');    if (mt) mt.style.display = 'block';
+            const st = document.getElementById('misc-load-status');
+            if (st) st.innerHTML = '<span style="color:var(--teal);font-weight:700">\u2713 ' + rows.length.toLocaleString() + ' job' + (rows.length!==1?'s':'') + ' loaded</span>';
+            miscRenderTable(rows);
+        } catch (e) { console.warn('[cache] misc render failed', e); }
+        return MISC_ROWS.length;
+    };
+
     window.miscHandleUpload = function(input) {
         const file = input.files[0];
         if (!file) return;
@@ -24641,6 +26457,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 okEl.textContent = `\u2713 Loaded ${rows.length.toLocaleString()} job${rows.length!==1?'s':''} \u00b7 sorted newest first${rcamfSummary}`;
                 okEl.style.display = 'block';
                 miscRenderTable(rows);
+                cacheStore('misc', e.target.result, file.name, rows.length);
+                renderDependencyDots(); renderCacheStatusCards();
             } catch(err) {
                 errEl.textContent = '\u2715 Parse error: ' + err.message;
                 errEl.style.display = 'block';
@@ -25071,6 +26889,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 okEl.textContent = `\u2713 Loaded ${rows.length.toLocaleString()} job${rows.length !== 1 ? 's' : ''}`;
                 okEl.style.display = 'block';
                 if (document.getElementById('tab-jobdetail').classList.contains('on')) renderJobDetail();
+                cacheStore('jobdetail', e.target.result, file.name, rows.length);
+                renderDependencyDots(); renderCacheStatusCards();
             } catch (err) {
                 errEl.textContent = '\u2715 Parse error: ' + err.message;
                 errEl.style.display = 'block';
@@ -25946,6 +27766,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Exposed as functions, not the raw array, so JOBDETAIL_ROWS stays
     // private and can't be mutated from outside this IIFE.
     window.jdIsLoaded = function() { return JOBDETAIL_ROWS.length > 0; };
+    // ── Block 1 cache accessors ──────────────────────────────────────────────
+    // JOBDETAIL_ROWS stays a `let` inside this IIFE. Rehydration only.
+    window.__jdGet = function() { return JOBDETAIL_ROWS; };
+    window.__jdSet = function(text) {
+        const rows = jdParseCSV(text);
+        JOBDETAIL_ROWS = rows;
+        try { jdBackfillRealAHT(); } catch (e) { console.warn('[cache] jdBackfillRealAHT failed', e); }
+        JD_PAGE = 1;
+        JD_FILTERS = { sw: null, reviewer: null, tenure: null, decisionType: null };
+        try {
+            const st = document.getElementById('jobdetail-load-status');
+            if (st) st.innerHTML = '<span style="color:var(--teal);font-weight:700">\u2713 ' + rows.length.toLocaleString() + ' job' + (rows.length!==1?'s':'') + ' loaded</span>';
+        } catch (e) { console.warn('[cache] jd status failed', e); }
+        return JOBDETAIL_ROWS.length;
+    };
 
     // Returns this reviewer's job rows for one SW, joined through the roster
     // (actorId -> name) exactly like jdFilteredJobs's own JD_FILTERS.reviewer
@@ -26010,6 +27845,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // above and can't see this module's private NONDECISION_ROWS directly) —
     // same pattern as window.jdIsLoaded() for JOBDETAIL_ROWS.
     window.ndjdIsLoaded = function() { return NONDECISION_ROWS.length > 0; };
+    // ── Block 1 cache accessors ──────────────────────────────────────────────
+    // NONDECISION_ROWS stays a `let` inside this IIFE. Rehydration only.
+    window.__ndjdGet = function() { return NONDECISION_ROWS; };
+    window.__ndjdSet = function(text) {
+        const rows = ndjdParseCSV(text);
+        NONDECISION_ROWS = rows;
+        NDJD_PAGE = 1;
+        NDJD_FILTERS = { jid: '', tl: '', reviewer: '', sw: '', event: '', swContains: '' };
+        try {
+            const st = document.getElementById('nondecision-load-status');
+            if (st) st.innerHTML = '<span style="color:var(--teal);font-weight:700">\u2713 ' + rows.length.toLocaleString() + ' event' + (rows.length!==1?'s':'') + ' loaded</span>';
+        } catch (e) { console.warn('[cache] ndjd status failed', e); }
+        return NONDECISION_ROWS.length;
+    };
     let NDJD_SORT = { col: 'date', dir: 'desc' };
     let NDJD_PAGE = 1;
     const NDJD_PAGE_SIZE = 50;
@@ -26132,6 +27981,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     ndjdRenderTable();
                 }
+                cacheStore('nondecision', e.target.result, file.name, rows.length);
+                renderDependencyDots(); renderCacheStatusCards();
             } catch (err) {
                 errEl.textContent = '\u2715 Parse error: ' + err.message;
                 errEl.style.display = 'block';
@@ -27789,6 +29640,15 @@ function nrtHandleUpload(input, type) {
                 if (typeof JOBDETAIL_ROWS !== 'undefined' && JOBDETAIL_ROWS.length && typeof jdBackfillRealAHT === 'function') jdBackfillRealAHT();
             }
             statusEl.style.color = 'var(--teal)';
+            // Cache write hook. Precision and Quality Extract share NRT_ROWS
+            // (last write wins live too), so they share one slot with the
+            // source type recorded in meta.
+            if(isPrecision)      cacheStore('nrt-rows',   e.target.result, file.name, NRT_ROWS.length, { sourceType:'precision' });
+            else if(isQext)      cacheStore('nrt-rows',   e.target.result, file.name, NRT_ROWS.length, { sourceType:'qext' });
+            else if(isQmap)      cacheStore('nrt-qmap',   e.target.result, file.name, Object.keys(NRT_QUEUE_MAP).length);
+            else if(isRca)       cacheStore('nrt-rca',    e.target.result, file.name, NRT_RCA_ROWS.length);
+            else                 cacheStore('nrt-roster', e.target.result, file.name, NRT_ROSTER.length);
+            renderDependencyDots(); renderCacheStatusCards();
             nrtPopulateFilters();
             renderNRTQA();
         } catch(err) {
@@ -29490,6 +31350,8 @@ function nahtHandleUpload(input) {
                 const ws = wb.Sheets[wb.SheetNames[0]];
                 const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
                 nahtParse(rows);
+                // XLSX path caches the pre-parse row array, not the binary.
+                cacheStore('naht', rows, file.name, NAHT_ROWS.length, { fmt:'xlsx' });
                 statusEl.textContent = '✓ Loaded ' + NAHT_ROWS.length + ' rows from ' + file.name;
                 statusEl.style.color = 'var(--teal)';
                 if(document.getElementById('tab-nrt-aht')?.classList.contains('on')) renderNRTAHT();
@@ -29502,6 +31364,7 @@ function nahtHandleUpload(input) {
             try {
                 const rows = nrtParseCSV(e.target.result); // reuse NRT CSV parser
                 nahtParse(rows);
+                cacheStore('naht', rows, file.name, NAHT_ROWS.length, { fmt:'csv' });
                 statusEl.textContent = '✓ Loaded ' + NAHT_ROWS.length + ' rows from ' + file.name;
                 statusEl.style.color = 'var(--teal)';
                 if(document.getElementById('tab-nrt-aht')?.classList.contains('on')) renderNRTAHT();
