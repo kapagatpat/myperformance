@@ -13192,40 +13192,38 @@ function renderPSP() {
         </div>
     </div>`;
 
-    // ── PSP vs Non-PSP progression table (v97.9, Karl's explicit request) ──
+    // ── PSP vs Non-PSP progression table (v97.9, revised v97.10) ───────────
     // Same visual format as the Reviewer Deep-Dive Performance Summary
     // Table (two-row header: month groups + week columns, full-cell color
-    // coding, AR-gated Precision/Recall vs Accuracy, monthly Total column)
-    // but pooled into TWO aggregate lines — PSP reviewers combined, and
-    // Non-PSP reviewers combined — instead of one reviewer's own trend.
+    // coding, monthly Total column) but pooled into TWO aggregate lines per
+    // KPI — PSP reviewers combined, and Non-PSP reviewers combined.
     //
-    // Reviewer bucket membership: fixed classification based on each
-    // reviewer's ACCURACY isPSP flag for the currently-selected cohort
-    // month (Karl's explicit call — matches the cohort-month dropdown at
-    // the top of the tab, not a per-week-changing classification). Uses
-    // the same isPSP computation as the Accuracy KPI block above (prior
-    // month performance vs target), so bucket membership here matches what
-    // the "PSP only" filter buttons (now fixed to read data-psp) show.
+    // v97.10 fix: the original build classified ALL FOUR KPI rows (Acc,
+    // Prec, Rec, AHT) using a single Accuracy-based PSP flag — so a
+    // reviewer who was PSP on Precision but not Accuracy never showed up
+    // in that KPI's PSP bucket, producing exactly Karl's report ("doesn't
+    // show PSP scores despite having PSPs for that KPI"). Fixed by giving
+    // EACH KPI its own bucket classification, using that KPI's own isPSP
+    // logic (same formula each KPI block above already uses). Also, per
+    // Karl's explicit call: Accuracy and AHT rows removed entirely — only
+    // Precision and Recall remain, since those are the two metrics PSP
+    // status is meaningfully tracked against in this cohort model.
     function buildPSPProgressionTable() {
-        const pspReviewers = new Set();
-        const nonPspReviewers = new Set();
-        reviewers.forEach(rv => {
-            const preData = preMonth ? rvMonthMap[rv][preMonth] : null;
-            const cohortData = rvMonthMap[rv][cohortMonth];
-            const preVal = preData ? getAcc(preData) : null;
-            const currVal = cohortData ? getAcc(cohortData) : null;
-            if(preVal === null && currVal === null) return;
-            const isPSP = preVal !== null ? preVal < overallAccTgt : (currVal !== null && currVal < overallAccTgt);
-            (isPSP ? pspReviewers : nonPspReviewers).add(rv);
-        });
+        function classify(getFn) {
+            const psp = new Set(), nonPsp = new Set();
+            reviewers.forEach(rv => {
+                const preData = preMonth ? rvMonthMap[rv][preMonth] : null;
+                const cohortData = rvMonthMap[rv][cohortMonth];
+                const preVal = preData ? getFn(preData) : null;
+                const currVal = cohortData ? getFn(cohortData) : null;
+                if(preVal === null && currVal === null) return;
+                const isPSP = preVal !== null ? preVal < overallAccTgt : (currVal !== null && currVal < overallAccTgt);
+                (isPSP ? psp : nonPsp).add(rv);
+            });
+            return { psp, nonPsp };
+        }
 
-        // Weekly raw rows for each bucket, scoped to the same filtered
-        // rows renderPSP() already computed (respects TL/tenure/SW/
-        // workflow/reviewer filters and month-pill selection).
-        const pspRows = rows.filter(r => pspReviewers.has(r.reviewer));
-        const nonPspRows = rows.filter(r => nonPspReviewers.has(r.reviewer));
-
-        function bucketStatsRows(bucketRows, label, badgeColor) {
+        function bucketStatsRows(bucketRows, reviewerCount) {
             const weeks = [...new Set(bucketRows.map(r => r.week))].sort();
             if(!weeks.length) return null;
             const stats = {};
@@ -13252,102 +13250,103 @@ function renderPSP() {
                     s.dht+=r.dht; s.nht+=r.nht; s.dec+=r.decisions;
                 });
             });
-            return { weeks, stats, monthMap, sortedMonths, monthTotals, label, badgeColor, reviewerCount: label==='PSP' ? pspReviewers.size : nonPspReviewers.size };
+            return { weeks, stats, monthMap, sortedMonths, monthTotals, reviewerCount };
         }
-
-        const pspBucket = bucketStatsRows(pspRows, 'PSP', 'var(--coral)');
-        const nonPspBucket = bucketStatsRows(nonPspRows, 'Non-PSP', 'var(--green)');
-        if(!pspBucket && !nonPspBucket) {
-            return '<div style="padding:1rem;text-align:center;color:var(--tm);font-size:12px">No weekly data available for the current filter selection.</div>';
-        }
-
-        // Union of all months/weeks across both buckets so the two rows
-        // share one column layout, even if one bucket has thinner history.
-        const allWeeksSet = new Set([...(pspBucket?.weeks||[]), ...(nonPspBucket?.weeks||[])]);
-        const allMonthMap = {};
-        allWeeksSet.forEach(w => {
-            const src = (pspBucket?.stats[w] ? pspBucket : nonPspBucket);
-            const row = (pspBucket?.weeks.includes(w) ? pspRows : nonPspRows).find(r=>r.week===w);
-            const m = row ? row.month : ''; if(!m) return;
-            if(!allMonthMap[m]) allMonthMap[m] = new Set();
-            allMonthMap[m].add(w);
-        });
-        const allSortedMonths = Object.keys(allMonthMap).sort();
-        const orderedWeeksByMonth = {};
-        allSortedMonths.forEach(m => { orderedWeeksByMonth[m] = [...allMonthMap[m]].sort(); });
-
-        let groupRow = `<tr><th rowspan="2" style="width:170px;vertical-align:bottom;text-align:left">Cohort</th>`;
-        let weekRow = `<tr>`;
-        allSortedMonths.forEach(m => {
-            const mw = orderedWeeksByMonth[m];
-            groupRow += `<th colspan="${mw.length}" style="text-align:center;background:var(--sa);border-left:1px solid var(--border);font-size:10px">${fmtMonth(m)}</th>`;
-            groupRow += `<th style="background:var(--bbg);color:var(--blue);border-left:2px solid var(--bbd);text-align:center;font-size:10px">Total</th>`;
-            mw.forEach(w => { weekRow += `<th style="border-left:1px solid var(--divider);font-size:9px;font-weight:700">${fmtW(w)}</th>`; });
-            weekRow += `<th style="background:var(--bbg);border-left:2px solid var(--bbd);font-size:9px"></th>`;
-        });
-        groupRow += `</tr>`; weekRow += `</tr>`;
 
         const cellBg2  = (cls) => cls==='good'?'var(--gbg)':cls==='warn'?'var(--abg)':cls==='bad'?'var(--cbg)':'';
         const cellFg2  = (cls) => cls==='good'?'var(--green)':cls==='warn'?'var(--amber)':cls==='bad'?'var(--coral)':'';
-        const pcell = (val,key,isMTD,ar) => {
-            const secondary = (key==='adj_acc'&&ar!==null&&ar>=0.10) || ((key==='prec'||key==='rec')&&(ar===null||ar<0.10));
+        const pcell = (val,key,isMTD) => {
             const cls = flag(val,key);
-            const disp = val!==null ? (key==='aht'?Number(val).toFixed(2)+'s':p(val)) : '—';
+            const disp = val!==null ? p(val) : '—';
             const bg = isMTD ? 'var(--bbg)' : cellBg2(cls);
             const fg = isMTD ? (cellFg2(cls)||'var(--blue)') : (cellFg2(cls)||'var(--text)');
             const borderL = isMTD ? '2px solid var(--bbd)' : '1px solid var(--divider)';
             const fw = isMTD ? '700' : '600';
-            const opacity = secondary ? '0.5' : '1';
-            return `<td style="background:${bg};border-left:${borderL};padding:3px 7px;opacity:${opacity}"><span style="font-family:var(--m);font-size:11px;font-weight:${fw};color:${fg}">${disp}</span></td>`;
+            return `<td style="background:${bg};border-left:${borderL};padding:3px 7px"><span style="font-family:var(--m);font-size:11px;font-weight:${fw};color:${fg}">${disp}</span></td>`;
         };
 
-        function bucketRow(bucket, metricKey, label) {
-            if(!bucket) return `<tr><td><strong>${label}</strong> <span style="font-size:9px;color:var(--tm)">(no data)</span></td>${allSortedMonths.map(m=>orderedWeeksByMonth[m].map(()=>`<td style="border-left:1px solid var(--divider)">—</td>`).join('')+`<td style="background:var(--bbg);border-left:2px solid var(--bbd)">—</td>`).join('')}</tr>`;
-            let row = `<tr><td><strong>${label}</strong> <span style="font-size:9px;font-weight:700;color:${bucket.badgeColor}">· ${bucket.reviewerCount} reviewer${bucket.reviewerCount===1?'':'s'}</span></td>`;
-            allSortedMonths.forEach(m => {
-                orderedWeeksByMonth[m].forEach(w => {
-                    const s = bucket.stats[w];
-                    if(!s) { row += `<td style="border-left:1px solid var(--divider);color:var(--tm)">—</td>`; return; }
-                    const errs = s.fpa+s.fna;
-                    const ar = (s.tpa+s.fpa+s.fna+s.tna)>0 ? (s.tpa+s.fpa)/(s.tpa+s.fpa+s.fna+s.tna) : null;
-                    let val;
-                    if(metricKey==='adj_acc') val = (s.tpa+s.tna+errs)>0 ? (s.tpa+s.tna)/(s.tpa+s.tna+errs) : null;
-                    else if(metricKey==='prec') val = (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
-                    else if(metricKey==='rec') val = (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
-                    else if(metricKey==='aht') val = s.dec>0 ? (s.dht+s.nht)/s.dec : null;
-                    row += pcell(val, metricKey, false, ar);
-                });
-                const mt = bucket.monthTotals[m];
-                if(!mt) { row += `<td style="background:var(--bbg);border-left:2px solid var(--bbd);color:var(--tm)">—</td>`; return; }
-                const errs = mt.fpa+mt.fna;
-                const mAr = (mt.tpa+mt.fpa+mt.fna+mt.tna)>0 ? (mt.tpa+mt.fpa)/(mt.tpa+mt.fpa+mt.fna+mt.tna) : null;
-                let mVal;
-                if(metricKey==='adj_acc') mVal = (mt.tpa+mt.tna+errs)>0 ? (mt.tpa+mt.tna)/(mt.tpa+mt.tna+errs) : null;
-                else if(metricKey==='prec') mVal = (mt.tpa+mt.fpa)>0 ? mt.tpa/(mt.tpa+mt.fpa) : null;
-                else if(metricKey==='rec') mVal = (mt.tpa+mt.fna)>0 ? mt.tpa/(mt.tpa+mt.fna) : null;
-                else if(metricKey==='aht') mVal = mt.dec>0 ? (mt.dht+mt.nht)/mt.dec : null;
-                row += pcell(mVal, metricKey, true, mAr);
-            });
-            row += `</tr>`;
-            return row;
-        }
+        function renderKpiSection(metricKey, getFn, title, iconColor) {
+            const { psp, nonPsp } = classify(getFn);
+            const pspRows = rows.filter(r => psp.has(r.reviewer));
+            const nonPspRows = rows.filter(r => nonPsp.has(r.reviewer));
+            const pspBucket = bucketStatsRows(pspRows, psp.size);
+            const nonPspBucket = bucketStatsRows(nonPspRows, nonPsp.size);
+            if(!pspBucket && !nonPspBucket) {
+                return `<div style="margin-bottom:14px">
+                    <div style="font-size:11px;font-weight:800;color:${iconColor};text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${title}</div>
+                    <div style="padding:0.75rem;text-align:center;color:var(--tm);font-size:12px;background:var(--sa);border-radius:var(--r)">No weekly data available for the current filter selection.</div>
+                </div>`;
+            }
 
-        const sections = ['adj_acc','prec','rec','aht'].map(key => {
-            const title = {adj_acc:'Adj Accuracy ↑', prec:'Adj Precision ↑', rec:'Adj Recall ↑', aht:'Average AHT ↓'}[key];
+            const allWeeksSet = new Set([...(pspBucket?.weeks||[]), ...(nonPspBucket?.weeks||[])]);
+            const allMonthMap = {};
+            allWeeksSet.forEach(w => {
+                const row = (pspBucket?.weeks.includes(w) ? pspRows : nonPspRows).find(r=>r.week===w);
+                const m = row ? row.month : ''; if(!m) return;
+                if(!allMonthMap[m]) allMonthMap[m] = new Set();
+                allMonthMap[m].add(w);
+            });
+            const allSortedMonths = Object.keys(allMonthMap).sort();
+            const orderedWeeksByMonth = {};
+            allSortedMonths.forEach(m => { orderedWeeksByMonth[m] = [...allMonthMap[m]].sort(); });
+
+            let groupRow = `<tr><th rowspan="2" style="width:170px;vertical-align:bottom;text-align:left">Cohort</th>`;
+            let weekRow = `<tr>`;
+            allSortedMonths.forEach(m => {
+                const mw = orderedWeeksByMonth[m];
+                groupRow += `<th colspan="${mw.length}" style="text-align:center;background:var(--sa);border-left:1px solid var(--border);font-size:10px">${fmtMonth(m)}</th>`;
+                groupRow += `<th style="background:var(--bbg);color:var(--blue);border-left:2px solid var(--bbd);text-align:center;font-size:10px">Total</th>`;
+                mw.forEach(w => { weekRow += `<th style="border-left:1px solid var(--divider);font-size:9px;font-weight:700">${fmtW(w)}</th>`; });
+                weekRow += `<th style="background:var(--bbg);border-left:2px solid var(--bbd);font-size:9px"></th>`;
+            });
+            groupRow += `</tr>`; weekRow += `</tr>`;
+
+            function bucketRowHtml(bucket, label, badgeColor) {
+                if(!bucket) return `<tr><td><strong>${label}</strong> <span style="font-size:9px;color:var(--tm)">(no data)</span></td>${allSortedMonths.map(m=>orderedWeeksByMonth[m].map(()=>`<td style="border-left:1px solid var(--divider)">—</td>`).join('')+`<td style="background:var(--bbg);border-left:2px solid var(--bbd)">—</td>`).join('')}</tr>`;
+                let row = `<tr><td><strong>${label}</strong> <span style="font-size:9px;font-weight:700;color:${badgeColor}">· ${bucket.reviewerCount} reviewer${bucket.reviewerCount===1?'':'s'}</span></td>`;
+                allSortedMonths.forEach(m => {
+                    orderedWeeksByMonth[m].forEach(w => {
+                        const s = bucket.stats[w];
+                        if(!s) { row += `<td style="border-left:1px solid var(--divider);color:var(--tm)">—</td>`; return; }
+                        let val = metricKey==='prec' ? ((s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null)
+                                                       : ((s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null);
+                        row += pcell(val, metricKey, false);
+                    });
+                    const mt = bucket.monthTotals[m];
+                    if(!mt) { row += `<td style="background:var(--bbg);border-left:2px solid var(--bbd);color:var(--tm)">—</td>`; return; }
+                    let mVal = metricKey==='prec' ? ((mt.tpa+mt.fpa)>0 ? mt.tpa/(mt.tpa+mt.fpa) : null)
+                                                    : ((mt.tpa+mt.fna)>0 ? mt.tpa/(mt.tpa+mt.fna) : null);
+                    row += pcell(mVal, metricKey, true);
+                });
+                row += `</tr>`;
+                return row;
+            }
+
             return `<div style="margin-bottom:14px">
-                <div style="font-size:11px;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${title}</div>
+                <div style="font-size:11px;font-weight:800;color:${iconColor};text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${title}</div>
                 <div class="twrap"><table style="width:100%;border-collapse:collapse">
                     <thead>${groupRow}${weekRow}</thead>
-                    <tbody>${bucketRow(pspBucket, key, 'PSP')}${bucketRow(nonPspBucket, key, 'Non-PSP')}</tbody>
+                    <tbody>${bucketRowHtml(pspBucket, 'PSP', 'var(--coral)')}${bucketRowHtml(nonPspBucket, 'Non-PSP', 'var(--green)')}</tbody>
                 </table></div>
             </div>`;
-        }).join('');
+        }
 
-        return sections;
+        return renderKpiSection('prec', getPrec, 'Adj Precision ↑', 'var(--coral)')
+             + renderKpiSection('rec',  getRec,  'Adj Recall ↑',    'var(--coral)');
     }
 
+    // Collapsible wrapper — starts collapsed by default so the tab isn't
+    // dominated by this table on load; header toggles open/closed on click.
+    const _pspProgId = 'psp-progression-body';
     container.innerHTML = statusLegend
-        + '<div style="margin-bottom:1.5rem"><div style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">📈 PSP vs Non-PSP Progression</div>' + buildPSPProgressionTable() + '</div>'
+        + `<div style="margin-bottom:1.5rem;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
+            <button type="button" onclick="const b=document.getElementById('${_pspProgId}');const open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('.psp-prog-chev').textContent=open?'▸':'▾';"
+                style="width:100%;text-align:left;background:var(--sa);border:none;padding:10px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em">📈 PSP vs Non-PSP Progression</span>
+                <span class="psp-prog-chev" style="font-size:12px;color:var(--tm)">▸</span>
+            </button>
+            <div id="${_pspProgId}" style="display:none;padding:14px">${buildPSPProgressionTable()}</div>
+        </div>`
         + '<div id="psp-tbl-consolidated">' + buildPSPConsolidatedTable({acc:accRows, prec:precRows, rec:recRows, aht:ahtRows, nht:nhtRows}) + '</div>';
 
     // Stash per-KPI value arrays + display config for the histogram, so
