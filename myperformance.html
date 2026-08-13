@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>MyPerformance | MVIO v1.30</title>
+<title>MyPerformance | MVIO v1.36</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 /* CORE CSS */
@@ -277,9 +277,46 @@ tr:hover td{background:#F8F9FB}
 .snap-kpi-col-head{padding:3px 10px;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--text);background:var(--sa);border-bottom:1px solid var(--divider)}
 .snap-kpi-row{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;border-bottom:1px solid var(--divider)}
 .snap-kpi-row:last-child{border-bottom:none}
-.snap-kpi-label{font-size:11px;color:var(--ts);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.snap-kpi-label{font-size:11px;color:var(--ts);flex:1;min-width:0;white-space:nowrap;display:flex;align-items:center;gap:4px}
 .snap-kpi-val{font-family:var(--m);font-size:12px;font-weight:700;margin-left:6px;white-space:nowrap}
 .snap-kpi-dim{font-family:var(--m);font-size:10px;font-weight:400;color:var(--tm);margin-left:3px}
+
+/* Month-End Forecast popup (v97.2) — click-to-open modal replacing the
+   v97.1 hover tooltip. The tooltip was getting clipped by ancestor
+   overflow:hidden containers (.snap-kpi-col, kcard borders) on every
+   surface it appeared on, and its internal scroll region never had a
+   chance to work since the whole bubble was chopped off first. Emoji
+   trigger (🔮) sits after the KPI value; clicking opens a centered modal,
+   matching the #chart-expand-modal pattern already used elsewhere. */
+.fc-emoji-trigger{cursor:pointer;font-size:12px;margin-left:5px;line-height:1;opacity:.85;transition:opacity .15s,transform .15s;flex-shrink:0;background:none;border:none;padding:0;vertical-align:middle}
+.fc-emoji-trigger:hover{opacity:1;transform:scale(1.15)}
+
+.fc-modal-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center}
+.fc-modal-overlay.open{display:flex}
+.fc-modal{background:var(--surface);border-radius:var(--rl);width:92vw;max-width:420px;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.25)}
+.fc-modal-hdr{padding:16px 20px 12px;border-bottom:1px solid var(--divider);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.fc-modal-title{font-size:14px;font-weight:800;color:var(--text)}
+.fc-modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--tm);line-height:1;padding:4px}
+.fc-modal-close:hover{color:var(--text)}
+.fc-modal-body{padding:16px 20px 20px;overflow-y:auto}
+
+/* Content structure inside the modal body — same class names buildForecastTooltipHTML()
+   already emits, restyled for a light modal surface instead of the old dark hover bubble. */
+.fc-tip-title{font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--tm);margin-bottom:8px}
+.fc-tip-row{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:3px 0}
+.fc-tip-row span:first-child{color:var(--tm);flex-shrink:0}
+.fc-tip-row span:last-child{font-weight:700;text-align:right;color:var(--text)}
+.fc-tip-sw-section{margin-top:12px;padding-top:10px;border-top:1px solid var(--divider)}
+.fc-tip-sw-row-wrap{border:1px solid var(--border);border-radius:var(--r);padding:9px 11px;margin-bottom:8px}
+.fc-tip-sw-row-wrap:last-child{margin-bottom:0}
+.fc-tip-sw-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.fc-tip-sw-name{color:var(--text);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;display:flex;align-items:center}
+.fc-tip-sw-val{font-weight:700;flex-shrink:0;font-size:12px}
+.fc-tip-status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px;flex-shrink:0}
+.fc-tip-scroll-hint{text-align:center;font-size:10px;color:var(--tm);padding:6px 0 0}
+.fc-tip-badge{display:inline-block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--tm);background:var(--sa);border:1px solid var(--border);padding:2px 8px;border-radius:20px;margin-bottom:8px}
+.fc-tip-note{font-size:11px;color:var(--tm);line-height:1.5;margin-top:8px}
+.fc-tip-disclaimer{font-size:10.5px;color:var(--tm);line-height:1.5;margin-top:14px;padding-top:10px;border-top:1px solid var(--divider);font-style:italic}
 
 /* CELL COLOR UTILITIES */
 .c-good{background:var(--gbg);color:var(--green)}
@@ -824,17 +861,18 @@ tr:hover td{background:#F8F9FB}
     <div class="sb-label" style="margin-top:1rem">Measure and Analyze</div>
     <button class="tab t-ti" onclick="showTab('team',this)"><div class="tab-icon">🔎</div>Team Insights</button>
     <button class="tab t-dr" onclick="showTab('drill',this)"><div class="tab-icon">🔬</div>Reviewer Deep-Dive</button>
-    <button class="tab t-sme" onclick="showTab('sme',this)"><div class="tab-icon">🧭</div>SME Deep Drive</button>
+    <button class="tab t-sme" onclick="showTab('sme',this)"><div class="tab-icon">🧭</div>SME Deep Dive</button>
     <button class="tab t-rca" onclick="showTab('rca-explorer',this)"><div class="tab-icon">🧩</div>RCA Explorer</button>
     <button class="tab t-jd" onclick="showTab('jobdetail',this)"><div class="tab-icon">📋</div>Job Detail Explorer</button>
     <button class="tab t-spot" onclick="showTab('spotcheck',this)"><div class="tab-icon">✅</div>Spotcheck</button>
 
     <div class="sb-label" style="margin-top:1rem">Improve and Control</div>
     <button class="tab t-defint" onclick="showTab('defint',this)"><div class="tab-icon">🧠</div>Defect Intelligence</button>
+    <button class="tab t-ctrl" onclick="showTab('control',this)"><div class="tab-icon">📊</div>Control Charts</button>
+
+    <div class="sb-label" style="margin-top:1rem">Coaching</div>
     <button class="tab t-cp" onclick="showTab('cp',this)"><div class="tab-icon">🎯</div>Coaching Priorities</button>
     <button class="tab t-outlier" onclick="showTab('outlier',this)"><div class="tab-icon">📌</div>Outlier Review</button>
-
-    <button class="tab t-ctrl" onclick="showTab('control',this)"><div class="tab-icon">📊</div>Improve &amp; Control</button>
     <button class="tab t-psp" onclick="showTab('psp',this)"><div class="tab-icon">📋</div>PSP Tracker</button>
     <button class="tab t-diw" onclick="showTab('didwork',this)"><div class="tab-icon">📈</div>Did It Work?</button>
 
@@ -850,7 +888,7 @@ tr:hover td{background:#F8F9FB}
     <div class="sb-footer">
       <strong>MyPerformance</strong>
       
-      <span id="sb-version-stamp">MVIO · v1.30 · %%BUILD_TS%%</span>
+      <span id="sb-version-stamp">MVIO · v1.36 · %%BUILD_TS%%</span>
     </div>
   </nav>
 
@@ -926,6 +964,16 @@ tr:hover td{background:#F8F9FB}
         <button class="freset" onclick="resetFilters()">Reset All</button>
     </div>
 
+    <!-- ─── ACTIVE FILTER CHIPS (Block 8.4) ───────────────────────────────────
+         Additive summary of the 6 handleSWChange()-driven multi-selects
+         (TL, Tenure, Review Type, Workflow, Sub-workflow, Role). The selects
+         themselves are untouched — chips read their state and remove one
+         option at a time via the same handleSWChange() call the selects
+         already use. g-reviewer and g-sme are NOT included: they drive
+         renderActiveTab() directly, not this filter cascade, and are a
+         person-picker rather than a category filter. -->
+    <div id="filter-chips" class="fbar tab-upload" style="min-height:0;padding-top:0;padding-bottom:0"></div>
+
     <!-- ─── COMMAND CENTER (Block 2) ─────────────────────────────────────────── -->
     <section id="tab-command" class="section">
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
@@ -975,9 +1023,9 @@ tr:hover td{background:#F8F9FB}
       <div class="kpi-row" id="e-alignment-cards" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:2rem"></div>
       <!-- End Tier 1 -->
 
-      <!-- Month-End Landing Forecast (Block 6) -->
-      <div class="kpi-section-label" style="display:flex;align-items:center">Month-End Landing Forecast</div>
-      <div id="e-forecast-strip"></div>
+      <!-- Month-End Forecast (Block 6) — now surfaced via hover tooltips on the
+           Precision/Recall/Accuracy/AHT KPI cards themselves; no standalone
+           strip section here per Karl's direction. -->
 
 
       <div class="kpi-section-label" style="margin-top:2rem;display:flex;align-items:center;gap:8px">Quality Trends <span id="e-trend-legend"></span>
@@ -991,6 +1039,7 @@ tr:hover td{background:#F8F9FB}
         <div class="chart-card"><div class="chart-title"><span id="lbl-acc-trend">Accuracy</span> <span id="vsf-acc-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-acc',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-acc"></canvas></div></div>
         <div class="chart-card"><div class="chart-title"><span id="lbl-prec-trend">Precision</span> <span id="vsf-prec-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-prec',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-prec"></canvas></div></div>
         <div class="chart-card"><div class="chart-title"><span id="lbl-rec-trend">Recall</span> <span id="vsf-rec-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-rec',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-rec"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Action Rate <span id="vsf-ar-trend" style="font-size:10px;color:var(--tm);font-weight:600"></span><button class="chart-expand-btn" onclick="event.stopPropagation();openExpandChart('chart-e-ar',this.closest('.chart-card').querySelector('.chart-title').textContent.trim())" title="Expand chart">⛶ Expand</button></div><div class="chart-wrap"><canvas id="chart-e-ar"></canvas></div></div>
       </div>
 
       <!-- SPC Signals — Western Electric rule violations on quality/AHT trend charts -->
@@ -1266,8 +1315,8 @@ tr:hover td{background:#F8F9FB}
           </div>
 
           <div id="ti-priority-surface-body">
-            <!-- Month-End Landing Forecast (Block 6) -->
-            <div id="ti-forecast-strip"></div>
+            <!-- Month-End Forecast (Block 6) — surfaced via hover tooltips on
+                 the team-level KPI cards; no standalone strip here. -->
 
             <!-- Subworkflow Health — 3-box summary (red/amber/green counts) -->
 
@@ -1377,7 +1426,7 @@ tr:hover td{background:#F8F9FB}
         </div>
         <div class="twrap">
           <table>
-            <thead><tr><th>Reviewer</th><th>Policy</th><th>SWs hit</th><th style="text-align:center">Errors</th><th colspan="3">Strike Status</th><th>Last Error</th></tr></thead>
+            <thead><tr><th>Reviewer</th><th>Sub-workflow</th><th>Policies hit</th><th style="text-align:center">Errors</th><th colspan="3">Strike Status</th><th>Last Error</th></tr></thead>
             <tbody id="ti-defect-log-table"></tbody>
           </table>
         </div>
@@ -1464,8 +1513,8 @@ tr:hover td{background:#F8F9FB}
       </div>
       <div id="dr-snapshot-card" style="margin-bottom:1.25rem"></div>
       <div id="dr-opp-panel" style="margin-bottom:1.25rem"></div>
-      <!-- Month-End Landing Forecast (Block 6) -->
-      <div id="dr-forecast-strip" style="margin-bottom:1.25rem"></div>
+      <!-- Month-End Forecast (Block 6) — surfaced via hover tooltips on the
+           reviewer snapshot card's KPI rows; no standalone strip here. -->
 
       <div class="kpi-section-label" style="display:flex;align-items:center;justify-content:space-between">
         <span>Performance Summary Table (Weekly Pivot) <span id="d-summary-table-legend"></span></span>
@@ -1555,7 +1604,7 @@ tr:hover td{background:#F8F9FB}
       </div>
       <div class="twrap">
         <table>
-          <thead><tr><th>Reviewer</th><th>Policy</th><th>SWs hit</th><th style="text-align:center">Errors</th><th colspan="3">Strike Status</th><th>Last Error</th></tr></thead>
+          <thead><tr><th>Reviewer</th><th>Sub-workflow</th><th>Policies hit</th><th style="text-align:center">Errors</th><th colspan="3">Strike Status</th><th>Last Error</th></tr></thead>
           <tbody id="d-table"></tbody>
         </table>
       </div>
@@ -1620,7 +1669,7 @@ tr:hover td{background:#F8F9FB}
     <!-- ── SME ───────────────────────────────────────────────────────────── -->
     <section id="tab-sme" class="section">
       <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div><h1>SME Deep Drive</h1><p>Personal performance and supported-team QA for Subject Matter Experts.</p></div>
+        <div><h1>SME Deep Dive</h1><p>Personal performance and supported-team QA for Subject Matter Experts.</p></div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap">
           <button onclick="openSmeCoachingModal('weekly')" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--purple);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📄 Weekly Coaching Doc</button>
           <button onclick="openSmeCoachingModal('monthly')" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">📅 Monthly Coaching Doc</button>
@@ -2150,31 +2199,15 @@ tr:hover td{background:#F8F9FB}
         <select id="di-reviewer-select" multiple data-label="Reviewers" onchange="renderDefectIntelligence()"></select>
       </div>
 
-      <!-- Main panels: Policy Risk + SW Risk side by side -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-        <!-- Policy risk panel -->
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
-          <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em">Policy Risk — Not Improving</span>
-            <div id="di-decay-pills" style="display:flex;gap:4px"></div>
-          </div>
-          <div id="di-policy-table-wrap" class="twrap" style="border-radius:0"><table id="di-policy-table" style="min-width:300px">
-            <thead><tr>
-              <th>Policy</th><th>Repeats</th><th>Trend</th><th>Status</th><th>Type</th>
-            </tr></thead>
-            <tbody id="di-policy-tbody"></tbody>
-          </table></div>
-          <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--sa);font-size:11px;color:var(--ts);display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-            <div><span style="font-weight:700;color:var(--text)">What it shows</span><br>Policies with repeat errors ranked by urgency. Systemic = ≥2 reviewers failing the same policy.</div>
-            <div><span style="font-weight:700;color:var(--text)">What it means</span><br>Active policies need immediate coaching. Systemic policies indicate a calibration gap — not just one reviewer.</div>
-            <div><span style="font-weight:700;color:var(--text)">Next step</span><br>Start with Active + Systemic. These affect multiple reviewers and are unresolved. Add to team agenda.</div>
-          </div>
-        </div>
-
+      <!-- Main panel: SW Risk (v97.7: Policy Risk panel removed — strike
+           counting is SW-only now, full-width single panel replaces the
+           former side-by-side Policy Risk + SW Risk layout) -->
+      <div style="margin-bottom:14px">
         <!-- SW risk panel -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
-          <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
             <span style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em">Sub-workflow Risk — Not Improving</span>
+            <div id="di-decay-pills" style="display:flex;gap:4px"></div>
           </div>
           <div id="di-sw-table-wrap" class="twrap" style="border-radius:0"><table id="di-sw-table" style="min-width:300px">
             <thead><tr>
@@ -2185,14 +2218,14 @@ tr:hover td{background:#F8F9FB}
           <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--sa);font-size:11px;color:var(--ts);display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
             <div><span style="font-weight:700;color:var(--text)">What it shows</span><br>Sub-workflows with concentrated repeat errors — where the queue itself may be driving mistakes.</div>
             <div><span style="font-weight:700;color:var(--text)">What it means</span><br>High-active SWs suggest queue-level difficulty or insufficient calibration for that content type.</div>
-            <div><span style="font-weight:700;color:var(--text)">Next step</span><br>Cross-reference with Policy Risk. If the same SW dominates both tables, target that queue for a team calibration session.</div>
+            <div><span style="font-weight:700;color:var(--text)">Next step</span><br>Target the highest-active SW for a team calibration session.</div>
           </div>
         </div>
       </div>
 
       <!-- Trajectory chart -->
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;margin-bottom:1.5rem">
-        <div style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Defect Trajectory — Top Active Policies <span style="font-weight:500;font-size:11px;color:var(--tm)">(monthly error count)</span> <span id="di-traj-period" style="font-size:10px;color:var(--blue);background:var(--bbg);border-radius:var(--pill);padding:1px 8px;font-weight:700;margin-left:4px"></span></div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Defect Trajectory — Top Active Sub-workflows <span style="font-weight:500;font-size:11px;color:var(--tm)">(monthly error count)</span> <span id="di-traj-period" style="font-size:10px;color:var(--blue);background:var(--bbg);border-radius:var(--pill);padding:1px 8px;font-weight:700;margin-left:4px"></span></div>
         <div id="di-legend" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;color:var(--tm)"></div>
         <div style="position:relative;width:100%;height:180px"><canvas id="di-traj-chart" role="img" aria-label="Line chart showing monthly defect counts for top active policies"></canvas></div>
         <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;font-size:11px;color:var(--ts);display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
@@ -2235,13 +2268,13 @@ tr:hover td{background:#F8F9FB}
       <!-- HEADER -->
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:8px">
         <div class="ph" style="margin-bottom:0">
-          <h1>Improve &amp; Control Phase</h1>
+          <h1>Control Charts Phase</h1>
           <p id="c-period-label">Comparing most recent two months · All TLs · All Tenures</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button id="ctrl-latest-sup-btn" onclick="toggleLatestSupervisor()" style="height:30px;padding:0 13px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--ts);border-radius:var(--r);cursor:pointer;font-family:var(--f);white-space:nowrap">Latest Supervisor</button>
           <span style="font-size:11px;color:var(--tm);background:var(--sa);border-radius:var(--pill);padding:2px 9px">Low n &lt;30 decisions</span>
-          <button onclick="copyTabToHTML('tab-control','Improve &amp; Control Phase',this)" style="font-size:11px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">Copy as HTML</button>
+          <button onclick="copyTabToHTML('tab-control','Control Charts Phase',this)" style="font-size:11px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--r);padding:5px 12px;cursor:pointer;font-family:var(--f);white-space:nowrap">Copy as HTML</button>
         </div>
       </div>
 
@@ -2381,7 +2414,7 @@ tr:hover td{background:#F8F9FB}
 
         <!-- Row 1: Filter by cohort status -->
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <span style="font-size:11px;font-weight:700;color:var(--ts);min-width:100px">Filter by cohort status:</span>
+          <span style="font-size:11px;font-weight:700;color:var(--ts);min-width:100px">Filter by PSP status:</span>
           <button class="psp-sf active" data-status="all" onclick="setPSPFilter('all',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--text);color:#fff;cursor:pointer;font-family:var(--f)">All</button>
           <button class="psp-sf" data-status="PSP" onclick="setPSPFilter('PSP',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--cbd);background:var(--cbg);color:var(--coral);cursor:pointer;font-family:var(--f)">PSP only</button>
           <button class="psp-sf" data-status="Non-PSP" onclick="setPSPFilter('Non-PSP',this)" style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:var(--pill);border:1.5px solid var(--border);background:var(--sa);color:var(--ts);cursor:pointer;font-family:var(--f)">Non-PSP only</button>
@@ -5311,6 +5344,17 @@ function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount, opts)
     const clickable = !!opts.onClick;
     const clickAttr = clickable ? ` onclick="${opts.onClick.replace(/"/g,'&quot;')}" role="button" tabindex="0"` : '';
 
+    // Optional forecast tooltip dot, injected next to the label. Additive —
+    // every existing kcard() call site that doesn't pass opts.forecastRows/
+    // opts.forecastMetric is completely unaffected (empty string, no-op).
+    // uid must be unique per card per render; caller supplies via
+    // opts.forecastUid, falling back to a label-derived slug.
+    let forecastDotHtml = '';
+    if (opts.forecastRows && opts.forecastMetric) {
+        const uid = opts.forecastUid || ('fc-tip-' + flagKey + '-' + Math.random().toString(36).slice(2, 8));
+        forecastDotHtml = forecastTooltipDotHTML(opts.forecastRows, opts.forecastMetric, opts.forecastMetricLabel || label, uid);
+    }
+
     if (compact) {
         // Compact variant (Site Health Tier 1 cards): status color is the dominant
         // signal — tinted background + left border bar + status dot — read before
@@ -5343,7 +5387,7 @@ function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount, opts)
         </div>
         ${vsfHtml}
       </div>
-      <div class="kcard-val" style="font-size:24px; font-weight:600; font-family:var(--m); color:var(--text); line-height:1.05">${val}</div>
+      <div class="kcard-val" style="font-size:24px; font-weight:600; font-family:var(--m); color:var(--text); line-height:1.05; display:flex; align-items:baseline; gap:2px">${val}${forecastDotHtml}</div>
       ${subLineHtml}
     </div>`;
     }
@@ -5365,7 +5409,7 @@ function kcard(label, val, flagKey, passRateStr, passRatePct, vsf, nCount, opts)
     return `<div class="kcard" style="position:relative; padding:13px 15px; padding-top:28px; ${clickStyle}"${clickAttr}>
       ${vsfHtml}
       <div class="kcard-lbl">${label}</div>
-      <div class="kcard-val ${fClass}" style="font-size:22px">${val}</div>
+      <div class="kcard-val ${fClass}" style="font-size:22px">${val}${forecastDotHtml}</div>
       ${passRateHtml}
     </div>`;
 }
@@ -5588,10 +5632,38 @@ function getQualLabel(type) {
     return 'Adjusted';
 }
 
-// ── Month-End Landing Forecast (Block 6) ────────────────────────────────────
+// ── Month-End Forecast (Block 6, v97 rewrite, v97.1 tooltip conversion) ─────
 // Single shared helper called from all three surfaces (Site Health, Team
 // Insights, Reviewer Deep-Dive) per the spec's explicit constraint — never
 // three variants of this math.
+//
+// v97 CHANGE LOG (validated against 7 months of real production data,
+// Combined_PivotExport_20260811_185148.csv, backtested at reviewer+SW,
+// team, and site grains before this was written):
+//
+// 1. FIXED A NO-OP BUG: the v96 "projectedRate" concept
+//    (mtdCorrect + currentRate*remN)/(mtdN+remN) is algebraically identical
+//    to currentRate for ALL inputs — weighting a rate by itself and
+//    re-blending it with its own source pool returns the same rate. v96
+//    never actually surfaced this as a field, but the fix matters because
+//    v97 now surfaces projectedRate directly in the UI. Corrected below:
+//    projectedRate genuinely equals currentRate under the "hold flat"
+//    assumption — that IS the correct math for a flat-hold projection, we
+//    just no longer pretend the formula does more than that. Recency
+//    weighting (linear + exponential schemes, tested) made accuracy WORSE
+//    in every slice tested (site/team/reviewer+SW, all 3 metrics, weeks
+//    2-3 splits) — dropped. Flat-hold is the empirically best-supported
+//    method on this data (backtest MAE 0.37-1.17pp depending on grain).
+//
+// 2. WORST-CASE BAND (new): sized off the empirical 5th-percentile
+//    single-week downside deviation (-3.12pp) observed across ~570
+//    reviewer+SW+month cases, scaled by how much remaining volume is left
+//    (fewer remaining weeks = one bad week has more leverage on the
+//    month-end total — confirmed: 1 remaining week -> -0.99pp avg impact,
+//    2 remaining weeks -> -0.60pp avg impact). No fixed intra-month
+//    "dip" pattern was found (all positional deviations <0.25pp, tested
+//    both by absolute week position and weeks-from-month-end) so the band
+//    is a downside RANGE, not a point-estimate correction.
 //
 //   requiredRate = (target * (mtdN + remN) - mtdCorrect) / remN
 //
@@ -5600,12 +5672,44 @@ function getQualLabel(type) {
 // (higherIsBetter=false), the same formula is applied to the complementary
 // "under-target" framing so a single formula covers both directions — see
 // call sites, which pass mtdCorrect as the AHT-equivalent "good" quantity.
-function forecastLanding(mtdCorrect, mtdN, remN, target, higherIsBetter = true) {
+//
+// P5_WEEK_DROP: empirical 5th-percentile single-week rate deviation below
+// MTD rate, from the 20260811 backtest (reviewer+SW grain, min 3 audits in
+// the worst week). Applies to quality metrics (0-1 rate space). AHT's
+// worst-case band reuses the same proportional deviation since no
+// AHT-specific backtest was run separately — flagged for future validation
+// if Karl wants AHT-specific tail sizing.
+const P5_WEEK_DROP = 0.0312;
+
+function forecastLanding(mtdCorrect, mtdN, remN, target, higherIsBetter = true, remWeeks = 1) {
     if (remN <= 0 || mtdN < 0) {
-        return { status: 'no-remaining', requiredRate: null, currentRate: mtdN > 0 ? mtdCorrect / mtdN : null };
+        return { status: 'no-remaining', requiredRate: null, currentRate: mtdN > 0 ? mtdCorrect / mtdN : null, projectedRate: null, worstCaseRate: null };
     }
     const currentRate = mtdN > 0 ? mtdCorrect / mtdN : null;
     const requiredRate = (target * (mtdN + remN) - mtdCorrect) / remN;
+
+    // Projected month-end rate: hold current rate flat across remaining
+    // volume. This is mathematically equal to currentRate (see note above)
+    // — surfaced explicitly so the UI always states the actual number
+    // driving the projection rather than implying unstated math.
+    const projectedRate = currentRate;
+
+    // Worst-case month-end rate: simulate one remaining week landing at the
+    // P5 downside deviation, the rest of the remaining weeks at currentRate.
+    // Scales the impact by 1/remWeeks — matches the empirically observed
+    // dilution effect (fewer weeks left = a bad week has more leverage).
+    let worstCaseRate = null;
+    if (currentRate !== null && remWeeks > 0) {
+        const dropDirection = higherIsBetter ? -1 : 1; // AHT: worse = higher seconds
+        const perWeekN = remN / remWeeks;
+        const badWeekRate = higherIsBetter
+            ? Math.max(0, currentRate + dropDirection * P5_WEEK_DROP)
+            : currentRate + dropDirection * P5_WEEK_DROP * currentRate; // proportional for AHT (unbounded scale)
+        const badWeekCorrect = badWeekRate * perWeekN;
+        const otherWeeksN = perWeekN * (remWeeks - 1);
+        const otherWeeksCorrect = currentRate * otherWeeksN;
+        worstCaseRate = (mtdCorrect + badWeekCorrect + otherWeeksCorrect) / (mtdN + remN);
+    }
 
     // Clamp 1: required rate is physically impossible.
     // Quality metrics are 0-1 rates, so >100% pass rate needed is impossible.
@@ -5613,131 +5717,473 @@ function forecastLanding(mtdCorrect, mtdN, remN, target, higherIsBetter = true) 
     // impossible case there is a negative required time, not a >1 check.
     const impossible = higherIsBetter ? requiredRate > 1 : requiredRate < 0;
     if (impossible) {
-        return { status: 'not-recoverable', requiredRate, currentRate };
+        return { status: 'not-recoverable', requiredRate, currentRate, projectedRate, worstCaseRate };
     }
     // Clamp 2: required rate is at or below current pace — already on track.
     if (currentRate !== null && (higherIsBetter ? requiredRate <= currentRate : requiredRate >= currentRate)) {
-        return { status: 'on-track', requiredRate, currentRate };
+        return { status: 'on-track', requiredRate, currentRate, projectedRate, worstCaseRate };
     }
-    return { status: 'needs-lift', requiredRate, currentRate };
+    return { status: 'needs-lift', requiredRate, currentRate, projectedRate, worstCaseRate };
 }
 
-// Formats a forecastLanding() result into a message string, given a
+// Formats a forecastLanding() result into headline + subtext lines, given a
 // unit-aware value formatter (percentage for quality metrics, seconds for AHT).
-function forecastMessage(result, fmtVal) {
+// v97: headline always leads with the PROJECTED FORECAST NUMBER vs. target —
+// never a sub-target MTD/breakeven figure alone — per Karl's explicit
+// instruction that no phrasing should read as if a below-target number were
+// acceptable. required-rate ("what needs to change") is demoted to a
+// separate action line, only shown when status is needs-lift. Terminology:
+// user-facing strings say "Forecast", not "Landing" (renamed v97.1).
+function forecastMessage(result, fmtVal, targetVal) {
     if (!result || result.status === 'no-remaining') return null;
-    if (result.status === 'not-recoverable') return 'Not recoverable this month';
-    if (result.status === 'on-track') return `On track · holds even at ${fmtVal(result.requiredRate)}`;
-    return `Need ${fmtVal(result.requiredRate)} the rest of the month`;
+    const tgt = targetVal != null ? fmtVal(targetVal) : null;
+    if (result.status === 'not-recoverable') {
+        const projPart = result.projectedRate != null ? `Projected ${fmtVal(result.projectedRate)}` : null;
+        const maxPart = result.worstCaseRate != null ? `Max possible ${fmtVal(result.worstCaseRate)}` : null;
+        const subParts = [projPart, maxPart, tgt ? `Target ${tgt}` : null].filter(Boolean);
+        return {
+            headline: 'Not recoverable this month',
+            sub: subParts.length ? subParts.join(' · ') : null,
+            action: null,
+        };
+    }
+    if (result.status === 'on-track') {
+        return {
+            headline: `Projected to land at ${fmtVal(result.projectedRate)}`,
+            sub: tgt ? `${fmtVal(result.currentRate)} MTD · Target ${tgt}` : `${fmtVal(result.currentRate)} MTD`,
+            action: result.worstCaseRate != null ? `Worst-case if a rough week hits: ${fmtVal(result.worstCaseRate)}` : null,
+        };
+    }
+    // needs-lift
+    return {
+        headline: `Projected to land at ${fmtVal(result.projectedRate)} if unchanged`,
+        sub: tgt ? `${fmtVal(result.currentRate)} MTD · Target ${tgt}` : `${fmtVal(result.currentRate)} MTD`,
+        action: null,
+    };
 }
 
-// Estimates remaining decision volume for the current month: trailing 4-week
-// daily average x working days left in the month. "Working day" here means
-// any day appearing in the dataset's own weekly cadence — approximated as a
-// 5-day week since RAW_ROWS carries no explicit business-calendar flag.
+// v97: BMS runs a fixed 4-4-5 reporting-week calendar, NOT calendar months —
+// confirmed against 8 months of real export data (Combined_PivotExport_
+// 20260811_185148.csv): Jan/Feb=4wk, Mar=5wk, Apr/May=4wk, Jun=5wk, Jul/Aug
+// =4wk pattern, matching standard month-3/6/9/12-gets-5th-week convention.
+// Karl confirmed this is fixed permanently (not a shifting fiscal rule), so
+// it's safe to hardcode. Calendar-day math (v96's Date(y,m,0).getDate()) was
+// measuring the wrong thing entirely — a March calendar-day count has no
+// relationship to BMS's March bucket, which actually starts on a
+// last-week-of-February week-ending date.
+function weeksInMonth(monthNum) {
+    return (monthNum % 3 === 0) ? 5 : 4;
+}
+
+// Estimates remaining decision volume AND remaining week count for the
+// current month, using the 4-4-5 week model instead of calendar days.
+// Returns {volume, weeksRemaining} — weeksRemaining feeds the worst-case
+// band scaling in forecastLanding (fewer weeks left = one bad week has more
+// leverage on the month-end total; confirmed empirically in the backtest).
 function forecastRemainingVolume(rows, asOfMonth) {
-    if (!WEEKS.length) return 0;
+    if (!WEEKS.length) return { volume: 0, weeksRemaining: 0 };
     const last4Weeks = WEEKS.slice(-4);
     const last4Rows = rows.filter(r => last4Weeks.includes(r.week));
     const totalDec = last4Rows.reduce((s, r) => s + (r.decisions || 0), 0);
-    // Each WEEKS entry represents one week-ending date; 4 weeks ~ 20 working days (5/wk).
     const daysInSample = last4Weeks.length * 5;
     const dailyAvg = daysInSample > 0 ? totalDec / daysInSample : 0;
 
     const [y, m] = asOfMonth.split('-').map(Number);
-    if (!y || !m) return 0;
-    const today = new Date();
-    const isCurrentMonth = today.getFullYear() === y && (today.getMonth() + 1) === m;
-    const refDate = isCurrentMonth ? today : new Date(y, m, 0); // if not current month, no remaining days
-    const daysInMonth = new Date(y, m, 0).getDate();
-    const dayOfMonth = isCurrentMonth ? refDate.getDate() : daysInMonth;
-    const calendarDaysLeft = Math.max(0, daysInMonth - dayOfMonth);
-    // Approximate working days left as 5/7 of calendar days left.
-    const workingDaysLeft = Math.round(calendarDaysLeft * (5 / 7));
-    return dailyAvg * workingDaysLeft;
+    if (!y || !m) return { volume: 0, weeksRemaining: 0 };
+
+    const expectedWeeks = weeksInMonth(m);
+    // Weeks already logged for this month, from the rows' own week set —
+    // derived from data, not assumed from today's date, so this stays
+    // correct even if the dashboard is viewed for a past or partial month.
+    // r.week is a YMD string (parseDateToYMD), so Set-dedup works directly.
+    const monthRows = rows.filter(r => r.month === asOfMonth);
+    const weeksLogged = new Set(monthRows.map(r => r.week)).size;
+    const weeksRemaining = Math.max(0, expectedWeeks - weeksLogged);
+
+    return { volume: dailyAvg * weeksRemaining * 5, weeksRemaining };
 }
 
-function forecastCardHTML(title, result, fmtVal) {
-    if (!result || result.status === 'no-remaining') {
-        return `<div style="background:var(--sa);border-radius:var(--r);padding:10px 12px">
-            <div style="font-size:11px;color:var(--tm);margin-bottom:2px">${title}</div>
-            <div style="font-size:12px;color:var(--tm)">No remaining volume to forecast</div>
-        </div>`;
-    }
-    const message = forecastMessage(result, fmtVal);
-    const color = result.status === 'not-recoverable' ? 'var(--coral)' : result.status === 'on-track' ? 'var(--green)' : 'var(--amber)';
-    return `<div style="background:var(--sa);border-radius:var(--r);padding:10px 12px">
-        <div style="font-size:11px;color:var(--tm);margin-bottom:2px">${title}</div>
-        <div style="font-size:13px;font-weight:700;color:${color}">${message}</div>
-    </div>`;
-}
+// ── Forecast tooltip rendering (v97.1) ──────────────────────────────────────
+// Replaces the standalone forecast strip entirely — per Karl's direction,
+// forecast detail now lives ONLY in hover tooltips attached to the
+// Precision/Recall/Accuracy/AHT KPI rows at all three levels (Site, Team,
+// Reviewer/TL). Terminology renamed "Landing" -> "Forecast" throughout all
+// user-facing strings per Karl's instruction; internal function/variable
+// names (forecastLanding, projectedRate, etc.) are left as-is since renaming
+// those is a pure internal refactor with no user-facing benefit.
 
-// Builds the 4-metric forecast strip (Adjusted Accuracy, Precision, Recall,
-// AHT) for a given row set and target lookup, applying the AR gate exactly as
-// used elsewhere in the app (ar !== null && ar >= 0.10 -> Precision+Recall
-// display, else Adjusted Accuracy) and SR_RV_EXCLUDE on team-level callers.
-function renderForecastStrip(containerId, rows, targetsFn, applyExclusion = false) {
-    const el = document.getElementById(containerId);
-    if (!el) return;
-    if (applyExclusion) {
-        // Same exclusion list used by renderStackRank() team roll-ups —
-        // duplicated locally per this file's duplicate-over-refactor convention.
-        const SR_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
-        rows = rows.filter(r => !SR_RV_EXCLUDE.includes(r.reviewer));
-    }
-    if (!rows.length || !WEEKS.length) { el.innerHTML = ''; return; }
-
+// Computes ONE metric's forecast (Precision, Recall, Accuracy, or AHT) for a
+// given row set, both OVERALL (pooled across whatever SWs are in rows) and
+// PER-SUB-WORKFLOW. Returns null if there's no usable MTD data.
+//
+// metric: 'prec' | 'rec' | 'acc' | 'aht'
+// Returns: {
+//   overall: forecastLanding() result object (or null),
+//   overallTarget: number,
+//   swBreakdown: [{ sw, result, target, decisions }, ...]  -- one entry per
+//     SW that has data for this metric, UNSORTED (caller sorts per spec).
+// }
+function computeMetricForecast(rows, metric) {
+    if (!rows.length || !WEEKS.length) return null;
     const currMonth = [...new Set(rows.map(r => r.month).filter(Boolean))].sort().slice(-1)[0];
-    if (!currMonth) { el.innerHTML = ''; return; }
-
+    if (!currMonth) return null;
     const mtdRows = rows.filter(r => r.month === currMonth);
-    const tp = mtdRows.reduce((s, r) => s + (r.tpa || 0), 0);
-    const fp = mtdRows.reduce((s, r) => s + (r.fpa || 0), 0);
-    const fn = mtdRows.reduce((s, r) => s + (r.fna || 0), 0);
-    const tn = mtdRows.reduce((s, r) => s + (r.tna || 0), 0);
-    const dec = mtdRows.reduce((s, r) => s + (r.decisions || 0), 0);
-    const dht = mtdRows.reduce((s, r) => s + (r.dht || 0), 0);
-    const nht = mtdRows.reduce((s, r) => s + (r.nht || 0), 0);
-    const totalAudits = tp + fp + fn + tn;
-    const ar = totalAudits > 0 ? (tp + fp) / totalAudits : null;
-    const usesPR = ar !== null && ar >= 0.10;
+    if (!mtdRows.length) return null;
 
-    const remVol = forecastRemainingVolume(rows, currMonth);
-    const targets = targetsFn(rows);
+    function metricForRowset(rs, sw) {
+        const tp = rs.reduce((s, r) => s + (r.tpa || 0), 0);
+        const fp = rs.reduce((s, r) => s + (r.fpa || 0), 0);
+        const fn = rs.reduce((s, r) => s + (r.fna || 0), 0);
+        const tn = rs.reduce((s, r) => s + (r.tna || 0), 0);
+        const dec = rs.reduce((s, r) => s + (r.decisions || 0), 0);
+        const dht = rs.reduce((s, r) => s + (r.dht || 0), 0);
+        const nht = rs.reduce((s, r) => s + (r.nht || 0), 0);
 
-    let cards = '';
-    const pctFmt = v => (v * 100).toFixed(1) + '%';
-    const secFmt = v => Number(v).toFixed(0) + 's';
-    if (usesPR) {
-        const precN = tp + fp, recN = tp + fn;
-        // Volume split proportionally to MTD mix for the remaining-audit estimate.
-        const remPrecN = precN > 0 && totalAudits > 0 ? remVol * (precN / dec || 0) : remVol;
-        const remRecN = recN > 0 && totalAudits > 0 ? remVol * (recN / dec || 0) : remVol;
-        const precResult = forecastLanding(tp, precN, remPrecN, targets.prec, true);
-        const recResult  = forecastLanding(tp, recN, remRecN, targets.rec, true);
-        cards += forecastCardHTML('Precision landing', precResult, pctFmt);
-        cards += forecastCardHTML('Recall landing', recResult, pctFmt);
-    } else {
-        const accN = tp + tn + fp + fn;
-        const accCorrect = tp + tn;
-        const remAccN = accN > 0 ? remVol * (accN / dec || 1) : remVol;
-        const accResult = forecastLanding(accCorrect, accN, remAccN, targets.acc, true);
-        cards += forecastCardHTML('Adj Accuracy landing', accResult, pctFmt);
+        const remInfo = forecastRemainingVolume(rs, currMonth);
+        const remVol = remInfo.volume;
+        const remWeeks = Math.max(1, remInfo.weeksRemaining);
+
+        const swT = sw ? (SW_TARGETS[sw] || {}) : {};
+        const fallbackAcc = BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96;
+        const accTarget = swT.acc != null ? swT.acc : fallbackAcc;
+        const precTarget = swT.prec != null ? swT.prec : accTarget;
+        const recTarget = swT.rec != null ? swT.rec : accTarget;
+        const ahtTarget = swT.aht != null ? swT.aht : null;
+
+        if (metric === 'prec') {
+            const n = tp + fp;
+            if (n <= 0) return null;
+            // Decomposed volume chain (Karl's explicit spec): forecasted decisions
+            // (shared AHT baseline) -> x Audit Rate (audits/decisions) -> forecasted
+            // audit count -> x Action Rate ((TP+FP)/audits) -> forecasted precision-
+            // denominator target. Backtested against 7mo real data (20260811 export):
+            // this decomposition is algebraically IDENTICAL to the prior blended
+            // ratio (remVol * n/dec) for the final target number — MAE 1.14 audits
+            // either way — so accuracy is unchanged. What's new is exposing the
+            // audit-count step itself, which carries real standalone error (Audit
+            // Rate swings ~13pp mean, up to 38pp p90 month-to-month) even though the
+            // combined ratio used downstream is stable (~0pp median error). Audit
+            // count is shown with an honest range rather than as a bare point figure.
+            const auditsMtd = tp + fp + fn + tn;
+            const auditRate = dec > 0 ? auditsMtd / dec : 0;
+            const forecastedAudits = remVol * auditRate;
+            // Range: +-13pp of the audit rate itself (empirical mean absolute error
+            // from the backtest), applied to the forecasted audit count.
+            const auditRateErrBand = 0.13;
+            const auditsLow = Math.max(0, forecastedAudits * (1 - auditRateErrBand));
+            const auditsHigh = forecastedAudits * (1 + auditRateErrBand);
+            const remN = dec > 0 ? remVol * (n / dec) : remVol;
+            const result = forecastLanding(tp, n, remN, precTarget, true, remWeeks);
+            const tpNeeded = result.requiredRate != null ? Math.max(0, Math.ceil(result.requiredRate * remN)) : null;
+            // Forecasted Violating Count: projected TP if the current rate
+            // holds flat (same "what will likely happen" assumption as the
+            // headline projectedRate) — a different number from tpNeeded
+            // ("what needs to happen" to hit target). Same +-13pp Audit Rate
+            // error band applied, since remN inherits that volatility.
+            const projectedTP = result.projectedRate != null ? Math.round(result.projectedRate * remN) : null;
+            const projectedTPLow = result.projectedRate != null ? Math.max(0, Math.round(result.projectedRate * remN * (1 - auditRateErrBand))) : null;
+            const projectedTPHigh = result.projectedRate != null ? Math.round(result.projectedRate * remN * (1 + auditRateErrBand)) : null;
+            return { result, target: precTarget, decisions: dec, forecastedAudits, auditsLow, auditsHigh, remN, tpNeeded, projectedTP, projectedTPLow, projectedTPHigh };
+        }
+        if (metric === 'rec') {
+            const n = tp + fn;
+            if (n <= 0) return null;
+            const auditsMtd = tp + fp + fn + tn;
+            const auditRate = dec > 0 ? auditsMtd / dec : 0;
+            const forecastedAudits = remVol * auditRate;
+            const auditRateErrBand = 0.13;
+            const auditsLow = Math.max(0, forecastedAudits * (1 - auditRateErrBand));
+            const auditsHigh = forecastedAudits * (1 + auditRateErrBand);
+            const remN = dec > 0 ? remVol * (n / dec) : remVol;
+            const result = forecastLanding(tp, n, remN, recTarget, true, remWeeks);
+            const tpNeeded = result.requiredRate != null ? Math.max(0, Math.ceil(result.requiredRate * remN)) : null;
+            const projectedTP = result.projectedRate != null ? Math.round(result.projectedRate * remN) : null;
+            const projectedTPLow = result.projectedRate != null ? Math.max(0, Math.round(result.projectedRate * remN * (1 - auditRateErrBand))) : null;
+            const projectedTPHigh = result.projectedRate != null ? Math.round(result.projectedRate * remN * (1 + auditRateErrBand)) : null;
+            return { result, target: recTarget, decisions: dec, forecastedAudits, auditsLow, auditsHigh, remN, tpNeeded, projectedTP, projectedTPLow, projectedTPHigh };
+        }
+        if (metric === 'acc') {
+            const n = tp + tn + fp + fn;
+            if (n <= 0) return null;
+            const remN = dec > 0 ? remVol * (n / dec) : remVol;
+            return { result: forecastLanding(tp + tn, n, remN, accTarget, true, remWeeks), target: accTarget, decisions: dec };
+        }
+        if (metric === 'aht') {
+            if (!ahtTarget || dec <= 0) return null;
+            const usedBudget = dht + nht;
+            return { result: forecastLanding(usedBudget, dec, remVol, ahtTarget, false, remWeeks), target: ahtTarget, decisions: dec };
+        }
+        return null;
     }
-    // AHT: inverted (lower is better). mtdCorrect is the total seconds used
-    // MTD (dht+nht summed); mtdN/remN are decision counts; target is the
-    // per-decision AHT target in seconds. See dimensional check in the
-    // forecastLanding doc comment above — the formula holds for rate-vs-total
-    // pairs regardless of direction.
-    const ahtTarget = targets.aht;
-    if (ahtTarget && dec > 0) {
-        const usedBudget = dht + nht;
-        const ahtResult = forecastLanding(usedBudget, dec, remVol, ahtTarget, false);
-        cards += forecastCardHTML('AHT landing', ahtResult, secFmt);
+
+    const overallData = metricForRowset(mtdRows, null);
+
+    // AHT blended/overall figure (v97.2): unlike prec/rec/acc, AHT has no
+    // single flat "Overall" target in the band table (workflow/SW-specific
+    // by design). Karl's decision: show BOTH a blended figure that matches
+    // the MTD snapshot card exactly (via calcJobTarget's weighted-mean
+    // target, same DHT-share weighting the card already uses) AND the
+    // per-SW breakdown, clearly labeled as two different views — this
+    // avoids the "meets MTD but fails forecast" contradiction that occurs
+    // when the blended card and a per-SW-only forecast silently disagree.
+    let ahtBlended = null;
+    if (metric === 'aht' && typeof calcJobTarget === 'function') {
+        const jt = calcJobTarget(mtdRows);
+        if (jt && jt.weightedAHTTarget != null && jt.actualAHT != null) {
+            const dec = mtdRows.reduce((s, r) => s + (r.decisions || 0), 0);
+            const dht = mtdRows.reduce((s, r) => s + (r.dht || 0), 0);
+            const nht = mtdRows.reduce((s, r) => s + (r.nht || 0), 0);
+            const remInfo = forecastRemainingVolume(mtdRows, currMonth);
+            const remWeeks = Math.max(1, remInfo.weeksRemaining);
+            const usedBudget = dht + nht;
+            if (dec > 0) {
+                const result = forecastLanding(usedBudget, dec, remInfo.volume, jt.weightedAHTTarget, false, remWeeks);
+                ahtBlended = { result, target: jt.weightedAHTTarget };
+            }
+        }
     }
 
-    el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(${usesPR ? 3 : 2},1fr);gap:10px;margin:0.75rem 0">${cards}</div>`;
+    // AHT has no single meaningful "Overall" target (workflow/SW-specific by
+    // design — e.g. Actor exc=58s vs other workflows differ substantially),
+    // so overallData is expected to be null for metric='aht'. Per Karl's
+    // explicit call: skip the overall number for AHT (no dot on the pooled
+    // AHT row), but still compute and return the per-SW breakdown below,
+    // since real AHT targets do exist at the SW level. For prec/rec/acc,
+    // a null overallData means there's genuinely no usable data at all.
+    if (!overallData && metric !== 'aht') return null;
+
+    const bySw = new Map();
+    for (const r of mtdRows) {
+        const sw = r.sw || '(No Sub-workflow)';
+        if (!bySw.has(sw)) bySw.set(sw, []);
+        bySw.get(sw).push(r);
+    }
+    const swBreakdown = [];
+    for (const [sw, swRows] of bySw.entries()) {
+        const d = metricForRowset(rows.filter(r => (r.sw || '(No Sub-workflow)') === sw), sw);
+        if (d) swBreakdown.push({ sw, ...d });
+    }
+
+    return {
+        overall: overallData ? overallData.result : null,
+        overallTarget: overallData ? overallData.target : null,
+        overallForecastedAudits: overallData ? overallData.forecastedAudits : null,
+        overallAuditsLow: overallData ? overallData.auditsLow : null,
+        overallAuditsHigh: overallData ? overallData.auditsHigh : null,
+        overallTpNeeded: overallData ? overallData.tpNeeded : null,
+        overallRemN: overallData ? overallData.remN : null,
+        overallProjectedTP: overallData ? overallData.projectedTP : null,
+        overallProjectedTPLow: overallData ? overallData.projectedTPLow : null,
+        overallProjectedTPHigh: overallData ? overallData.projectedTPHigh : null,
+        ahtBlended,
+        swBreakdown,
+    };
 }
+
+// Formats a forecastLanding() result into a compact one-line string for the
+// tooltip's SW rows (shorter than the full headline/sub/action used on the
+// old strip cards, since tooltip real estate is tighter).
+function forecastCompactLabel(result, fmtVal) {
+    if (!result || result.status === 'no-remaining') return '—';
+    if (result.status === 'not-recoverable') {
+        return result.projectedRate != null ? `${fmtVal(result.projectedRate)} · not recoverable` : 'Not recoverable';
+    }
+    if (result.status === 'on-track') return fmtVal(result.projectedRate);
+    return `${fmtVal(result.projectedRate)}\u2193`; // needs-lift: down-arrow flags "trending toward missing target"
+}
+
+function forecastStatusColor(status) {
+    return status === 'not-recoverable' ? 'var(--coral)' : status === 'on-track' ? 'var(--green)' : status === 'needs-lift' ? 'var(--amber)' : 'var(--tm)';
+}
+function forecastStatusDot(status) {
+    return status === 'not-recoverable' ? '#E8695C' : status === 'on-track' ? '#3DDC84' : status === 'needs-lift' ? '#F0B93D' : '#B8C0D0';
+}
+// Sort priority for tooltip SW list: not-recoverable(0) -> needs-lift(1) ->
+// on-track(2) -> no-remaining(3), then by decisions descending within group.
+function forecastSortRank(status) {
+    return status === 'not-recoverable' ? 0 : status === 'needs-lift' ? 1 : status === 'on-track' ? 2 : 3;
+}
+
+// Builds the forecast content HTML for one metric (Precision/Recall/Accuracy/
+// AHT) given a row set. Returns '' if there's no data to show (caller should
+// render the KPI row without an emoji trigger in that case).
+//
+// Content: overall/pooled forecast headline + target + action line (when a
+// meaningful overall target exists — AHT has none, see note in
+// computeMetricForecast), a decomposed forecasted-audit-count line for
+// Precision/Recall (decisions -> x Audit Rate -> audit count -> x Action
+// Rate -> TP+FP target; see computeMetricForecast for the backtest behind
+// this), then a scrollable per-SW list sorted not-recoverable -> needs-lift
+// -> on-track, each group ordered by decision volume descending (Karl's
+// explicit call: prioritize failing SWs first, then high-volume SWs).
+function buildForecastTooltipHTML(rows, metric, metricLabel) {
+    const data = computeMetricForecast(rows, metric);
+    if (!data) return '';
+    // No usable data at all (neither an overall figure nor any SW breakdown).
+    if ((!data.overall || data.overall.status === 'no-remaining') && !data.swBreakdown.length) return '';
+
+    const isAht = metric === 'aht';
+    const isPR = metric === 'prec' || metric === 'rec';
+    const fmtVal = isAht ? (v => Number(v).toFixed(0) + 's') : (v => (v * 100).toFixed(1) + '%');
+    const fmtAudits = v => Math.round(v).toLocaleString();
+
+    // Shared audit-count + TP-needed line builder for Precision/Recall.
+    // Ranges reflect the empirical Audit Rate volatility found in
+    // backtesting (~13pp mean absolute error month-to-month) — the audit
+    // count itself is the noisier step in the chain even though the final
+    // TP-needed number downstream is stable.
+    function auditLinesHtml(d, color) {
+        if (!isPR || d.forecastedAudits == null) return '';
+        let html = `<div class="fc-tip-row"><span>Forecasted Audits</span><span>~${fmtAudits(d.forecastedAudits)} (${fmtAudits(d.auditsLow)}\u2013${fmtAudits(d.auditsHigh)})</span></div>`;
+        // Forecasted Violating Count = projected TP if the current rate
+        // holds flat — "what will likely happen," distinct from the
+        // "Needs X TP total" line below, which is "what needs to happen."
+        if (d.projectedTP != null) {
+            html += `<div class="fc-tip-row"><span>Forecasted Violating Count</span><span>~${fmtAudits(d.projectedTP)} (${fmtAudits(d.projectedTPLow)}\u2013${fmtAudits(d.projectedTPHigh)})</span></div>`;
+        }
+        // "Needs X TP total" only makes sense when the target is still
+        // mathematically reachable (status === 'needs-lift'). For
+        // not-recoverable, requiredRate already exceeds 100% — computing a
+        // TP count off an impossible rate produces a nonsensical number,
+        // so that case is skipped entirely and the existing "Max possible"
+        // line above already communicates the ceiling.
+        if (d.tpNeeded != null && d.result.status === 'needs-lift') {
+            const canAfford = Math.max(0, Math.round(d.remN) - d.tpNeeded);
+            html += `<div class="fc-tip-row"><span>Needs</span><span style="color:${color}">${d.tpNeeded} TP total to hit target</span></div>`;
+            html += `<div class="fc-tip-row"><span></span><span style="color:${color};font-size:10px">(can afford ${canAfford} more miss${canAfford === 1 ? '' : 'es'})</span></div>`;
+        }
+        return html;
+    }
+
+    let overallHtml = `<div class="fc-tip-title">${metricLabel} Forecast</div>`;
+    if (data.overall && data.overall.status !== 'no-remaining') {
+        const msg = forecastMessage(data.overall, fmtVal, data.overallTarget);
+        if (msg) {
+            const color = forecastStatusColor(data.overall.status);
+            overallHtml += `
+        <div class="fc-tip-row"><span>Projected</span><span style="color:${color}">${msg.headline.replace(/^Projected to land at /, '').replace(/ if unchanged$/, ' if unchanged')}</span></div>
+        <div class="fc-tip-row"><span>Target</span><span>${fmtVal(data.overallTarget)}</span></div>`;
+            if (data.overall.status === 'not-recoverable' && data.overall.worstCaseRate != null) {
+                overallHtml += `<div class="fc-tip-row"><span>Max possible</span><span>${fmtVal(data.overall.worstCaseRate)}</span></div>`;
+            } else if (data.overall.status === 'on-track' && data.overall.worstCaseRate != null) {
+                overallHtml += `<div class="fc-tip-row"><span>Worst-case</span><span>${fmtVal(data.overall.worstCaseRate)}</span></div>`;
+            }
+            if (isPR && data.overallForecastedAudits != null) {
+                overallHtml += auditLinesHtml({
+                    forecastedAudits: data.overallForecastedAudits,
+                    auditsLow: data.overallAuditsLow,
+                    auditsHigh: data.overallAuditsHigh,
+                    tpNeeded: data.overallTpNeeded,
+                    remN: data.overallRemN,
+                    projectedTP: data.overallProjectedTP,
+                    projectedTPLow: data.overallProjectedTPLow,
+                    projectedTPHigh: data.overallProjectedTPHigh,
+                    result: data.overall,
+                }, color);
+            }
+        }
+    } else if (isAht && data.ahtBlended && data.ahtBlended.result && data.ahtBlended.result.status !== 'no-remaining') {
+        // Blended AHT figure using the same weighted-mean target the MTD
+        // snapshot card already shows (calcJobTarget) — labeled explicitly
+        // so it never reads as contradicting the card. The per-SW breakdown
+        // below explains WHY a blended "meets goal" can still hide one
+        // off-target SW (that SW's volume share is small in the mix).
+        const bResult = data.ahtBlended.result;
+        const bMsg = forecastMessage(bResult, fmtVal, data.ahtBlended.target);
+        if (bMsg) {
+            const bColor = forecastStatusColor(bResult.status);
+            overallHtml += `<div class="fc-tip-badge">Blended · matches MTD card</div>
+        <div class="fc-tip-row"><span>Projected</span><span style="color:${bColor}">${bMsg.headline.replace(/^Projected to land at /, '').replace(/ if unchanged$/, ' if unchanged')}</span></div>
+        <div class="fc-tip-row"><span>Weighted target</span><span>${fmtVal(data.ahtBlended.target)}</span></div>`;
+            if (bResult.status === 'not-recoverable' && bResult.worstCaseRate != null) {
+                overallHtml += `<div class="fc-tip-row"><span>Max possible</span><span>${fmtVal(bResult.worstCaseRate)}</span></div>`;
+            } else if (bResult.status === 'needs-lift' && bResult.requiredRate != null) {
+                overallHtml += `<div class="fc-tip-row"><span>Needs</span><span>${fmtVal(bResult.requiredRate)} rest of month</span></div>`;
+            } else if (bResult.status === 'on-track' && bResult.worstCaseRate != null) {
+                overallHtml += `<div class="fc-tip-row"><span>Worst-case</span><span>${fmtVal(bResult.worstCaseRate)}</span></div>`;
+            }
+            overallHtml += `<div class="fc-tip-note">This blended number matches the AHT on the snapshot card. It can look fine even when one sub-workflow below is off-target — that SW's volume is small relative to the overall mix.</div>`;
+        }
+    } else if (isAht) {
+        // No blended figure available either (e.g. calcJobTarget found no
+        // SW with a valid target in this row set) — say so plainly.
+        overallHtml += `<div class="fc-tip-row"><span colspan="2" style="color:var(--tm)">No overall target available — see by sub-workflow below</span></div>`;
+    }
+
+    // Sort: failing first, then by volume within each status group.
+    const sorted = data.swBreakdown.slice().sort((a, b) => {
+        const rankA = forecastSortRank(a.result.status), rankB = forecastSortRank(b.result.status);
+        if (rankA !== rankB) return rankA - rankB;
+        return (b.decisions || 0) - (a.decisions || 0);
+    });
+
+    let swHtml = '';
+    if (sorted.length) {
+        swHtml = '<div class="fc-tip-sw-section">' + sorted.map(s => {
+            const dot = forecastStatusDot(s.result.status);
+            const label = forecastCompactLabel(s.result, fmtVal);
+            const escSw = String(s.sw).replace(/</g, '&lt;');
+            const color = forecastStatusColor(s.result.status);
+            const auditLines = isPR ? auditLinesHtml(s, color) : '';
+            return `<div class="fc-tip-sw-row-wrap"><div class="fc-tip-sw-row"><span class="fc-tip-sw-name"><span class="fc-tip-status-dot" style="background:${dot}"></span>${escSw}</span><span class="fc-tip-sw-val">${label}</span></div>${auditLines}</div>`;
+        }).join('') + '</div>';
+        if (sorted.length > 7) {
+            swHtml += `<div class="fc-tip-scroll-hint">\u2195 scroll for more (${sorted.length} SW total)</div>`;
+        }
+    }
+
+    // Disclaimer (v97.4, Karl's explicit call): shown once per modal, on
+    // every projection regardless of metric — a forecast is an estimate,
+    // not a commitment, and the actual outcome depends on factors the
+    // model can't see (whether the agreed action plan is actually
+    // executed, sub-workflow volume mix shifting, and audit/action rate
+    // moving from their current MTD levels).
+    const disclaimerHtml = `<div class="fc-tip-disclaimer">⚠ This is a forecast only. Actual numbers will move based on execution of the agreed action plan, shift in sub-workflow volume, and audit/action rates.</div>`;
+
+    return overallHtml + swHtml + disclaimerHtml;
+}
+
+// Attaches a click-to-open forecast emoji trigger after a KPI row's value.
+// Replaces the v97.1 hover-tooltip dot entirely — the modal (single shared
+// #fc-modal-overlay) avoids the ancestor overflow:hidden clipping that made
+// the hover bubble unusable. uid must be unique per row per render (caller
+// supplies, e.g. including containerId + metric name) since the emoji
+// stores its own content in a data attribute for openForecastModal() to
+// read on click.
+function forecastTooltipDotHTML(rows, metric, metricLabel, uid) {
+    const tipHtml = buildForecastTooltipHTML(rows, metric, metricLabel);
+    if (!tipHtml) return '';
+    // Content is stashed in a global map keyed by uid rather than inlined
+    // into an onclick attribute, since the HTML can contain quotes/newlines
+    // that would break naive attribute escaping.
+    if (typeof window !== 'undefined') {
+        window._fcModalContent = window._fcModalContent || {};
+        window._fcModalContent[uid] = { title: '🔮 ' + metricLabel + ' Forecast', body: tipHtml };
+    }
+    return `<button type="button" class="fc-emoji-trigger" onclick="event.stopPropagation();openForecastModal('${uid}')" title="View ${metricLabel} forecast">🔮</button>`;
+}
+
+// Opens the shared forecast modal with the content stashed for the given
+// uid (see forecastTooltipDotHTML above). No-op if content is missing —
+// can happen if the underlying row set changed since render without a
+// re-render (e.g. filters changed but this card hasn't redrawn yet).
+function openForecastModal(uid) {
+    const store = window._fcModalContent || {};
+    const content = store[uid];
+    if (!content) return;
+    const titleEl = document.getElementById('fc-modal-title');
+    const bodyEl = document.getElementById('fc-modal-body');
+    const overlay = document.getElementById('fc-modal-overlay');
+    if (!titleEl || !bodyEl || !overlay) return;
+    titleEl.textContent = content.title;
+    bodyEl.innerHTML = content.body;
+    overlay.classList.add('open');
+}
+function closeForecastModal() {
+    const overlay = document.getElementById('fc-modal-overlay');
+    if (overlay) overlay.classList.remove('open');
+}
+
 
 function renderExec(){
   const selMonths=getSelMonths();
@@ -5851,10 +6297,14 @@ function renderExec(){
   // was clicked (worst performer surfaces as the first row). See goToDataExplorerFiltered.
   const deLink = col => `goToDataExplorerFiltered('${col}')`;
 
+  // Forecast tooltip row set — independent of the month pill so MTD is
+  // always the true current month, matching the pre-v97.1 strip's intent.
+  const _fcRows = filterRows(RAW_ROWS, tls, tenures, sws, workflows);
+
   document.getElementById('e-quality-cards').innerHTML = 
-    kcard(`${qLabel} Accuracy ↑`, p(acc), 'adj_acc', passStr(accPass,n), passPct(accPass,n), vsfAcc, n, {compact:true, onClick:deLink('adj_acc')}) + 
-    kcard(`${qLabel} Precision ↑`, p(prec), 'prec', passStr(precPass,rvPrecVals.length), passPct(precPass,rvPrecVals.length), vsfPrec, rvPrecVals.length, {compact:true, onClick:deLink('adj_prec')}) + 
-    kcard(`${qLabel} Recall ↑`, p(rec), 'rec', passStr(recPass,rvRecVals.length), passPct(recPass,rvRecVals.length), vsfRec, rvRecVals.length, {compact:true, onClick:deLink('adj_rec')}) +
+    kcard(`${qLabel} Accuracy ↑`, p(acc), 'adj_acc', passStr(accPass,n), passPct(accPass,n), vsfAcc, n, {compact:true, onClick:deLink('adj_acc'), forecastRows:_fcRows, forecastMetric:'acc', forecastMetricLabel:'Accuracy', forecastUid:'fc-tip-e-acc'}) + 
+    kcard(`${qLabel} Precision ↑`, p(prec), 'prec', passStr(precPass,rvPrecVals.length), passPct(precPass,rvPrecVals.length), vsfPrec, rvPrecVals.length, {compact:true, onClick:deLink('adj_prec'), forecastRows:_fcRows, forecastMetric:'prec', forecastMetricLabel:'Precision', forecastUid:'fc-tip-e-prec'}) + 
+    kcard(`${qLabel} Recall ↑`, p(rec), 'rec', passStr(recPass,rvRecVals.length), passPct(recPass,rvRecVals.length), vsfRec, rvRecVals.length, {compact:true, onClick:deLink('adj_rec'), forecastRows:_fcRows, forecastMetric:'rec', forecastMetricLabel:'Recall', forecastUid:'fc-tip-e-rec'}) +
     kcard('Action Rate ↑', ar!==null?p(ar):'—', 'ar', ar!==null?(ar<0.10?'Below 10% — check Accuracy':'Above 10% — check Prec/Rec'):'', ar!==null?(ar<0.10?Math.round(ar*100):100):null, null, null, {compact:true, onClick:deLink('ar')});
 
   const nhtPct = (dht+nht)>0 ? nht/(dht+nht) : null;
@@ -5897,7 +6347,7 @@ function renderExec(){
 
   // Row 1: AHT · NHT% · Total Decisions · Throughput
   document.getElementById('e-efficiency-row1').innerHTML =
-    kcard('Avg AHT ↓', aht!==null?aht.toFixed(2)+'s':'—', 'aht', passStr(ahtPass,wn), passPct(ahtPass,wn), vsfAHT, wn, {compact:true, onClick:deLink('aht')}) +
+    kcard('Avg AHT ↓', aht!==null?aht.toFixed(2)+'s':'—', 'aht', passStr(ahtPass,wn), passPct(ahtPass,wn), vsfAHT, wn, {compact:true, onClick:deLink('aht'), forecastRows:_fcRows, forecastMetric:'aht', forecastMetricLabel:'AHT', forecastUid:'fc-tip-e-aht'}) +
     kcard('NHT% ↓', nhtPct!==null?p(nhtPct):'—', 'aht', sws.length===1?'':'Multi-SW avg', null, null, null, {compact:true, onClick:deLink('nht_pct')}) +
     kcard('Total Decisions', dec>0?dec.toLocaleString():'—', 'na', rvNames.length+' reviewer'+(rvNames.length!==1?'s':''), null, null, null, {compact:true, onClick:deLink('dec')}) +
     kcard('Throughput ↑', throughput!==null?throughput.toFixed(2)+' jobs/avail hr':'—', 'na', '(Dec + Transfer Out) ÷ Avail hrs', null, null, null, {compact:true, onClick:deLink('throughput')});
@@ -6112,15 +6562,6 @@ function renderExec(){
   let passRates = { acc: passPct(accPass,n), prec: passPct(precPass,rvPrecVals.length), rec: passPct(recPass,rvRecVals.length), aht: passPct(ahtPass,wn) };
 
   renderExecCharts(qualRows, wfmRows, {acc: accTarget, prec: accTarget, rec: accTarget, aht: ahtTarget, util: 0.87, abs: 0.05}, qualType, {acc: vsfAcc, prec: vsfPrec, rec: vsfRec, aht: vsfAHT}, passRates);
-
-  // Month-End Landing Forecast (Block 6) — site-wide, reuses the same
-  // accTarget/ahtTarget already computed above for the charts. Uses rows
-  // independent of the month pill so MTD is always the true current month,
-  // not whatever month happens to be pill-selected.
-  {
-    const _fAllRows = filterRows(RAW_ROWS, tls, tenures, sws, workflows);
-    renderForecastStrip('e-forecast-strip', _fAllRows, () => ({ acc: accTarget, prec: accTarget, rec: accTarget, aht: ahtTarget }));
-  }
 }
 
 
@@ -6318,6 +6759,13 @@ function renderTLCards(rows, tls) {
     const fmtS   = v => v!==null&&v!==undefined?v.toFixed(2)+'s':'—';
 
     const cards = Object.entries(tlMap).sort((a,b)=>b[1].dec-a[1].dec).map(([tl, m]) => {
+        // Forecast tooltip row set for this TL: independent of the month
+        // pill (true current-month MTD, matching the pre-v97.1 strip's
+        // intent), scoped to this TL, with the standing SR_RV_EXCLUDE
+        // exclusion list applied — same as team roll-ups elsewhere.
+        const _SR_RV_EXCLUDE = ['See, Jason Khye Xuan', 'Lim, Hoi Hung'];
+        const _tlFcRows = qaFilter(RAW_ROWS).filter(r => r.supervisor === tl && !_SR_RV_EXCLUDE.includes(r.reviewer));
+
         const tot  = m.tpa+m.tna+m.fpa+m.fna;
         const acc  = tot>0?(m.tpa+m.tna)/tot:null;
         const prec = (m.tpa+m.fpa)>0?m.tpa/(m.tpa+m.fpa):null;
@@ -6457,15 +6905,15 @@ function renderTLCards(rows, tls) {
               <div class="snap-kpi-col-head">Quality <span style="font-weight:400;color:var(--tm);font-size:9px">· ${qPassSW}/${qElig} SW passing</span></div>
               <div class="snap-kpi-row ${accCls}">
                 <span class="snap-kpi-label">Accuracy</span>
-                <span class="snap-kpi-val">${fmtPct(acc)}</span>
+                <span class="snap-kpi-val">${fmtPct(acc)}</span>${forecastTooltipDotHTML(_tlFcRows, 'acc', 'Accuracy', 'fc-tip-ti-acc-'+tl.replace(/[^a-zA-Z0-9]/g,''))}
               </div>
               <div class="snap-kpi-row ${precCls}">
                 <span class="snap-kpi-label">Precision</span>
-                <span class="snap-kpi-val">${fmtPct(prec)}</span>
+                <span class="snap-kpi-val">${fmtPct(prec)}</span>${forecastTooltipDotHTML(_tlFcRows, 'prec', 'Precision', 'fc-tip-ti-prec-'+tl.replace(/[^a-zA-Z0-9]/g,''))}
               </div>
               <div class="snap-kpi-row ${recCls}">
                 <span class="snap-kpi-label">Recall</span>
-                <span class="snap-kpi-val">${fmtPct(rec)}</span>
+                <span class="snap-kpi-val">${fmtPct(rec)}</span>${forecastTooltipDotHTML(_tlFcRows, 'rec', 'Recall', 'fc-tip-ti-rec-'+tl.replace(/[^a-zA-Z0-9]/g,''))}
               </div>
               <div class="snap-kpi-row">
                 <span class="snap-kpi-label">Action Rate</span>
@@ -6479,7 +6927,7 @@ function renderTLCards(rows, tls) {
               <div class="snap-kpi-col-head">Efficiency <span style="font-weight:400;color:var(--tm);font-size:9px">· ${aPassSW}/${aElig} SW passing</span></div>
               <div class="snap-kpi-row">
                 <span class="snap-kpi-label">AHT</span>
-                <span class="snap-kpi-val">${fmtS(aht)}</span>
+                <span class="snap-kpi-val">${fmtS(aht)}</span>${forecastTooltipDotHTML(_tlFcRows, 'aht', 'AHT', 'fc-tip-ti-aht-'+tl.replace(/[^a-zA-Z0-9]/g,''))}
               </div>
               <div class="snap-kpi-row">
                 <span class="snap-kpi-label">Decisions</span>
@@ -6754,17 +7202,6 @@ function renderTeamInsights(){
   renderTLCards(tlCardRows, tls);
   renderSWHealthSummary(tlCardRows, tls);
 
-  // Month-End Landing Forecast (Block 6) — TL-scoped, SR_RV_EXCLUDE applied
-  // per spec (team roll-ups exclude the standing exclusion list). Uses rows
-  // independent of the month pill so MTD is always the true current month.
-  {
-    const _singleSw = sws.length === 1 ? sws[0] : null;
-    const _fAcc = _singleSw && SW_TARGETS[_singleSw] ? SW_TARGETS[_singleSw].acc : (BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96);
-    const _fAht = _singleSw && SW_TARGETS[_singleSw] ? SW_TARGETS[_singleSw].aht : null;
-    const _fAllRows = filterRows(qaFilter(RAW_ROWS), tls, tenures, sws, workflows);
-    renderForecastStrip('ti-forecast-strip', _fAllRows, () => ({ acc: _fAcc, prec: _fAcc, rec: _fAcc, aht: _fAht }), true);
-  }
-
   let rowsLM = rows;
 
   const selMonthLabels = selMonths.length ? selMonths.map(fmtMonth).join(', ') : 'All months';
@@ -7034,7 +7471,18 @@ function renderTeamInsights(){
   diagPolAhtTeam('diag-ti-bleed-aht', tiAhtSorted, tiTeamAvgAht, sws);
 
   renderScatterPanel(rvMap, {acc:tiAccTarget, prec:tiPrecTarget, rec:tiRecTarget}, tiAhtTarget, rangeLeg);
-  renderDualAxis(rows, {acc:tiAccTarget, prec:tiPrecTarget, rec:tiRecTarget}, tiAhtTarget, rangeLeg);
+  // v97.5: trend chart gets its OWN row set, widened to the 12wk/6mo floor
+  // independently of `rows` (which stays exactly as month-pill-filtered for
+  // every other panel on this tab — Performance Summary Table, defect
+  // pareto, AHT bleed chart, etc. — none of which should silently show a
+  // wider window than the user picked). Floor decision runs on RAW_ROWS
+  // before dimension filters, then the same TL/tenure/SW/workflow filters
+  // + qaFilter + latest-sup handling are reapplied, matching `rows`'s own
+  // filter chain above so the two row sets differ ONLY in month coverage.
+  let tiTrendRows = applyTrendWindowFloor(RAW_ROWS, selMonths, CHART_VIEW);
+  tiTrendRows = filterRows(qaFilter(tiTrendRows), tls, tenures, sws, workflows);
+  if(_svLatestSupMode) tiTrendRows = applyLatestSup(tiTrendRows);
+  renderDualAxis(tiTrendRows, {acc:tiAccTarget, prec:tiPrecTarget, rec:tiRecTarget}, tiAhtTarget, rangeLeg);
 
   // ── Seed team projection calculator
   let tmTpa2=0,tmTna2=0,tmFpa2=0,tmFna2=0,tmDht2=0,tmNht2=0,tmDec2=0;
@@ -10289,28 +10737,29 @@ function jumpToDrill(rv) {
 }
 
 
-// ─── STRIKE LOOKUP ──────────────────────────────────────────────────────────
+// ─── STRIKE LOOKUP (currently unused — no callers found; fixed for
+// consistency with the SW-only restructure rather than left stale) ─────────
 function getTopStrike(rvName) {
-    // Compute cumulative per-policy strike for this reviewer
+    // Compute cumulative per-SW strike for this reviewer
     const rvRows = RAW_ROWS.filter(r => r.reviewer === rvName)
                            .sort((a,b) => a.week.localeCompare(b.week));
-    const polHist = {}, polCount = {};
+    const swHist = {}, swCount = {};
     rvRows.forEach(r => {
-        if(!r.pol || (r.fpa+r.fna) === 0) return;
-        if(!polHist[r.pol]) polHist[r.pol] = [];
-        polHist[r.pol].push(r.week);
-        polCount[r.pol] = (polCount[r.pol]||0) + 1;
+        if(!r.sw || (r.fpa+r.fna) === 0) return;
+        if(!swHist[r.sw]) swHist[r.sw] = [];
+        swHist[r.sw].push(r.week);
+        swCount[r.sw] = (swCount[r.sw]||0) + 1;
     });
     // Find worst active strike (lowest decay rank)
     let best = null;
-    Object.keys(polHist).forEach(pol => {
-        const hist = polHist[pol];
+    Object.keys(swHist).forEach(sw => {
+        const hist = swHist[sw];
         const n = hist.length;
-        if(n < 2) { if(!best || best.decay === 'none') best = {pol, n, decay:'first'}; return; }
+        if(n < 2) { if(!best || best.decay === 'none') best = {sw, n, decay:'first'}; return; }
         const days = (new Date(hist[n-1]) - new Date(hist[n-2])) / 86400000;
         const decay = days <= 60 ? 'active' : days <= 120 ? 'watch' : 'hist';
         const rank = {active:0, watch:1, hist:2, first:3, none:4};
-        if(!best || rank[decay] < rank[best.decay]) best = {pol, n, decay};
+        if(!best || rank[decay] < rank[best.decay]) best = {sw, n, decay};
     });
     return best;
 }
@@ -10492,50 +10941,71 @@ function renderDrillDown(){
   const t3From = fw;
   const t3To   = tw;
 
-  // Reviewer Trends + AHT vs Quality Over Time default to the last 12 weeks
-  // when no explicit month filter is active — matches the fixed-window
-  // convention used elsewhere (e.g. Performance Summary Table). If the user
-  // has picked specific months in the filter bar, that selection wins.
-  let trendRows = rows;
-  if(!selMonths.length) {
-      const _drAllWeeks = [...new Set(baseRvRows.map(r=>r.week).filter(Boolean))].sort();
-      const _drLast12Weeks = new Set(_drAllWeeks.slice(-12));
-      trendRows = filterRows(baseRvRows.filter(r=>_drLast12Weeks.has(r.week)), [], [], sws, workflows);
-  }
+  // Reviewer Trends + AHT vs Quality Over Time: trend charts get a minimum
+  // window floor (12 weeks / 6 months, matching Site Health and Team
+  // Insights — see applyTrendWindowFloor) regardless of the month-pill
+  // selection, so a narrow filter never leaves these charts too short to
+  // show a meaningful pattern. Floor runs against this reviewer's own
+  // history (baseRvRows), not the full dataset, since a reviewer's
+  // available weeks/months can be narrower than the site's. Previously
+  // this only widened when NO month was selected (hardcoded to 12 weeks
+  // regardless of CHART_VIEW) — v97.5 makes the floor apply consistently
+  // whether or not a month is picked, and respects Weekly vs Monthly view.
+  let trendRows = applyTrendWindowFloor(baseRvRows, selMonths, CHART_VIEW);
+  trendRows = filterRows(trendRows, [], [], sws, workflows);
 
   let rowsLM = trendRows;
   let teamBaseRows = selMonths.length ? RAW_ROWS.filter(r=>selMonths.includes(r.month)) : RAW_ROWS;
   let teamRowsLM = filterRows(teamBaseRows, [], [], sws, workflows);
 
-  // Dynamic legend chips — month based
-  const drMonthLabel = selMonths.length ? selMonths.map(fmtMonth).join(', ') : 'Last 12 weeks';
+  // Dynamic legend chips — reflects the ACTUAL window being shown after the
+  // v97.5 trend floor widening, not just the raw month-pill selection, so
+  // the legend never implies a narrower range than what's actually charted.
+  const _trendWeeksShown = [...new Set(trendRows.map(r=>r.week).filter(Boolean))].sort();
+  const _trendMonthsShown = [...new Set(trendRows.map(r=>r.month).filter(Boolean))].sort();
+  let drMonthLabel;
+  if (!selMonths.length) {
+      drMonthLabel = 'All available weeks';
+  } else if (CHART_VIEW === 'monthly') {
+      drMonthLabel = _trendMonthsShown.length ? _trendMonthsShown.map(fmtMonth).join(', ') : selMonths.map(fmtMonth).join(', ');
+  } else {
+      drMonthLabel = _trendWeeksShown.length ? `Last ${_trendWeeksShown.length} weeks` : selMonths.map(fmtMonth).join(', ');
+  }
   const rangeLeg = `<span style="background:var(--bbg);color:var(--blue);border-radius:var(--pill);font-size:10px;font-weight:700;padding:2px 8px;margin-left:6px">${drMonthLabel}</span>`;
   const trendChip = rangeLeg;
   const trendLeg=document.getElementById('dr-trend-legend'); if(trendLeg) trendLeg.innerHTML=trendChip;
   const benchLeg=document.getElementById('dr-bench-legend'); if(benchLeg) benchLeg.innerHTML=trendChip;
 
-  // ── Offender Status — per POLICY (not SW), cumulative strikes with recency decay
+  // ── Offender Status — per SUB-WORKFLOW (not policy), cumulative strikes
+  // with recency decay. Restructured from policy-level tracking: strikes
+  // now count ANY error within the same SW, regardless of which policy was
+  // violated — e.g. 3 different policy misses in Underage now count as a
+  // 3rd strike in Underage, not 3 separate 1st strikes. Karl's explicit
+  // call: this closes a "1 markdown per policy per SW" perception gap,
+  // trading away discrimination between "one recurring specific mistake"
+  // and "several different mistakes in the same SW" — both now look
+  // identical as an Nth strike in that SW.
   // Sort all reviewer rows by week ascending for chronological strike counting
   let allRvRows = RAW_ROWS.filter(r => r.reviewer === rv).sort((a,b) => a.week.localeCompare(b.week));
 
-  // Build per-policy strike history: { policy -> [{week, weekDate}] }
-  const polHistory = {};
+  // Build per-SW strike history: { sw -> [week, week, ...] }
+  const swHistory = {};
   allRvRows.forEach(r => {
-      if(!r.pol || (r.fpa + r.fna) === 0) return;
-      if(!polHistory[r.pol]) polHistory[r.pol] = [];
-      polHistory[r.pol].push(r.week);
+      if(!r.sw || (r.fpa + r.fna) === 0) return;
+      if(!swHistory[r.sw]) swHistory[r.sw] = [];
+      swHistory[r.sw].push(r.week);
   });
 
   // Build per-row strike number and recency tag
-  // Assign strike number based on cumulative count per policy up to this row's week
-  const polCounter = {}; // running count as we scan chronologically
+  // Assign strike number based on cumulative count per SW up to this row's week
+  const swCounter = {}; // running count as we scan chronologically
   const latestDataWeek = WEEKS.length ? WEEKS[WEEKS.length-1] : new Date().toISOString().slice(0,10);
   const msPerDay = 86400000;
 
   allRvRows.forEach(r => {
-      if(!r.pol || (r.fpa + r.fna) === 0) return;
-      polCounter[r.pol] = (polCounter[r.pol] || 0) + 1;
-      r.strikeNum = polCounter[r.pol];
+      if(!r.sw || (r.fpa + r.fna) === 0) return;
+      swCounter[r.sw] = (swCounter[r.sw] || 0) + 1;
+      r.strikeNum = swCounter[r.sw];
 
       // Recency: days from THIS error's week to the latest data week
       // (how long ago did this error happen?)
@@ -10978,17 +11448,17 @@ function renderDrillDown(){
               <div class="snap-kpi-col-head">Quality <span style="font-weight:400;color:var(--tm);font-size:9px">· ${_qPassSW}/${_qElig} SW passing</span></div>
               <div class="snap-kpi-row ${_accCls}">
                 <span class="snap-kpi-label">Adj Accuracy</span>
-                <span class="snap-kpi-val">${fmt(cAcc)}</span>
+                <span class="snap-kpi-val">${fmt(cAcc)}</span>${forecastTooltipDotHTML(baseRvRows, 'acc', 'Accuracy', 'fc-tip-dr-acc')}
                 ${deltaStr(cAcc,pAcc,'positive')}
               </div>
               <div class="snap-kpi-row ${_preCls}">
                 <span class="snap-kpi-label">Precision</span>
-                <span class="snap-kpi-val">${fmt(cPrec)}</span>
+                <span class="snap-kpi-val">${fmt(cPrec)}</span>${forecastTooltipDotHTML(baseRvRows, 'prec', 'Precision', 'fc-tip-dr-prec')}
                 ${deltaStr(cPrec,pPrec,'positive')}
               </div>
               <div class="snap-kpi-row ${_recCls}">
                 <span class="snap-kpi-label">Recall</span>
-                <span class="snap-kpi-val">${fmt(cRec)}</span>
+                <span class="snap-kpi-val">${fmt(cRec)}</span>${forecastTooltipDotHTML(baseRvRows, 'rec', 'Recall', 'fc-tip-dr-rec')}
                 ${deltaStr(cRec,pRec,'positive')}
               </div>
               <div class="snap-kpi-row">
@@ -11039,7 +11509,7 @@ function renderDrillDown(){
               <div class="snap-kpi-col-head">Efficiency <span style="font-weight:400;color:var(--tm);font-size:9px">· ${_aPassSW}/${_aElig} SW passing</span></div>
               <div class="snap-kpi-row">
                 <span class="snap-kpi-label">AHT</span>
-                <span class="snap-kpi-val" style="color:${_aC}">${fmtS(cAht)}</span>
+                <span class="snap-kpi-val" style="color:${_aC}">${fmtS(cAht)}</span>${forecastTooltipDotHTML(baseRvRows, 'aht', 'AHT', 'fc-tip-dr-aht')}
                 ${deltaS(cAht,pAht)}
               </div>
               <div class="snap-kpi-row">
@@ -11107,16 +11577,6 @@ function renderDrillDown(){
       // Render Open Opportunities panel
       const oppPanel = document.getElementById('dr-opp-panel');
       if(oppPanel) renderDrillOppPanel(rows, rv, oppPanel);
-
-      // Month-End Landing Forecast (Block 6) — reviewer-scoped. Uses
-      // baseRvRows (full history, not month-pill restricted) so the forecast
-      // always finds the true current month regardless of the month pill.
-      {
-        const _singleSw = sws.length === 1 ? sws[0] : null;
-        const _fAcc = _singleSw && SW_TARGETS[_singleSw] ? SW_TARGETS[_singleSw].acc : (BAND_TARGETS['Overall']?.['-']?.['Accuracy']?.ach || 0.96);
-        const _fAht = _singleSw && SW_TARGETS[_singleSw] ? SW_TARGETS[_singleSw].aht : null;
-        renderForecastStrip('dr-forecast-strip', baseRvRows, () => ({ acc: _fAcc, prec: _fAcc, rec: _fAcc, aht: _fAht }));
-      }
   }
 }
 
@@ -11781,7 +12241,7 @@ function renderDrillOppPanel(rows, rv, el) {
 }
 
 // PSP status filter state
-let PSP_COHORT_STATUS_FILTER = 'all';
+let PSP_STATUS_FILTER = 'all';
 // PSP histogram bin filter state — { lo, hi } range on the active KPI's
 // cohort-month value, or null when no bar is selected (shows everyone).
 let PSP_HIST_BIN = null;
@@ -12214,7 +12674,7 @@ function pspExportXLSX() {
 }
 
 function setPSPFilter(status, btn) {
-    PSP_COHORT_STATUS_FILTER = status;
+    PSP_STATUS_FILTER = status;
     document.querySelectorAll('.psp-sf').forEach(b => {
         b.classList.remove('active');
         b.style.opacity = '0.65';
@@ -12444,13 +12904,23 @@ function renderPSP() {
         // table (and its export) show every selected KPI together instead
         // of only whichever block happened to be visible first.
         let allRows = order.filter(k => checked.includes(k)).map(k => rowsByKpi[k] || '').join('');
-        if(PSP_COHORT_STATUS_FILTER !== 'all' && allRows) {
+        // v97.9: filter now reads data-psp (the actual PSP badge, based on
+        // PRIOR month performance) instead of data-cohort-status (current
+        // month's own score vs target). Karl's explicit call — the
+        // "PSP only"/"Non-PSP only" buttons were correctly filtering by
+        // Cohort Status as originally labeled, but that's a different
+        // question from official PSP program status, and those two can
+        // disagree per-row (e.g. failed last month = PSP badge, but
+        // passing this month = Non-PSP cohort status) which read as if the
+        // filter was pulling from the Results column instead. Relabeled to
+        // "Filter by PSP status" to match what it now does.
+        if(PSP_STATUS_FILTER !== 'all' && allRows) {
             const tmp = document.createElement('tbody');
             tmp.innerHTML = allRows;
             const matching = Array.from(tmp.querySelectorAll('tr')).filter(tr => {
-                const cs = tr.getAttribute('data-cohort-status') || '';
-                if(PSP_COHORT_STATUS_FILTER === 'PSP') return cs === 'PSP';
-                if(PSP_COHORT_STATUS_FILTER === 'Non-PSP') return cs === 'Non-PSP';
+                const isPspRow = tr.getAttribute('data-psp') === 'true';
+                if(PSP_STATUS_FILTER === 'PSP') return isPspRow;
+                if(PSP_STATUS_FILTER === 'Non-PSP') return !isPspRow;
                 return true;
             });
             allRows = matching.length
@@ -12482,6 +12952,7 @@ function renderPSP() {
                     <th>Cohort Status</th>
                     ${monthSubhdr}
                     <th style="white-space:nowrap">Results</th>
+                    <th style="white-space:nowrap">Log</th>
                 </tr>
             </thead><tbody>${displayRows}</tbody></table></div></div>`;
     }
@@ -12520,6 +12991,7 @@ function renderPSP() {
             <td>${pspStatus(isPSP)}</td>
             ${monthCells}
             <td>${newResultsBadge(_newResults)}</td>
+            <td>${pspLogHTML(isPSP, rv, 'Accuracy')}</td>
         </tr>`;
     });
 
@@ -12553,6 +13025,7 @@ function renderPSP() {
             <td>${pspStatus(isPSP)}</td>
             ${monthCells}
             <td>${newResultsBadge(_newResults)}</td>
+            <td>${pspLogHTML(isPSP, rv, 'Adj Precision')}</td>
         </tr>`;
     });
 
@@ -12586,6 +13059,7 @@ function renderPSP() {
             <td>${pspStatus(isPSP)}</td>
             ${monthCells}
             <td>${newResultsBadge(_newResults)}</td>
+            <td>${pspLogHTML(isPSP, rv, 'Adj Recall')}</td>
         </tr>`;
     });
 
@@ -12630,6 +13104,7 @@ function renderPSP() {
                 <td>${pspStatus(isPSP)}</td>
                 ${monthCells}
                 <td>${newResultsBadge(_newResults)}</td>
+                <td>${pspLogHTML(isPSP, rv, 'AHT', sw)}</td>
             </tr>`;
         });
     });
@@ -12670,6 +13145,7 @@ function renderPSP() {
             <td>${pspStatus(isPSP)}</td>
             ${monthCells}
             <td>${newResultsBadge(_newResults)}</td>
+            <td>${pspLogHTML(isPSP, rv, 'NHT%')}</td>
         </tr>`;
     });
 
@@ -12716,7 +13192,162 @@ function renderPSP() {
         </div>
     </div>`;
 
+    // ── PSP vs Non-PSP progression table (v97.9, Karl's explicit request) ──
+    // Same visual format as the Reviewer Deep-Dive Performance Summary
+    // Table (two-row header: month groups + week columns, full-cell color
+    // coding, AR-gated Precision/Recall vs Accuracy, monthly Total column)
+    // but pooled into TWO aggregate lines — PSP reviewers combined, and
+    // Non-PSP reviewers combined — instead of one reviewer's own trend.
+    //
+    // Reviewer bucket membership: fixed classification based on each
+    // reviewer's ACCURACY isPSP flag for the currently-selected cohort
+    // month (Karl's explicit call — matches the cohort-month dropdown at
+    // the top of the tab, not a per-week-changing classification). Uses
+    // the same isPSP computation as the Accuracy KPI block above (prior
+    // month performance vs target), so bucket membership here matches what
+    // the "PSP only" filter buttons (now fixed to read data-psp) show.
+    function buildPSPProgressionTable() {
+        const pspReviewers = new Set();
+        const nonPspReviewers = new Set();
+        reviewers.forEach(rv => {
+            const preData = preMonth ? rvMonthMap[rv][preMonth] : null;
+            const cohortData = rvMonthMap[rv][cohortMonth];
+            const preVal = preData ? getAcc(preData) : null;
+            const currVal = cohortData ? getAcc(cohortData) : null;
+            if(preVal === null && currVal === null) return;
+            const isPSP = preVal !== null ? preVal < overallAccTgt : (currVal !== null && currVal < overallAccTgt);
+            (isPSP ? pspReviewers : nonPspReviewers).add(rv);
+        });
+
+        // Weekly raw rows for each bucket, scoped to the same filtered
+        // rows renderPSP() already computed (respects TL/tenure/SW/
+        // workflow/reviewer filters and month-pill selection).
+        const pspRows = rows.filter(r => pspReviewers.has(r.reviewer));
+        const nonPspRows = rows.filter(r => nonPspReviewers.has(r.reviewer));
+
+        function bucketStatsRows(bucketRows, label, badgeColor) {
+            const weeks = [...new Set(bucketRows.map(r => r.week))].sort();
+            if(!weeks.length) return null;
+            const stats = {};
+            weeks.forEach(w => { stats[w] = {tpa:0,fpa:0,fna:0,tna:0,dht:0,nht:0,dec:0}; });
+            bucketRows.forEach(r => {
+                const s = stats[r.week]; if(!s) return;
+                s.tpa+=r.tpa; s.fpa+=r.fpa; s.fna+=r.fna; s.tna+=r.tna;
+                s.dht+=r.dht; s.nht+=r.nht; s.dec+=r.decisions;
+            });
+            const monthMap = {};
+            weeks.forEach(w => {
+                const row = bucketRows.find(r => r.week === w);
+                const m = row ? row.month : ''; if(!m) return;
+                if(!monthMap[m]) monthMap[m] = [];
+                monthMap[m].push(w);
+            });
+            const sortedMonths = Object.keys(monthMap).sort();
+            const monthTotals = {};
+            sortedMonths.forEach(m => {
+                monthTotals[m] = {tpa:0,fpa:0,fna:0,tna:0,dht:0,nht:0,dec:0};
+                bucketRows.filter(r => r.month === m).forEach(r => {
+                    const s = monthTotals[m];
+                    s.tpa+=r.tpa; s.fpa+=r.fpa; s.fna+=r.fna; s.tna+=r.tna;
+                    s.dht+=r.dht; s.nht+=r.nht; s.dec+=r.decisions;
+                });
+            });
+            return { weeks, stats, monthMap, sortedMonths, monthTotals, label, badgeColor, reviewerCount: label==='PSP' ? pspReviewers.size : nonPspReviewers.size };
+        }
+
+        const pspBucket = bucketStatsRows(pspRows, 'PSP', 'var(--coral)');
+        const nonPspBucket = bucketStatsRows(nonPspRows, 'Non-PSP', 'var(--green)');
+        if(!pspBucket && !nonPspBucket) {
+            return '<div style="padding:1rem;text-align:center;color:var(--tm);font-size:12px">No weekly data available for the current filter selection.</div>';
+        }
+
+        // Union of all months/weeks across both buckets so the two rows
+        // share one column layout, even if one bucket has thinner history.
+        const allWeeksSet = new Set([...(pspBucket?.weeks||[]), ...(nonPspBucket?.weeks||[])]);
+        const allMonthMap = {};
+        allWeeksSet.forEach(w => {
+            const src = (pspBucket?.stats[w] ? pspBucket : nonPspBucket);
+            const row = (pspBucket?.weeks.includes(w) ? pspRows : nonPspRows).find(r=>r.week===w);
+            const m = row ? row.month : ''; if(!m) return;
+            if(!allMonthMap[m]) allMonthMap[m] = new Set();
+            allMonthMap[m].add(w);
+        });
+        const allSortedMonths = Object.keys(allMonthMap).sort();
+        const orderedWeeksByMonth = {};
+        allSortedMonths.forEach(m => { orderedWeeksByMonth[m] = [...allMonthMap[m]].sort(); });
+
+        let groupRow = `<tr><th rowspan="2" style="width:170px;vertical-align:bottom;text-align:left">Cohort</th>`;
+        let weekRow = `<tr>`;
+        allSortedMonths.forEach(m => {
+            const mw = orderedWeeksByMonth[m];
+            groupRow += `<th colspan="${mw.length}" style="text-align:center;background:var(--sa);border-left:1px solid var(--border);font-size:10px">${fmtMonth(m)}</th>`;
+            groupRow += `<th style="background:var(--bbg);color:var(--blue);border-left:2px solid var(--bbd);text-align:center;font-size:10px">Total</th>`;
+            mw.forEach(w => { weekRow += `<th style="border-left:1px solid var(--divider);font-size:9px;font-weight:700">${fmtW(w)}</th>`; });
+            weekRow += `<th style="background:var(--bbg);border-left:2px solid var(--bbd);font-size:9px"></th>`;
+        });
+        groupRow += `</tr>`; weekRow += `</tr>`;
+
+        const cellBg2  = (cls) => cls==='good'?'var(--gbg)':cls==='warn'?'var(--abg)':cls==='bad'?'var(--cbg)':'';
+        const cellFg2  = (cls) => cls==='good'?'var(--green)':cls==='warn'?'var(--amber)':cls==='bad'?'var(--coral)':'';
+        const pcell = (val,key,isMTD,ar) => {
+            const secondary = (key==='adj_acc'&&ar!==null&&ar>=0.10) || ((key==='prec'||key==='rec')&&(ar===null||ar<0.10));
+            const cls = flag(val,key);
+            const disp = val!==null ? (key==='aht'?Number(val).toFixed(2)+'s':p(val)) : '—';
+            const bg = isMTD ? 'var(--bbg)' : cellBg2(cls);
+            const fg = isMTD ? (cellFg2(cls)||'var(--blue)') : (cellFg2(cls)||'var(--text)');
+            const borderL = isMTD ? '2px solid var(--bbd)' : '1px solid var(--divider)';
+            const fw = isMTD ? '700' : '600';
+            const opacity = secondary ? '0.5' : '1';
+            return `<td style="background:${bg};border-left:${borderL};padding:3px 7px;opacity:${opacity}"><span style="font-family:var(--m);font-size:11px;font-weight:${fw};color:${fg}">${disp}</span></td>`;
+        };
+
+        function bucketRow(bucket, metricKey, label) {
+            if(!bucket) return `<tr><td><strong>${label}</strong> <span style="font-size:9px;color:var(--tm)">(no data)</span></td>${allSortedMonths.map(m=>orderedWeeksByMonth[m].map(()=>`<td style="border-left:1px solid var(--divider)">—</td>`).join('')+`<td style="background:var(--bbg);border-left:2px solid var(--bbd)">—</td>`).join('')}</tr>`;
+            let row = `<tr><td><strong>${label}</strong> <span style="font-size:9px;font-weight:700;color:${bucket.badgeColor}">· ${bucket.reviewerCount} reviewer${bucket.reviewerCount===1?'':'s'}</span></td>`;
+            allSortedMonths.forEach(m => {
+                orderedWeeksByMonth[m].forEach(w => {
+                    const s = bucket.stats[w];
+                    if(!s) { row += `<td style="border-left:1px solid var(--divider);color:var(--tm)">—</td>`; return; }
+                    const errs = s.fpa+s.fna;
+                    const ar = (s.tpa+s.fpa+s.fna+s.tna)>0 ? (s.tpa+s.fpa)/(s.tpa+s.fpa+s.fna+s.tna) : null;
+                    let val;
+                    if(metricKey==='adj_acc') val = (s.tpa+s.tna+errs)>0 ? (s.tpa+s.tna)/(s.tpa+s.tna+errs) : null;
+                    else if(metricKey==='prec') val = (s.tpa+s.fpa)>0 ? s.tpa/(s.tpa+s.fpa) : null;
+                    else if(metricKey==='rec') val = (s.tpa+s.fna)>0 ? s.tpa/(s.tpa+s.fna) : null;
+                    else if(metricKey==='aht') val = s.dec>0 ? (s.dht+s.nht)/s.dec : null;
+                    row += pcell(val, metricKey, false, ar);
+                });
+                const mt = bucket.monthTotals[m];
+                if(!mt) { row += `<td style="background:var(--bbg);border-left:2px solid var(--bbd);color:var(--tm)">—</td>`; return; }
+                const errs = mt.fpa+mt.fna;
+                const mAr = (mt.tpa+mt.fpa+mt.fna+mt.tna)>0 ? (mt.tpa+mt.fpa)/(mt.tpa+mt.fpa+mt.fna+mt.tna) : null;
+                let mVal;
+                if(metricKey==='adj_acc') mVal = (mt.tpa+mt.tna+errs)>0 ? (mt.tpa+mt.tna)/(mt.tpa+mt.tna+errs) : null;
+                else if(metricKey==='prec') mVal = (mt.tpa+mt.fpa)>0 ? mt.tpa/(mt.tpa+mt.fpa) : null;
+                else if(metricKey==='rec') mVal = (mt.tpa+mt.fna)>0 ? mt.tpa/(mt.tpa+mt.fna) : null;
+                else if(metricKey==='aht') mVal = mt.dec>0 ? (mt.dht+mt.nht)/mt.dec : null;
+                row += pcell(mVal, metricKey, true, mAr);
+            });
+            row += `</tr>`;
+            return row;
+        }
+
+        const sections = ['adj_acc','prec','rec','aht'].map(key => {
+            const title = {adj_acc:'Adj Accuracy ↑', prec:'Adj Precision ↑', rec:'Adj Recall ↑', aht:'Average AHT ↓'}[key];
+            return `<div style="margin-bottom:14px">
+                <div style="font-size:11px;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${title}</div>
+                <div class="twrap"><table style="width:100%;border-collapse:collapse">
+                    <thead>${groupRow}${weekRow}</thead>
+                    <tbody>${bucketRow(pspBucket, key, 'PSP')}${bucketRow(nonPspBucket, key, 'Non-PSP')}</tbody>
+                </table></div>
+            </div>`;
+        }).join('');
+
+        return sections;
+    }
+
     container.innerHTML = statusLegend
+        + '<div style="margin-bottom:1.5rem"><div style="font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">📈 PSP vs Non-PSP Progression</div>' + buildPSPProgressionTable() + '</div>'
         + '<div id="psp-tbl-consolidated">' + buildPSPConsolidatedTable({acc:accRows, prec:precRows, rec:recRows, aht:ahtRows, nht:nhtRows}) + '</div>';
 
     // Stash per-KPI value arrays + display config for the histogram, so
@@ -12857,7 +13488,7 @@ function renderGuide() {
     'New section at the top of Team Insights. One card per supervisor showing: team accuracy vs target, avg AHT vs team average, action rate, total decisions, top 3 error policies, and top 3 AHT policies by impact.',
     'Cards are filtered by the global TL/month/SW filter bar. Use before MPR to identify which TL needs priority attention.',
   ]],
-  ['📐 Improve & Control — split diagnosis boxes', 'blue', [
+  ['📐 Control Charts — split diagnosis boxes', 'blue', [
     'Queue & Policy Signals are now two separate boxes side by side: Quality Signals and AHT Signals.',
     'Quality box uses accuracy status logic (ctrlAccStatus). AHT box uses AHT status logic (ctrlAhtStatus). Each has its own color signal, language, and next step.',
     'Two reviewer-level diagnosis boxes also added below the SW table: one for quality movement, one for AHT movement across the team.',
@@ -12885,6 +13516,39 @@ function renderGuide() {
     'Reviewer projection policies now strictly use the selected month + SW filter, not all-time data.',
     'renderOutlierCallout sws scope error fixed.',
   ]],
+  ['⚡ Command Center — new landing tab', 'purple', [
+    'Compares this week\'s data against last week\'s and surfaces only what moved enough to matter, in three groups: Act now, Watch, Confirmed wins.',
+    'Each item names who, what happened, and a suggested action, with a Go button that jumps to the right tab with filters already applied.',
+    'Sort by Priority (biggest gap x volume x trend) or What Changed, and filter to your own team.',
+    'Nothing else moved — every existing tab still works exactly as before. This is a shortcut, not a replacement.',
+  ]],
+  ['🎯 Coaching Priorities — Breach Watchlist', 'coral', [
+    'New table at the top of the tab. Projects who is on track to drop below target within 6 weeks, based on their recent trend.',
+    'Every row shows a confidence label. Low-confidence rows (too few audits, too noisy a trend) render greyed and never reach the Command Center.',
+    'This is an estimate, not a fact — treat it as an early warning to coach into, not a verdict.',
+  ]],
+  ['🧠 Defect Intelligence — Emerging & Contagion radar', 'amber', [
+    'Two new cards at the top of the tab. Emerging flags a policy that is new or whose error rate has roughly doubled versus the prior two months, calculated per 1,000 decisions so volume swings alone never trigger it.',
+    'Contagion flags when 3 or more of your reviewers hit the same policy in the same week — a calibration or cascade signal, not five separate coaching conversations. One reviewer hitting a policy repeatedly is individual, not contagion, and is never flagged here.',
+  ]],
+  ['📊 Did It Work? — new tab in Coaching', 'teal', [
+    'Every logged intervention gets a before/after comparison once 4 weeks have passed: Working, No change, or Regressed, based on a minimum of 10 audits each side.',
+    'An intervention younger than 4 weeks shows as too early to call, never as no change — the tool will not call something a failure before there has been time to measure it.',
+    'Logged automatically when you click Done on a Command Center item, from the new Log button on a PSP row, or on completing a MyRCA case. If nothing gets logged, this panel has nothing to show — that is a logging gap, not evidence that coaching does not work.',
+  ]],
+  ['📈 Month-End Forecast', 'blue', [
+    'Hover the small dot next to Precision, Recall, Accuracy, or AHT on Site Health, Team Insights, and Reviewer Deep-Dive to see where the month is projected to land if nothing changes, plus a breakdown by sub-workflow.',
+    'If the required rate is not mathematically possible, it says so plainly rather than showing a number that cannot happen.',
+  ]],
+  ['🗂️ Load Dataset — reworked', 'green', [
+    'Your last upload is remembered. The tool reopens on the tab you were on, with the filters you had set, without re-uploading every CSV.',
+    'Each file now shows its own status card: filename, row count, and load date, so you can tell at a glance whether you are looking at fresh or stale data.',
+  ]],
+  ['🧭 Smaller changes', 'ts', [
+    'Ctrl+K opens a search box — type a reviewer or sub-workflow name to jump straight there. Filter combinations can be saved and recalled by name.',
+    '"SME Deep Drive" is now "SME Deep Dive". The two tabs both previously called "Improve and Control" are resolved — the tab is now Control Charts.',
+    'Coaching Priorities, Outlier Review, PSP Tracker, and Did It Work? now sit together under one Coaching group.',
+  ]],
 ].map(([title, color, items]) => `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow-card)">
       <div style="padding:10px 14px;background:var(--sa);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
@@ -12901,13 +13565,13 @@ function renderGuide() {
                 ${sectionHead('📊','Weekly MPR Preparation','var(--blue)','var(--bbg)','var(--bbd)')}
                 ${callout('var(--blue)','var(--bbg)','var(--blue)','Your MPR narrative answers 3 questions: <strong>What changed? Why? What are we doing about it?</strong> These 4 steps give you every number and table you need.')}
                 ${step(1,'var(--blue)',`Open <strong>Executive Summary</strong>. The 3 KPI cards — Accuracy, AHT, Utilization — are your headline numbers. Switch to <strong>Monthly</strong> chart view to see trend direction clearly. A number that looks fine this week might be a multi-month slide.`)}
-                ${step(2,'var(--blue)',`Go to <strong>Improve & Control → Overall</strong>. Select the review month. Scan the SW table for ${tag('Regressed','var(--coral)','var(--csec)')} and ${tag('Monitoring','var(--amber)','var(--asec)')} rows — these are the queues that need narrative in the MPR. Met rows don't need explanation; below rows do.`)}
+                ${step(2,'var(--blue)',`Go to <strong>Control Charts → Overall</strong>. Select the review month. Scan the SW table for ${tag('Regressed','var(--coral)','var(--csec)')} and ${tag('Monitoring','var(--amber)','var(--asec)')} rows — these are the queues that need narrative in the MPR. Met rows don't need explanation; below rows do.`)}
                 ${step(3,'var(--blue)',`Switch to <strong>Team Level</strong>. Check the reviewer table for anyone with ${tag('Regressed','var(--coral)','var(--csec)')} trajectory. These are your at-risk names — know them before the MPR, not during.`)}
                 ${step(4,'var(--blue)',`Hit the 📋 <strong>Copy</strong> buttons on both the SW table and reviewer table. Paste directly into your MPR deck. Tables arrive pre-formatted — no manual retyping.`)}
                 ${qref([
                     ['Team health at a glance?','Executive Summary'],
-                    ['Which queues regressed?','Improve & Control → Overall'],
-                    ['Who are my at-risk reviewers?','Improve & Control → Team Level'],
+                    ['Which queues regressed?','Control Charts → Overall'],
+                    ['Who are my at-risk reviewers?','Control Charts → Team Level'],
                     ['Pre-formatted tables for the deck?','I&C Copy buttons'],
                 ])}
             </div>
@@ -12949,12 +13613,12 @@ function renderGuide() {
                 ${sectionHead('⚠️','Escalation Triggers — When to Act','var(--amber)','var(--abg)','var(--abd)')}
                 ${callout('var(--amber)','var(--abg)','var(--abd)','These are signals that go beyond coaching. When you see these patterns, document and escalate — don\'t wait for the next MPR cycle.')}
                 ${step(1,'var(--amber)',`<strong>PSP-Regressing for 2+ months.</strong> Check <strong>PSP Tracker</strong> → filter to ${tag('PSP-Regressing','var(--coral)','var(--csec)')}. Coaching hasn't worked. This is your formal performance management trigger — document the coaching history and initiate the PIP review process.`)}
-                ${step(2,'var(--amber)',`<strong>No trajectory improvement after 2 coached weeks.</strong> Go to <strong>Improve & Control → Team Level</strong>. If the Trajectory column still shows ↓ Sliding after two documented coaching sessions, the intervention isn't effective. Change the approach or escalate.`)}
+                ${step(2,'var(--amber)',`<strong>No trajectory improvement after 2 coached weeks.</strong> Go to <strong>Control Charts → Team Level</strong>. If the Trajectory column still shows ↓ Sliding after two documented coaching sessions, the intervention isn't effective. Change the approach or escalate.`)}
                 ${step(3,'var(--amber)',`<strong>Team VSF > 1.0 on any SW.</strong> Go to <strong>Data Explorer</strong>, enable the 📐 VSF / UCL / LCL columns, and group by Sub-workflow. VSF over 1.0 means reviewers are deciding the same content differently. This is a calibration problem, not an individual coaching problem — schedule a team calibration session before coaching anyone in isolation.`)}
                 ${step(4,'var(--amber)',`<strong>AHT trending up 3+ weeks with high NHT%.</strong> Go to <strong>Reviewer Deep-Dive</strong>, set to Weekly view. If NHT% is elevated alongside rising AHT, this may be a tool or workload issue — escalate to ops. Coaching won't fix a system problem.`)}
                 ${qref([
                     ['Who is PSP and not improving?','PSP Tracker → PSP-Regressing filter'],
-                    ['Is coaching moving the trajectory?','Improve & Control → Team Level'],
+                    ['Is coaching moving the trajectory?','Control Charts → Team Level'],
                     ['Is there a calibration problem?','Data Explorer → VSF columns by SW'],
                     ['Is AHT a tool issue vs skill issue?','Reviewer Deep-Dive → Weekly AHT + NHT%'],
                 ])}
@@ -12990,7 +13654,7 @@ function renderGuide() {
                     ${readRow('TL Snapshot cards','Cards at the top of Team Insights. One per supervisor: team accuracy vs target, avg AHT vs team, action rate, decisions. Bottom strip shows Top 3 Error Policies (by error count) and Top 3 AHT Policies (by impact = avgAHT × decision share). Use before MPR to know which TL needs the most attention.')}
                 `)}
 
-                ${readCard('📈','Improve & Control','var(--blue)','var(--bbg)','var(--bbd)',`
+                ${readCard('📈','Control Charts','var(--blue)','var(--bbg)','var(--bbd)',`
                     ${readRow('Status column — Overall','Compares previous month vs current month at SW level. ${tag("Sustained","var(--green)","var(--gsec)")} = Met both months. ${tag("Improved","var(--blue)","var(--bbg)")} = was below, now met. ${tag("Monitoring","var(--amber)","var(--asec)")} = met before, now below but not far. ${tag("Regressed","var(--coral)","var(--csec)")} = clear drop below target.')}
                     ${readRow('Trajectory — Team Level','Based on last 3 weeks of accuracy data per reviewer. ↑ Trending = slope is upward. → Stable = flat. ↓ Sliding = slope is downward. This is the fastest signal for whether a coaching intervention is working.')}
                     ${readRow('Policy sub-rows','Expandable rows under each SW showing which policy categories had errors. Use these to identify whether errors are concentrated in one policy area or spread across all of them.')}
@@ -13019,7 +13683,7 @@ function renderGuide() {
                             ${defn('FNA','False Negative Action — missed content that should have been actioned. Undercalling.')}
                             ${defn('Action Rate','(TP + FP) / (TP + FP + FN + TN). Of all decisions made, what share resulted in an enforcement action (correct or not).')}
                             ${defn('Prod Action Rate','Violating Jobs / Enforcement Jobs. Of all enforcement actions taken, how many were on genuinely violating content. Production-side signal — not audit-derived. Lower = over-actioning; higher = enforcement is well-targeted.')}
-                            ${defn('Offender Status','Per-policy strike tracker in the Historical Defect Log. Tracks how many times a reviewer has made an error on the same policy across all time. 1st Strike = first occurrence. Active = recurred within 60 days of previous. Watch = 61–120 days. Historical = 120+ days ago (resolved, still on record). Strikes are policy-level — the same policy error in different subworkflows counts as one pattern.')}
+                            ${defn('Offender Status','Per-sub-workflow strike tracker in the Historical Defect Log. Tracks how many times a reviewer has made an error in the same sub-workflow across all time, regardless of which policy was violated. 1st Strike = first occurrence. Active = recurred within 60 days of previous. Watch = 61–120 days. Historical = 120+ days ago (resolved, still on record). Strikes are sub-workflow-level — different policy errors in the same subworkflow count as one accumulating pattern.')}
                             ${defn('VSF','Variation Signal Factor — (StDev × 6) / Mean. < 0.7 = unified; 0.7–1.0 = watch; > 1.0 = scattered. High VSF = calibration needed.')}
                         </div>
                         <div style="font-size:11px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 10px">PSP Status Labels</div>
@@ -13071,7 +13735,7 @@ function renderGuide() {
                         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:0 14px;box-shadow:var(--shadow-card)">
                             ${defn('Process Capability','Whether a process can consistently meet its specification limits. In MVIO terms: can this reviewer consistently hit their accuracy and AHT targets? High capability = low variance + meets target. Low capability = wide spread or chronic misses.')}
                             ${defn('Special Cause vs Common Cause','Common cause = normal variation in the process (everyone misses occasionally). Special cause = something unusual happened (sudden drop after a policy update, a reviewer spiked after returning from leave). Coaching addresses common cause. Investigation addresses special cause.')}
-                            ${defn('Control Limit','The boundary beyond which variation is considered special cause, not random noise. In Improve & Control, status changes (Regressed, Monitoring) are triggered when a reviewer crosses a defined threshold — this is operationalising a control limit.')}
+                            ${defn('Control Limit','The boundary beyond which variation is considered special cause, not random noise. In Control Charts, status changes (Regressed, Monitoring) are triggered when a reviewer crosses a defined threshold — this is operationalising a control limit.')}
                         </div>
                     </div>
                     <div>
@@ -14189,12 +14853,47 @@ function _uncapClipping(el) {
     };
 }
 
-const _loadHtml2Canvas = () => new Promise((res, rej) => {
-    if(window.html2canvas) return res();
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-    s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
+// v97.8: single in-flight promise, shared by the idle-preload below and
+// every on-click loader in this file (7 separate capture implementations —
+// see the html2canvas CDN URL search for all of them). Prevents the race
+// where a click fires while the idle preload is mid-download: without this,
+// both the preload and the on-click loader would independently inject a
+// <script> tag and fetch the same ~200KB library twice. Every loader now
+// checks/sets this same promise before ever appending its own <script> tag.
+window._html2canvasLoadPromise = null;
+function _fetchHtml2CanvasOnce() {
+    if (window.html2canvas) return Promise.resolve();
+    if (window._html2canvasLoadPromise) return window._html2canvasLoadPromise;
+    window._html2canvasLoadPromise = new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload = res;
+        s.onerror = () => { window._html2canvasLoadPromise = null; rej(); }; // allow retry on failure
+        document.head.appendChild(s);
+    });
+    return window._html2canvasLoadPromise;
+}
+
+const _loadHtml2Canvas = () => _fetchHtml2CanvasOnce();
+
+// Idle-time preload for html2canvas — every "Copy as image" button in the
+// app currently only starts downloading the library on the FIRST click of a
+// session, meaning the first screenshot anyone takes pays a network+parse
+// tax before rendering even begins. This kicks off that download quietly
+// once the browser is genuinely idle after initial page load — never
+// competing with CSV parsing or the app's own startup render — via the same
+// shared _fetchHtml2CanvasOnce() above, so a click that lands mid-preload
+// awaits the SAME in-flight request instead of starting a second one.
+// Falls back to a short setTimeout on browsers without requestIdleCallback
+// (e.g. Safari). Silent on failure — the normal on-click load path still
+// works exactly as before, just without the head start.
+window.addEventListener('load', () => {
+    const preload = () => { _fetchHtml2CanvasOnce().catch(() => {}); };
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(preload, { timeout: 4000 });
+    } else {
+        setTimeout(preload, 1500);
+    }
 });
 
 // Shared capture + clipboard/download flow used by both copyElementAsImage
@@ -14593,8 +15292,6 @@ function renderTIDefectLogTable() {
         ...r,
         fpa: r.fpa || 0,
         fna: r.fna || 0,
-        // Compute Active/Watch/Hist from all-time rows for this reviewer+policy
-        _allTimeRows: RAW_ROWS.filter(ar => ar.reviewer === r.reviewer && ar.pol === r.pol && (ar.fpa+ar.fna)>0)
     }));
     tb.innerHTML = _buildGroupedDefectRows(compatible, latestWk, msD, true);
 }
@@ -16289,6 +16986,71 @@ function toggleCtrlSwPol(i) {
     if(btn) btn.textContent = open ? '▸ Pol' : '▾ Pol';
 }
 
+// ── Trend chart minimum window floor (v97.3, extended v97.5 to Team Insights
+// & Reviewer/TL Deep-Dive) ──────────────────────────────────────────────────
+// Shared helper: given the full unfiltered dataset and whatever months are
+// currently selected in the month-pill filter, returns the row set trend
+// charts should read from — widened, if needed, to a minimum floor (12
+// weeks for Weekly view, 6 months for Monthly view) so a narrow month-pill
+// selection never leaves a chart too short to show a meaningful pattern or
+// feed the SPC baseline (8+ periods). Only ever WIDENS beyond what
+// selMonths alone would give; a wider existing selection, or "no months
+// selected" (already the full dataset), is returned untouched. Must be
+// called on the UNFILTERED dataset (before TL/tenure/SW/workflow dimension
+// filters), then the caller applies its own dimension filters afterward —
+// mirrors the original Site Health implementation's ordering exactly, so
+// the floor decision isn't skewed by a narrow TL/SW selection.
+function applyTrendWindowFloor(allRows, selMonthsForCharts, chartView) {
+    if (!selMonthsForCharts.length) return allRows;
+
+    if (chartView === 'monthly') {
+        const MIN_MONTHS = 6;
+        const allMonths = [...new Set(allRows.map(r => r.month).filter(Boolean))].sort();
+        const selectedSet = new Set(selMonthsForCharts);
+        const firstSelPos = allMonths.findIndex(m => selectedSet.has(m));
+        let lastSelPos = -1;
+        for (let i = allMonths.length - 1; i >= 0; i--) { if (selectedSet.has(allMonths[i])) { lastSelPos = i; break; } }
+        let floorMonths = allMonths;
+        if (firstSelPos >= 0 && lastSelPos >= 0) {
+            const span = lastSelPos - firstSelPos + 1;
+            if (span < MIN_MONTHS) {
+                // Widen backward first (favor showing history leading up to
+                // the selection), then forward if there isn't enough history.
+                const deficit = MIN_MONTHS - span;
+                const widenedStart = Math.max(0, firstSelPos - deficit);
+                const widenedEnd = Math.min(allMonths.length - 1, widenedStart + MIN_MONTHS - 1);
+                floorMonths = allMonths.slice(widenedStart, widenedEnd + 1);
+            } else {
+                floorMonths = allMonths.slice(firstSelPos, lastSelPos + 1);
+            }
+        }
+        return allRows.filter(r => floorMonths.includes(r.month));
+    }
+
+    // Weekly (or daily) view: floor is measured in WEEKS, not months — a
+    // one-month selection can be well under 12 weeks. Widen the underlying
+    // row set to the selected months' week range, extended backward (then
+    // forward if needed) to a minimum of 12 distinct week-ending dates from
+    // the full dataset's own WEEKS list.
+    const MIN_WEEKS = 12;
+    const selectedSet = new Set(selMonthsForCharts);
+    const selWeeks = WEEKS.filter(w => allRows.some(r => r.week === w && selectedSet.has(r.month)));
+    if (selWeeks.length >= MIN_WEEKS) {
+        return allRows.filter(r => selectedSet.has(r.month));
+    }
+    const firstSelWeekIdx = WEEKS.indexOf(selWeeks[0]);
+    const lastSelWeekIdx = WEEKS.indexOf(selWeeks[selWeeks.length - 1]);
+    if (firstSelWeekIdx < 0 || lastSelWeekIdx < 0) {
+        return allRows.filter(r => selectedSet.has(r.month));
+    }
+    const span = lastSelWeekIdx - firstSelWeekIdx + 1;
+    const deficit = Math.max(0, MIN_WEEKS - span);
+    const widenedStart = Math.max(0, firstSelWeekIdx - deficit);
+    const widenedEnd = Math.min(WEEKS.length - 1, widenedStart + MIN_WEEKS - 1);
+    const floorWeeks = new Set(WEEKS.slice(widenedStart, widenedEnd + 1));
+    return allRows.filter(r => floorWeeks.has(r.week));
+}
+
 // RENDER CHARTS ENGINE
 function renderExecCharts(qRows, wfmRows, targetsObj, qualType, vsfs, passRates) {
     // Trend charts default to the universal filter bar's selected month range —
@@ -16297,9 +17059,15 @@ function renderExecCharts(qRows, wfmRows, targetsObj, qualType, vsfs, passRates)
     // dataset (no cap — previously hard-capped to the last 12 weeks, removed so
     // switching to Monthly view, or simply accumulating more weeks of data,
     // shows every available period instead of stopping at ~3 months).
+    //
+    // v97.3: a MINIMUM window floor (12 weeks / 6 months, see
+    // applyTrendWindowFloor above) is enforced regardless of the month-pill
+    // selection.
     const selMonthsForCharts = getSelMonths();
     const tls = getSel('g-tl'), tenures = getSel('g-tenure'), sws = getSel('g-sw'), workflows = getSel('g-workflow'), roles = getSel('g-role'), reviewTypes = getSel('g-review-type');
-    const monthScopedRows = selMonthsForCharts.length ? RAW_ROWS.filter(r => selMonthsForCharts.includes(r.month)) : RAW_ROWS;
+
+    const monthScopedRows = applyTrendWindowFloor(RAW_ROWS, selMonthsForCharts, CHART_VIEW);
+
     const baseRows = filterRows(monthScopedRows, tls, tenures, sws, workflows, roles, reviewTypes);
     const trendQRows  = baseRows;
     const trendWFMRows = baseRows;
@@ -21206,61 +21974,73 @@ function _generateCoachingDocInner(mcdConfig) {
     })
     .slice(0,4);
 
-    // Error pattern — last 60 days only
+    // Error pattern — last 60 days only. v97.7: restructured from
+    // policy-level to SUB-WORKFLOW-level grouping/counting for strike
+    // purposes (Karl's explicit call — closes a "1 markdown per policy per
+    // SW" perception gap). Downstream narrative copy elsewhere in this
+    // document (AHT-by-policy coaching, defect pareto, etc.) is explicitly
+    // OUT of scope and still reads a `.pol` field, so each SW-grouped
+    // record keeps a `.pol` populated with the SW's single most-frequent
+    // policy (not the grouping key — just preserves a working value for
+    // that unrelated narrative code to read without crashing).
     const msDay60pol = 86400000;
     const latestWkPol = WEEKS.length ? WEEKS[WEEKS.length-1] : allRvRows.map(r=>r.week).sort().pop();
-    const polCounter={}, polHistory={};
+    const swCounter={}, swHistory={};
     allRvRows.filter(r => ((new Date(latestWkPol)-new Date(r.week))/msDay60pol)<=60)
     .sort((a,b)=>a.week.localeCompare(b.week)).forEach(r => {
-        if(!r.pol||(r.fpa+r.fna)===0) return;
-        polCounter[r.pol]=(polCounter[r.pol]||0)+1;
-        if(!polHistory[r.pol]) polHistory[r.pol]=[];
-        polHistory[r.pol].push({wk:r.week,sw:r.sw,fp:r.fpa||0,fn:r.fna||0});
+        if(!r.sw||(r.fpa+r.fna)===0) return;
+        swCounter[r.sw]=(swCounter[r.sw]||0)+1;
+        if(!swHistory[r.sw]) swHistory[r.sw]=[];
+        swHistory[r.sw].push({wk:r.week,pol:r.pol,fp:r.fpa||0,fn:r.fna||0});
     });
-    const polErrors = Object.entries(polCounter).map(([pol,count]) => {
-        const history=polHistory[pol]||[];
+    const polErrors = Object.entries(swCounter).map(([sw,count]) => {
+        const history=swHistory[sw]||[];
         const recFP=history.reduce((s,h)=>s+h.fp,0);
         const recFN=history.reduce((s,h)=>s+h.fn,0);
-        const sw=history[history.length-1]?.sw||'';
-        const allSWs=[...new Set(history.map(h=>h.sw).filter(Boolean))].join(' · ');
+        // Most-frequent policy within this SW's error set — preserved only
+        // for unrelated downstream narrative code that still reads `.pol`.
+        const polCounts={}; history.forEach(h=>{ if(h.pol) polCounts[h.pol]=(polCounts[h.pol]||0)+1; });
+        const pol = Object.entries(polCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+        const allPols=[...new Set(history.map(h=>h.pol).filter(Boolean))].join(' · ');
         const lastErrDate=history[history.length-1]?.wk||null;
         const type=recFN>=recFP?'FN':'FP';
-        // Active/Watch/Hist counts from all-time rows for this reviewer+policy
+        // Active/Watch/Hist counts from all-time rows for this reviewer+SW
         const latestWk = WEEKS.length ? WEEKS[WEEKS.length-1] : allRvRows.map(r=>r.week).sort().pop();
         const msD = 86400000;
         let polActive=0,polWatch=0,polHist=0;
-        allRvRows.filter(r=>r.pol===pol&&(r.fpa+r.fna)>0).forEach((r,_,arr)=>{
+        allRvRows.filter(r=>r.sw===sw&&(r.fpa+r.fna)>0).forEach((r,_,arr)=>{
             const days=(new Date(latestWk)-new Date(r.week))/msD;
             if(days<=60) polActive++; else if(days<=120) polWatch++; else polHist++;
         });
-        return { pol, sw, allSWs, count, strikeNum:count, recFP, recFN, type, recTotal:recFP+recFN, lastErrDate, polActive, polWatch, polHist };
+        return { pol, sw, allSWs: allPols, count, strikeNum:count, recFP, recFN, type, recTotal:recFP+recFN, lastErrDate, polActive, polWatch, polHist };
     }).filter(p=>p.recTotal>0).sort((a,b)=>b.recTotal-a.recTotal);
 
     // If no errors in last 60 days, fall back to all-time history for context
     const polErrorsAllTime = (() => {
         const aC={}, aH={};
         allRvRows.sort((a,b)=>a.week.localeCompare(b.week)).forEach(r => {
-            if(!r.pol||(r.fpa+r.fna)===0) return;
-            aC[r.pol]=(aC[r.pol]||0)+1;
-            if(!aH[r.pol]) aH[r.pol]=[];
-            aH[r.pol].push({wk:r.week,sw:r.sw,fp:r.fpa||0,fn:r.fna||0});
+            if(!r.sw||(r.fpa+r.fna)===0) return;
+            aC[r.sw]=(aC[r.sw]||0)+1;
+            if(!aH[r.sw]) aH[r.sw]=[];
+            aH[r.sw].push({wk:r.week,pol:r.pol,fp:r.fpa||0,fn:r.fna||0});
         });
-        return Object.entries(aC).map(([pol,count]) => {
-            const history=aH[pol]||[];
+        return Object.entries(aC).map(([sw,count]) => {
+            const history=aH[sw]||[];
             const allFP=history.reduce((s,h)=>s+h.fp,0);
             const allFN=history.reduce((s,h)=>s+h.fn,0);
-            const sw=history[history.length-1]?.sw||'';
-            const allSWs=[...new Set(history.map(h=>h.sw).filter(Boolean))].join(' · ');
+            const polCounts={}; history.forEach(h=>{ if(h.pol) polCounts[h.pol]=(polCounts[h.pol]||0)+1; });
+            const pol = Object.entries(polCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+            const allPols=[...new Set(history.map(h=>h.pol).filter(Boolean))].join(' · ');
             const lastErrDate=history[history.length-1]?.wk||null;
             const type=allFN>=allFP?'FN':'FP';
             const latestWk = WEEKS.length ? WEEKS[WEEKS.length-1] : allRvRows.map(r=>r.week).sort().pop();
             const msD = 86400000;
             let polActive=0,polWatch=0,polHist=0;
-            allRvRows.filter(r=>r.pol===pol&&(r.fpa+r.fna)>0).forEach(r=>{
+            allRvRows.filter(r=>r.sw===sw&&(r.fpa+r.fna)>0).forEach(r=>{
                 const days=(new Date(latestWk)-new Date(r.week))/msD;
                 if(days<=60) polActive++; else if(days<=120) polWatch++; else polHist++;
             });
-            return { pol, sw, allSWs, count, strikeNum:count, recFP:allFP, recFN:allFN, type, recTotal:allFP+allFN, lastErrDate, polActive, polWatch, polHist };
+            return { pol, sw, allSWs: allPols, count, strikeNum:count, recFP:allFP, recFN:allFN, type, recTotal:allFP+allFN, lastErrDate, polActive, polWatch, polHist };
         }).filter(p=>p.recTotal>0).sort((a,b)=>b.recTotal-a.recTotal);
     })();
 
@@ -21323,8 +22103,8 @@ function _generateCoachingDocInner(mcdConfig) {
         const activeC = p.polActive>0 ? red   : textMuted;
         const watchC  = p.polWatch>0  ? amber : textMuted;
         return `<tr style="border-bottom:0.5px solid ${divider}">
-        <td style="padding:6px 8px;font-size:12px;font-weight:500;color:${textPri};font-family:${sans}">${p.pol}</td>
-        <td style="padding:6px 8px;font-size:11px;color:${textSec};font-family:${sans}">${p.allSWs||p.sw||'—'}</td>
+        <td style="padding:6px 8px;font-size:12px;font-weight:500;color:${textPri};font-family:${sans}">${p.sw||'—'}</td>
+        <td style="padding:6px 8px;font-size:11px;color:${textSec};font-family:${sans}">${p.allSWs||p.pol||'—'}</td>
         <td style="padding:6px 8px;text-align:center;font-family:${mono};font-size:12px;font-weight:500;color:${p.recTotal>0?red:textMuted}">${p.recTotal}</td>
         <td style="padding:6px 8px;text-align:center;font-family:${mono};font-size:12px;font-weight:500;color:${activeC}">${p.polActive}</td>
         <td style="padding:6px 8px;text-align:center;font-family:${mono};font-size:12px;color:${watchC}">${p.polWatch}</td>
@@ -21419,7 +22199,7 @@ function _generateCoachingDocInner(mcdConfig) {
         <div style="padding:7px 12px;border-radius:6px;background:${domType==='FN'?redBg:amberBg};border-left:3px solid ${domType==='FN'?red:amber};font-size:12px;color:${domType==='FN'?'#501313':'#412402'};margin-bottom:8px">${totFN} FN vs ${totFP} FP — ${domType==='FN'?'reviewer is under-actioning (missing violations)':'reviewer is over-actioning (false removals)'}.</div>
         <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:12px">
           <thead><tr style="border-bottom:2px solid ${borderColor}">
-            ${['Policy','SWs hit','Errors','Active','Watch','Hist'].map(h=>`<th style="padding:5px 8px;text-align:${h==='Policy'||h==='SWs hit'?'left':'center'};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};font-family:${sans}">${h}</th>`).join('')}
+            ${['Sub-workflow','Policies hit','Errors','Active','Watch','Hist'].map(h=>`<th style="padding:5px 8px;text-align:${h==='Sub-workflow'||h==='Policies hit'?'left':'center'};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};font-family:${sans}">${h}</th>`).join('')}
           </tr></thead>
           <tbody>${polErrorsDisplay.slice(0,6).map(errRow).join('')}</tbody>
         </table>
@@ -22314,40 +23094,46 @@ function _generateCoachingDocInner(mcdConfig) {
 
 
     // All-time error rows for Error History table (replaces recent60 in reviewer doc)
-    const allRvErrors = allRvRows.filter(r => r.pol && (r.fpa+r.fna)>0)
+    // v97.7: filter gates on r.sw now (not r.pol) — restructured to SW-level
+    // grouping, so a row missing a policy value but having a valid SW should
+    // still be included; a row missing SW is what's actually unusable here.
+    const allRvErrors = allRvRows.filter(r => r.sw && (r.fpa+r.fna)>0)
         .sort((a,b) => b.week.localeCompare(a.week));
 
     // ── Last 60 days defect log ────────────────────────────────────────────────
     const latestWk = WEEKS.length ? WEEKS[WEEKS.length-1] : periodRows.map(r=>r.week).sort().pop();
     const msDay = 86400000;
     const recent60 = allRvRows.filter(r => {
-        if(!r.pol || (r.fpa+r.fna)===0) return false;
+        if(!r.sw || (r.fpa+r.fna)===0) return false;
         const daysAgo = (new Date(latestWk) - new Date(r.week)) / msDay;
         return daysAgo <= 60;
     }).sort((a,b) => b.week.localeCompare(a.week));
 
     function defectLogHTML(rows, mono, sans, textPri, textSec, textMuted, borderColor, divider, red, amber, green, showReviewer) {
         if(!rows.length) return `<div style="padding:10px 14px;font-size:12px;color:${textMuted};font-style:italic">No errors in the last 60 days.</div>`;
-        // Group by reviewer+policy — one row per reviewer+policy combo, aggregate SWs hit + FP + FN + Active/Watch/Hist
+        // v97.7: restructured from reviewer+POLICY grouping to reviewer+SW
+        // grouping (Karl's explicit call, same restructure as polErrors/
+        // polErrorsAllTime above — this is a 5th implementation of the same
+        // mechanism, found during the build, not in the original 4-item map).
         const latestWk = WEEKS.length ? WEEKS[WEEKS.length-1] : rows.map(r=>r.week).sort().pop();
         const msD = 86400000;
         const groupMap = {};
         rows.forEach(r => {
-            if(!r.pol) return;
-            const key = showReviewer ? (r.reviewer||'')+'|||'+r.pol : r.pol;
-            if(!groupMap[key]) groupMap[key] = { reviewer:r.reviewer||'', pol:r.pol, sws:new Set(), fp:0, fn:0, active:0, watch:0, hist:0 };
+            if(!r.sw) return;
+            const key = showReviewer ? (r.reviewer||'')+'|||'+r.sw : r.sw;
+            if(!groupMap[key]) groupMap[key] = { reviewer:r.reviewer||'', sw:r.sw, pols:new Set(), fp:0, fn:0, active:0, watch:0, hist:0 };
             const p = groupMap[key];
-            if(r.sw) p.sws.add(r.sw);
+            if(r.pol) p.pols.add(r.pol);
             p.fp += r.fpa||0; p.fn += r.fna||0;
             const days = (new Date(latestWk) - new Date(r.week)) / msD;
             if(days<=60) p.active++; else if(days<=120) p.watch++; else p.hist++;
         });
         const grouped = Object.values(groupMap).sort((a,b)=>(b.fn+b.fp)-(a.fn+a.fp));
-        const cols = showReviewer ? ['Reviewer','Policy','SWs hit','Errors','Active','Watch','Hist'] : ['Policy','SWs hit','Errors','Active','Watch','Hist'];
+        const cols = showReviewer ? ['Reviewer','Sub-workflow','Policies hit','Errors','Active','Watch','Hist'] : ['Sub-workflow','Policies hit','Errors','Active','Watch','Hist'];
         return `<table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead><tr style="border-bottom:1px solid ${borderColor}">
                 ${cols.map(h=>
-                    `<th style="padding:5px 8px;text-align:${h==='Reviewer'||h==='Policy'||h==='SWs hit'?'left':'center'};font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};font-family:${sans}">${h}</th>`
+                    `<th style="padding:5px 8px;text-align:${h==='Reviewer'||h==='Sub-workflow'||h==='Policies hit'?'left':'center'};font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:${textMuted};font-family:${sans}">${h}</th>`
                 ).join('')}
             </tr></thead>
             <tbody>${grouped.map((p,i)=>{
@@ -22357,8 +23143,8 @@ function _generateCoachingDocInner(mcdConfig) {
                 const rvCell = showReviewer ? `<td style="padding:6px 8px;font-size:12px;font-weight:600;color:${textPri};font-family:${sans}">${sn(p.reviewer)||'—'}</td>` : '';
                 return `<tr style="border-bottom:${i===grouped.length-1?'none':'0.5px solid '+divider}">
                     ${rvCell}
-                    <td style="padding:6px 8px;font-size:12px;font-weight:500;color:${textPri};font-family:${sans}">${p.pol}</td>
-                    <td style="padding:6px 8px;font-size:11px;color:${textSec};font-family:${sans}">${[...p.sws].join(' \u00b7 ')||'—'}</td>
+                    <td style="padding:6px 8px;font-size:12px;font-weight:500;color:${textPri};font-family:${sans}">${p.sw}</td>
+                    <td style="padding:6px 8px;font-size:11px;color:${textSec};font-family:${sans}">${[...p.pols].join(' \u00b7 ')||'—'}</td>
                     <td style="padding:6px 8px;text-align:center;font-family:${mono};font-weight:500;color:${tot>0?red:textMuted}">${tot}</td>
                     <td style="padding:6px 8px;text-align:center;font-family:${mono};font-weight:500;color:${activeC}">${p.active}</td>
                     <td style="padding:6px 8px;text-align:center;font-family:${mono};color:${watchC}">${p.watch}</td>
@@ -23263,13 +24049,10 @@ async function copyPerformanceSnapshot(btnElem) {
     btnElem.innerHTML = '⏳ Rendering...';
     btnElem.disabled = true;
 
-    const loadLib = () => new Promise((res, rej) => {
-        if(window.html2canvas) return res();
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = res; s.onerror = rej;
-        document.head.appendChild(s);
-    });
+    // v97.8: uses the shared _fetchHtml2CanvasOnce() loader so a click that
+    // lands mid-idle-preload awaits the same in-flight request instead of
+    // triggering a second, redundant ~200KB download.
+    const loadLib = () => _fetchHtml2CanvasOnce();
 
     let host = null;
     try {
@@ -23303,7 +24086,7 @@ async function copyPerformanceSnapshot(btnElem) {
 
         await loadLib();
         const canvas = await html2canvas(host, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             backgroundColor: '#FFFFFF',
             logging: false,
@@ -23347,13 +24130,10 @@ async function copyMonthlyPerformanceSnapshot(btnElem) {
     btnElem.innerHTML = '⏳ Rendering...';
     btnElem.disabled = true;
 
-    const loadLib = () => new Promise((res, rej) => {
-        if(window.html2canvas) return res();
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = res; s.onerror = rej;
-        document.head.appendChild(s);
-    });
+    // v97.8: uses the shared _fetchHtml2CanvasOnce() loader so a click that
+    // lands mid-idle-preload awaits the same in-flight request instead of
+    // triggering a second, redundant ~200KB download.
+    const loadLib = () => _fetchHtml2CanvasOnce();
 
     let host = null;
     try {
@@ -23383,7 +24163,7 @@ async function copyMonthlyPerformanceSnapshot(btnElem) {
 
         await loadLib();
         const canvas = await html2canvas(host, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             backgroundColor: '#FFFFFF',
             logging: false,
@@ -23428,13 +24208,10 @@ async function copyTLPerformanceSnapshot(btnElem, mode) {
     btnElem.innerHTML = '⏳ Rendering...';
     btnElem.disabled = true;
 
-    const loadLib = () => new Promise((res, rej) => {
-        if(window.html2canvas) return res();
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = res; s.onerror = rej;
-        document.head.appendChild(s);
-    });
+    // v97.8: uses the shared _fetchHtml2CanvasOnce() loader so a click that
+    // lands mid-idle-preload awaits the same in-flight request instead of
+    // triggering a second, redundant ~200KB download.
+    const loadLib = () => _fetchHtml2CanvasOnce();
 
     let host = null;
     try {
@@ -23481,7 +24258,7 @@ async function copyTLPerformanceSnapshot(btnElem, mode) {
 
         await loadLib();
         const canvas = await html2canvas(host, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             backgroundColor: '#FFFFFF',
             logging: false,
@@ -24155,23 +24932,37 @@ document.addEventListener('DOMContentLoaded', function() {
 // Collector shape is FROZEN per spec — do not modify, extend, or rename:
 //   { subject, sw, reason, severity, score, suggestedAction, tab, filters }
 
-// ── 1. SNAPSHOT CAPTURE ─────────────────────────────────────────────────────
-// Aggregates RAW_ROWS by reviewer|sw|month into the lightweight shape used for
-// diffing. This duplicates the tpa/fpa/fna/tna -> acc/prec/rec/ar/aht formula
-// that exists independently at ~5646, ~16532, and inline in several render
-// functions (e.g. ~19740) — duplicated here rather than shared, per the
-// house rule on shared closures (precedent: _tcmGenerateDoc vs
-// buildTLSnapshotTables). AHT is always (dht+nht)/decisions; dht and nht on
+// ── 1. PERIOD-BASED COMPARISON (rewired per Karl's request) ────────────────
+// REPLACES the original upload-snapshot-history design. That design compared
+// two IndexedDB snapshots taken at whatever two moments someone happened to
+// upload data, which meant results depended on upload timing/cadence rather
+// than on the data itself: upload twice in one afternoon and get a fake
+// signal from zero real elapsed time; skip a week and the comparison silently
+// spans two weeks with no indication; clear browser storage and lose all
+// history; and a real ordering bug (fixed in v95, then removed here rather
+// than carried forward) meant the diff shown after an upload could be one
+// full cycle stale. All of that is a property of *when the browser happened
+// to save a snapshot*, not of the underlying numbers.
+//
+// This version computes month-to-date vs the prior month directly from
+// RAW_ROWS on every render. Same input data always produces the same result,
+// regardless of upload timing, browser storage state, or session history.
+// Nothing is persisted; there is no snapshot to go stale.
+//
+// aggregateForMonth() duplicates the tpa/fpa/fna/tna -> acc/prec/rec/ar/aht
+// formula that exists independently elsewhere in the file (~5646, ~16532,
+// inline at ~19740) — duplicated here rather than shared, per the house rule
+// on shared closures. AHT is always (dht+nht)/decisions; dht and nht on
 // RAW_ROWS are already totals, never multiplied by decisions again.
-function takeSnapshot() {
-    if (typeof RAW_ROWS === 'undefined' || !RAW_ROWS.length) return [];
+function cmdAggregateForMonth(month) {
+    if (typeof RAW_ROWS === 'undefined' || !RAW_ROWS.length || !month) return [];
     const groups = {};
     RAW_ROWS.forEach(r => {
-        if (!r.reviewer || !r.sw || !r.month) return;
-        const key = r.reviewer + '|' + r.sw + '|' + r.month;
+        if (!r.reviewer || !r.sw || r.month !== month) return;
+        const key = r.reviewer + '|' + r.sw;
         if (!groups[key]) {
             groups[key] = {
-                reviewer: r.reviewer, sw: r.sw, month: r.month,
+                reviewer: r.reviewer, sw: r.sw, month,
                 tpa: 0, fpa: 0, fna: 0, tna: 0, dht: 0, nht: 0, decisions: 0
             };
         }
@@ -24193,69 +24984,34 @@ function takeSnapshot() {
     });
 }
 
-// ── 2. SNAPSHOT PERSISTENCE ─────────────────────────────────────────────────
-// Reuses the Block 1 idbGet/idbSet/idbList helpers (flat keyspace in the
-// existing 'myperf-cache' store) under a 'snapshot:*' namespace — a second
-// object store is not needed since keys already partition cleanly by prefix.
-// Keeps the last 6 snapshots. Never modifies dataset cache slots (raw,
-// misc, jobdetail, etc.) written by Block 1.
-const CMD_SNAPSHOT_PREFIX = 'snapshot:';
-const CMD_SNAPSHOT_KEEP = 6;
-
-function cmdSaveSnapshot() {
-    if (typeof idbSet !== 'function' || typeof idbList !== 'function') {
-        console.warn('[command-center] idb helpers unavailable, snapshot not persisted');
-        return Promise.resolve(null);
-    }
-    const rows = takeSnapshot();
-    if (!rows.length) return Promise.resolve(null);
-    const key = CMD_SNAPSHOT_PREFIX + Date.now();
-    return idbSet(key, rows, 'snapshot', rows.length)
-        .then(() => cmdPruneSnapshots())
-        .then(() => key)
-        .catch(e => { console.warn('[command-center] snapshot save failed', e); return null; });
+// Returns { currMonth, prevMonth } — the two most recent distinct months
+// present in RAW_ROWS, sorted. Same YYYY-MM derivation pattern already used
+// throughout the file (e.g. ~4740, ~4796, ~6756) rather than the unused
+// MONTHS global, which is declared but never populated anywhere in the file.
+function cmdCurrentAndPriorMonth() {
+    if (typeof RAW_ROWS === 'undefined' || !RAW_ROWS.length) return { currMonth: null, prevMonth: null };
+    const months = [...new Set(RAW_ROWS.map(r => r.month).filter(Boolean))].sort();
+    if (!months.length) return { currMonth: null, prevMonth: null };
+    const currMonth = months[months.length - 1];
+    const prevMonth = months.length >= 2 ? months[months.length - 2] : null;
+    return { currMonth, prevMonth };
 }
 
-// Drops all but the most recent CMD_SNAPSHOT_KEEP snapshot records.
-function cmdPruneSnapshots() {
-    if (typeof idbList !== 'function' || typeof idbDel !== 'function') return Promise.resolve();
-    return idbList().then(records => {
-        const snaps = (records || [])
-            .filter(r => r.key && r.key.indexOf(CMD_SNAPSHOT_PREFIX) === 0)
-            .sort((a, b) => (a.uploadedAt || '').localeCompare(b.uploadedAt || ''));
-        const excess = snaps.length - CMD_SNAPSHOT_KEEP;
-        if (excess <= 0) return;
-        const toDrop = snaps.slice(0, excess);
-        return Promise.all(toDrop.map(r => idbDel(r.key)));
-    }).catch(e => console.warn('[command-center] prune failed', e));
-}
-
-// Returns [{key, rows, uploadedAt}], oldest first, most recent last.
-function cmdListSnapshots() {
-    if (typeof idbList !== 'function') return Promise.resolve([]);
-    return idbList().then(records => (records || [])
-        .filter(r => r.key && r.key.indexOf(CMD_SNAPSHOT_PREFIX) === 0)
-        .sort((a, b) => (a.uploadedAt || '').localeCompare(b.uploadedAt || ''))
-        .map(r => ({ key: r.key, rows: r.rows, uploadedAt: r.uploadedAt }))
-    ).catch(e => { console.warn('[command-center] list snapshots failed', e); return []; });
-}
-
-// ── 3. DIFF ENGINE ──────────────────────────────────────────────────────────
-// Keyed join on reviewer|sw|month between two snapshot row arrays. Returns
-// items only for keys present on both sides — a key appearing on only one
-// side (new hire, dropped SW, month rollover) is not a "change", it is an
-// absence, and is intentionally excluded here rather than fabricating a
-// before/after value.
+// ── 2. DIFF ENGINE ──────────────────────────────────────────────────────────
+// Keyed join on reviewer|sw between the two month aggregates. A pair present
+// in only one month (new hire, dropped SW that month) is an absence, not a
+// change, and is excluded rather than fabricating a before/after value.
 function diffSnapshots(prevRows, currRows) {
     const prevMap = {};
-    (prevRows || []).forEach(r => { prevMap[r.reviewer + '|' + r.sw + '|' + r.month] = r; });
+    (prevRows || []).forEach(r => { prevMap[r.reviewer + '|' + r.sw] = r; });
     const out = [];
     (currRows || []).forEach(curr => {
-        const key = curr.reviewer + '|' + curr.sw + '|' + curr.month;
+        const key = curr.reviewer + '|' + curr.sw;
         const prev = prevMap[key];
         if (!prev) return;
         out.push({
-            reviewer: curr.reviewer, sw: curr.sw, month: curr.month,
+            reviewer: curr.reviewer, sw: curr.sw,
+            prevMonth: prev.month, currMonth: curr.month, month: curr.month,
             prevDecisions: prev.decisions, currDecisions: curr.decisions,
             deltaAdjAcc: (curr.adjAcc !== null && prev.adjAcc !== null) ? curr.adjAcc - prev.adjAcc : null,
             deltaPrec:   (curr.prec   !== null && prev.prec   !== null) ? curr.prec   - prev.prec   : null,
@@ -24267,27 +25023,34 @@ function diffSnapshots(prevRows, currRows) {
     return out;
 }
 
-// ── 4. SIGNAL_COLLECTORS — FROZEN INTERFACE ─────────────────────────────────
+// Retained for callers/tests that build snapshots directly from an arbitrary
+// RAW_ROWS state (e.g. a caller who has already filtered to one month).
+// Groups by reviewer|sw only now, matching the new diff key — there is no
+// month dimension left to disambiguate on a single-month call, by design.
+function takeSnapshot() {
+    if (typeof RAW_ROWS === 'undefined' || !RAW_ROWS.length) return [];
+    const months = [...new Set(RAW_ROWS.map(r => r.month).filter(Boolean))];
+    // Single-month convenience wrapper: if RAW_ROWS spans exactly one month
+    // (the common case for a caller who pre-filtered), aggregate that month.
+    // If it spans several, aggregate the most recent — matches
+    // cmdCurrentAndPriorMonth()'s own "latest" convention.
+    if (!months.length) return [];
+    const target = months.sort()[months.length - 1];
+    return cmdAggregateForMonth(target);
+}
+
+// ── 3. SIGNAL_COLLECTORS — FROZEN INTERFACE ─────────────────────────────────
 // Array of functions, each returning [] of the frozen shape below. Blocks 3,
-// 4, and 7 push their detector-wrapping functions into this array once this
-// session lands; DR_EMERGING_SIGNALS / DR_CONTAGION_SIGNALS / SPC_SIGNALS /
-// BPW_SIGNALS already exist in the file (Block 3, 4, 7) sitting unused,
-// ready to wire in via thin wrappers — that wiring is explicitly NOT part of
-// this session per the collector shape being frozen as-is.
+// 4, and 7 push their detector-wrapping functions into this array; frozen
+// exactly as before, unaffected by the period-comparison rewrite.
 //
 // { subject, sw, reason, severity, score, suggestedAction, tab, filters }
 const SIGNAL_COLLECTORS = [];
 
-// ── 5. THRESHOLD-CROSSING COLLECTOR ─────────────────────────────────────────
+// ── 4. THRESHOLD-CROSSING COLLECTOR ─────────────────────────────────────────
 // Detects Precision/Recall/Adjusted Accuracy crossing the 96% target, and AHT
-// crossing a band boundary, between the two most recent snapshots. Applies
-// the AR gate (ar >= 0.10 -> evaluate Precision+Recall; ar < 0.10 -> evaluate
-// Adjusted Accuracy only) and SR_RV_EXCLUDE. Gated decisions >= 5 on both
-// sides of the diff, per spec.
-//
-// SCORE_WEIGHTS is named and centralized per spec section on sort modes;
-// only the 'declining' multiplier is used here since this collector only
-// fires on a crossing, which is itself a directional signal.
+// crossing a band boundary, between month-to-date and the prior month.
+// Applies the AR gate and SR_RV_EXCLUDE. Gated decisions >= 5 on both sides.
 const SCORE_WEIGHTS = { decliningMultiplier: 1.5, flatMultiplier: 1.0, improvingMultiplier: 0.6 };
 
 const CMD_QUALITY_TARGET = 0.96;
@@ -24303,8 +25066,6 @@ function cmdThresholdCollector(diffItems) {
         const curr = d.curr, prev = d.prev;
         const usesPR = curr.ar !== null && curr.ar >= 0.10;
 
-        // Quality metric crossing — AR-gated: high-AR reviewers are judged on
-        // Precision+Recall, never on Accuracy; low-AR reviewers the reverse.
         if (usesPR) {
             [['prec', 'Precision', curr.prec, prev.prec], ['rec', 'Recall', curr.rec, prev.rec]].forEach(([, label, currV, prevV]) => {
                 if (currV === null || prevV === null) return;
@@ -24316,7 +25077,7 @@ function cmdThresholdCollector(diffItems) {
                 const score = gap * curr.decisions * (crossedDown ? SCORE_WEIGHTS.decliningMultiplier : SCORE_WEIGHTS.improvingMultiplier);
                 out.push({
                     subject: d.reviewer, sw: d.sw,
-                    reason: label + (crossedDown ? ' dropped below 96% target' : ' recovered above 96% target'),
+                    reason: label + (crossedDown ? ' dropped below 96% target' : ' recovered above 96% target') + ' (month-to-date vs prior month)',
                     severity, score,
                     suggestedAction: crossedDown ? 'Coach on ' + label.toLowerCase() + ' gap' : 'Acknowledge recovery',
                     tab: 'drill', filters: { reviewer: d.reviewer, sw: d.sw }
@@ -24332,7 +25093,7 @@ function cmdThresholdCollector(diffItems) {
                     const score = gap * curr.decisions * (crossedDown ? SCORE_WEIGHTS.decliningMultiplier : SCORE_WEIGHTS.improvingMultiplier);
                     out.push({
                         subject: d.reviewer, sw: d.sw,
-                        reason: 'Adjusted Accuracy ' + (crossedDown ? 'dropped below 96% target' : 'recovered above 96% target'),
+                        reason: 'Adjusted Accuracy ' + (crossedDown ? 'dropped below 96% target' : 'recovered above 96% target') + ' (month-to-date vs prior month)',
                         severity, score,
                         suggestedAction: crossedDown ? 'Coach on accuracy gap' : 'Acknowledge recovery',
                         tab: 'drill', filters: { reviewer: d.reviewer, sw: d.sw }
@@ -24344,49 +25105,24 @@ function cmdThresholdCollector(diffItems) {
     return out;
 }
 
-// Wrapper registered in SIGNAL_COLLECTORS. Pulls the two most recent
-// persisted snapshots and runs the threshold collector over their diff.
-// Returns [] (never throws) when fewer than two snapshots exist yet.
+// Wrapper registered in SIGNAL_COLLECTORS. Fully synchronous now — no async
+// snapshot fetch, no IndexedDB round trip, no stale-by-one-cycle risk. Reads
+// current month-to-date vs prior month directly from RAW_ROWS every call.
 function cmdRunThresholdSignals() {
-    // Synchronous placeholder result populated by cmdRefreshSignals(); the
-    // collector interface itself is synchronous per spec (array of functions
-    // each returning []), so the async snapshot fetch is resolved ahead of
-    // time into CMD_LATEST_DIFF by the caller before SIGNAL_COLLECTORS runs.
-    return cmdThresholdCollector(CMD_LATEST_DIFF);
+    const { currMonth, prevMonth } = cmdCurrentAndPriorMonth();
+    if (!currMonth || !prevMonth) return []; // only one month of data loaded: nothing to compare yet
+    const currRows = cmdAggregateForMonth(currMonth);
+    const prevRows = cmdAggregateForMonth(prevMonth);
+    const diff = diffSnapshots(prevRows, currRows);
+    return cmdThresholdCollector(diff);
 }
 SIGNAL_COLLECTORS.push(cmdRunThresholdSignals);
-
-// Holds the most recently computed diff so the synchronous collector above
-// has data to read. Populated by cmdRefreshSignals().
-let CMD_LATEST_DIFF = [];
-
-// Refreshes CMD_LATEST_DIFF from the two most recent persisted snapshots,
-// then saves a new snapshot for next time. Call after a dataset load.
-// Never throws; a failure leaves CMD_LATEST_DIFF at its previous value.
-function cmdRefreshSignals() {
-    return cmdListSnapshots().then(snaps => {
-        if (snaps.length >= 2) {
-            const prev = snaps[snaps.length - 2].rows;
-            const curr = snaps[snaps.length - 1].rows;
-            CMD_LATEST_DIFF = diffSnapshots(prev, curr);
-        }
-        return cmdSaveSnapshot();
-    }).then(() => {
-        if (CMD_LATEST_DIFF.length === 0) {
-            // No prior snapshot to diff against yet (first load, or fewer
-            // than 2 persisted) — diff against the snapshot just saved vs
-            // itself would be meaningless, so leave signals empty rather
-            // than fabricate a comparison.
-        }
-        return CMD_LATEST_DIFF;
-    }).catch(e => { console.warn('[command-center] refresh failed', e); return CMD_LATEST_DIFF; });
-}
 
 window.takeSnapshot = takeSnapshot;
 window.diffSnapshots = diffSnapshots;
 window.SIGNAL_COLLECTORS = SIGNAL_COLLECTORS;
-window.cmdRefreshSignals = cmdRefreshSignals;
-window.cmdListSnapshots = cmdListSnapshots;
+window.cmdAggregateForMonth = cmdAggregateForMonth;
+window.cmdCurrentAndPriorMonth = cmdCurrentAndPriorMonth;
 
 
 // ─── BLOCK 2 SESSION B — COMMAND CENTER: UI, DEEP-LINKS, DONE CONTROL ─────────
@@ -24602,7 +25338,7 @@ function renderCommandCenter() {
     }
 
     if (!items.length) {
-        stripsEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--tm);font-size:13px">No signals right now. Visit Coaching Priorities, Defect Intelligence, or Improve &amp; Control to refresh watchlists.</div>';
+        stripsEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--tm);font-size:13px">No signals right now. Visit Coaching Priorities, Defect Intelligence, or Control Charts to refresh watchlists.</div>';
         return;
     }
 
@@ -24892,6 +25628,36 @@ window.diwEvaluate = diwEvaluate;
 window.diwRollup = diwRollup;
 window.diwLogAuto = diwLogAuto;
 
+// ─── PSP LOG BUTTON (pending item: real PSP -> intervention log hook) ─────────
+// renderPSP() has no creation event — it recomputes PSP status from RAW_ROWS on
+// every render, so a hook there would fire on every filter change and flood
+// the log with duplicates. Instead this adds one genuine user action: a Log
+// button on each row currently flagged isPSP. One click, one entry, same
+// diwLogAuto() write path Command Center's Done button uses. Only rendered
+// when isPSP is true — logging a reviewer who isn't in PSP this cohort month
+// doesn't mean anything.
+function pspLogHTML(isPSP, reviewer, metricLabel, sw) {
+    if (!isPSP || !reviewer) return '';
+    const safeRv = String(reviewer).replace(/'/g, "\\'");
+    const safeSw = sw ? String(sw).replace(/'/g, "\\'") : '';
+    const safeMetric = String(metricLabel).replace(/'/g, "\\'");
+    return `<button onclick="pspDoLog('${safeRv}','${safeSw}','${safeMetric}',this)" title="Log this as an intervention" style="font-size:10px;font-weight:700;color:var(--blue);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--pill);padding:2px 9px;cursor:pointer;font-family:var(--f);white-space:nowrap">Log</button>`;
+}
+
+function pspDoLog(reviewer, sw, metricLabel, btnEl) {
+    return diwLogAuto(reviewer, sw, metricLabel, 'PSP', 'Logged from PSP Tracker').then(ok => {
+        if (!btnEl) return ok;
+        btnEl.outerHTML = ok
+            ? '<span style="font-size:10px;font-weight:700;color:var(--green)">✓ Logged</span>'
+            : '<span style="font-size:10px;font-weight:700;color:var(--coral)">Failed</span>';
+        return ok;
+    });
+}
+
+window.pspLogHTML = pspLogHTML;
+window.pspDoLog = pspDoLog;
+
+
 
 // ─── BLOCK 5 SESSION B — DID IT WORK?: RENDER + ROLL-UP + AUTO-LOG HOOKS ──────
 // Renders the intervention log built in Session A. Additive only — no existing
@@ -25049,6 +25815,99 @@ function renderDidItWork() {
 window.renderDidItWork = renderDidItWork;
 window.diwRollupByMetric = diwRollupByMetric;
 window.diwFmt = diwFmt;
+
+
+// ─── BLOCK 8.4 — ACTIVE FILTER CHIPS ───────────────────────────────────────────
+// Additive summary UI for the 6 multi-selects that drive handleSWChange():
+// g-tl, g-tenure, g-review-type, g-workflow, g-sw, g-role. g-reviewer and
+// g-sme are deliberately excluded — they call renderActiveTab() directly, not
+// this cascade, and are a person-picker rather than a category filter.
+//
+// SCOPE NOTE: the spec describes replacing the always-on select strip with
+// chips. This implementation keeps the 6 selects fully intact and adds chips
+// as a second, read-and-remove summary layer on top. Chip removal calls the
+// SAME mechanism the selects' own checkboxes already use (deselect the
+// <option>, call the select's _rebuildOptions() to resync its dropdown UI,
+// dispatch 'change') — handleSWChange() itself is never called directly and
+// is never modified. This was a deliberate scope narrowing on the highest-risk
+// block in the build sequence, reported before building.
+
+const FC_SELECTS = [
+    { id: 'g-tl',          label: 'TL' },
+    { id: 'g-tenure',      label: 'Tenure' },
+    { id: 'g-review-type', label: 'Review Type' },
+    { id: 'g-workflow',    label: 'Workflow' },
+    { id: 'g-sw',          label: 'Sub-workflow' },
+    { id: 'g-role',        label: 'Role' }
+];
+
+// Returns [{selectId, label, optValue, optText}] for every currently selected
+// option across the 6 target selects.
+function fcActiveFilters() {
+    const out = [];
+    FC_SELECTS.forEach(({ id, label }) => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        Array.from(sel.options).forEach(opt => {
+            if (opt.selected && opt.value) out.push({ selectId: id, label, optValue: opt.value, optText: opt.text });
+        });
+    });
+    return out;
+}
+
+// Removes one chip: deselects the matching <option>, resyncs the select's own
+// checkbox dropdown via its existing _rebuildOptions(), then fires the same
+// 'change' event the checkbox itself fires. This reaches handleSWChange()
+// exactly the way the existing UI already does — nothing new is called on it.
+function fcRemoveChip(selectId, optValue) {
+    try {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        const opt = Array.from(sel.options).find(o => o.value === optValue);
+        if (!opt) return;
+        opt.selected = false;
+        if (sel._rebuildOptions) sel._rebuildOptions();
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        if (typeof sel.onchange === 'function') sel.onchange();
+    } catch (e) { console.warn('[filter-chips] remove failed', e); }
+}
+
+function renderFilterChips() {
+    const host = document.getElementById('filter-chips');
+    if (!host) return;
+    const active = fcActiveFilters();
+    if (!active.length) { host.innerHTML = ''; host.style.display = 'none'; return; }
+    host.style.display = 'flex';
+    host.innerHTML = active.map(f => `<span class="fchip" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--bsec);background:var(--bbg);border:1px solid var(--bbd);border-radius:var(--pill);padding:3px 6px 3px 10px;margin:3px 4px 3px 0">
+        <span style="color:var(--tm);font-weight:700">${f.label}:</span> ${f.optText}
+        <button onclick="fcRemoveChip('${f.selectId.replace(/'/g, "\\'")}','${String(f.optValue).replace(/'/g, "\\'")}')" title="Remove" style="border:none;background:none;cursor:pointer;color:var(--blue);font-weight:800;font-size:13px;line-height:1;padding:0 2px;font-family:var(--f)">×</button>
+    </span>`).join('');
+}
+
+// Wire into every existing entry point that already touches these selects,
+// so chips stay in sync without adding a new render trigger of our own:
+//  - the 6 selects' own onchange -> handleSWChange() -> hook here
+//  - resetFilters() clears everything -> hook here too
+//  - initial load / cache restore -> render once on DOMContentLoaded
+const _fcOrigHandleSWChange = window.handleSWChange;
+window.handleSWChange = function() {
+    _fcOrigHandleSWChange.apply(this, arguments);
+    renderFilterChips();
+};
+
+const _fcOrigResetFilters = window.resetFilters;
+window.resetFilters = function() {
+    _fcOrigResetFilters.apply(this, arguments);
+    renderFilterChips();
+};
+
+window.fcRemoveChip = fcRemoveChip;
+window.fcActiveFilters = fcActiveFilters;
+window.renderFilterChips = renderFilterChips;
+
+document.addEventListener('DOMContentLoaded', function() {
+    try { renderFilterChips(); } catch (e) { console.warn('[filter-chips] init render failed', e); }
+});
 
 
 function processCSVData(csvString) {
@@ -25533,9 +26392,9 @@ function handleUpload(input){
             updateLoadOverlay('Loaded ' + RAW_ROWS.length.toLocaleString() + ' rows, running checks...');
             runDataHealthChecks(_lastAllRows);
             cacheStore('raw', e.target.result, file.name, RAW_ROWS.length);
-            // Block 2: capture a Command Center snapshot for the diff engine.
-            // Fire-and-forget — never blocks or fails the upload path.
-            if (typeof cmdRefreshSignals === 'function') cmdRefreshSignals().catch(() => {});
+            // Block 2 (rewired): Command Center now computes month-to-date vs
+            // prior month directly from RAW_ROWS on every render — no
+            // snapshot capture needed at upload time.
             if (typeof JOBDETAIL_ROWS !== 'undefined' && JOBDETAIL_ROWS.length && typeof jdBackfillRealAHT === 'function') jdBackfillRealAHT();
             document.getElementById('up-ok').textContent = '✓ Loaded '+RAW_ROWS.length.toLocaleString()+' rows across '+WEEKS.length+' weeks from '+file.name;
             document.getElementById('up-err').style.display = 'none';
@@ -28986,6 +29845,13 @@ let _diLogDecaySet     = new Set();   // empty = all decay types
 let _diLogSWFilter     = 'all';
 
 function buildAllStrikeRows() {
+    // v97.7: restructured from per-reviewer+POLICY to per-reviewer+SW
+    // strike counting (Karl's explicit call, same restructure as the
+    // Reviewer Deep-Dive Offender Status and coaching-doc mechanisms).
+    // Field names (strikeNum, strikeDecay, polActive/polWatch/polHist) are
+    // UNCHANGED — only the grouping key moves from r.pol to r.sw — since
+    // those fields are read by many downstream Defect Intelligence
+    // consumers already built against this exact shape.
     const latestDataWeek = WEEKS.length ? WEEKS[WEEKS.length-1] : new Date().toISOString().slice(0,10);
     const msPerDay = 86400000;
     const all = [];
@@ -28993,11 +29859,11 @@ function buildAllStrikeRows() {
     reviewers.forEach(rv => {
         const rvRows = RAW_ROWS.filter(r => r.reviewer === rv)
                                .sort((a,b) => a.week.localeCompare(b.week));
-        const polCounter = {};
+        const swCounter = {};
         rvRows.forEach(r => {
-            if(!r.pol || (r.fpa + r.fna) === 0) return;
-            polCounter[r.pol] = (polCounter[r.pol] || 0) + 1;
-            const strikeNum = polCounter[r.pol];
+            if(!r.sw || (r.fpa + r.fna) === 0) return;
+            swCounter[r.sw] = (swCounter[r.sw] || 0) + 1;
+            const strikeNum = swCounter[r.sw];
             const daysAgo   = (new Date(latestDataWeek) - new Date(r.week)) / msPerDay;
             let strikeDecay;
             if(strikeNum === 1) {
@@ -29009,11 +29875,11 @@ function buildAllStrikeRows() {
         });
     });
 
-    // Second pass — compute per-reviewer+policy Active/Watch/Hist counts
-    // and stamp them on every row for that reviewer+policy combination
-    const rvPolCounts = {};  // key: reviewer+'|'+pol -> {active, watch, hist}
+    // Second pass — compute per-reviewer+SW Active/Watch/Hist counts
+    // and stamp them on every row for that reviewer+SW combination
+    const rvPolCounts = {};  // key: reviewer+'|'+sw -> {active, watch, hist}
     all.forEach(r => {
-        const key = r.reviewer + '|' + r.pol;
+        const key = r.reviewer + '|' + r.sw;
         if(!rvPolCounts[key]) rvPolCounts[key] = { active:0, watch:0, hist:0 };
         const c = rvPolCounts[key];
         if(r.strikeDecay==='active'||r.strikeDecay==='first') c.active++;
@@ -29021,7 +29887,7 @@ function buildAllStrikeRows() {
         else c.hist++;
     });
     all.forEach(r => {
-        const key = r.reviewer + '|' + r.pol;
+        const key = r.reviewer + '|' + r.sw;
         const c = rvPolCounts[key] || {active:0,watch:0,hist:0};
         r.polActive = c.active;
         r.polWatch  = c.watch;
@@ -29282,7 +30148,11 @@ function renderDefectIntelligence() {
     // ── Summary cards — month-filtered ────────────────────────────────────────
     const totalDefects     = monthRows.length;
     const activeRepeats    = activeRows.length;
-    const policiesAffected = new Set(monthRows.filter(r=>r.strikeNum>=2).map(r=>r.pol)).size;
+    // v97.7: "Policies affected" replaced with "Sub-workflows affected" —
+    // strike counting is SW-only now (Karl's explicit full-replace call),
+    // so a policy-grouped summary metric no longer reflects what's actually
+    // being tracked.
+    const swsAffected = new Set(monthRows.filter(r=>r.strikeNum>=2).map(r=>r.sw)).size;
     const reviewersAtRisk  = new Set(activeRows.map(r=>r.reviewer)).size;
 
     const sc = (label,val,sub,color) =>
@@ -29294,36 +30164,33 @@ function renderDefectIntelligence() {
     document.getElementById('di-summary-cards').innerHTML =
         sc('Total defects',     totalDefects,     'All time \u00b7 all reviewers', 'var(--text)') +
         sc('Active repeats',    activeRepeats,    '\u226460 days \u00b7 needs action', activeRepeats>0?'var(--coral)':'var(--text)') +
-        sc('Policies affected', policiesAffected, 'with \u22651 repeat',              'var(--text)') +
+        sc('Sub-workflows affected', swsAffected, 'with \u22651 repeat',              'var(--text)') +
         sc('Reviewers at risk', reviewersAtRisk,  'active repeat errors',              reviewersAtRisk>0?'var(--amber)':'var(--text)');
 
-    // ── Build policy + SW maps — no month filter ──────────────────────────────
+    // ── Build SW map — no month filter. v97.7: policy map removed entirely
+    // (Karl's explicit full-replace call) — strike counting is SW-only, so
+    // a separate policy-grouped rollup of the same underlying strike data
+    // would just be a re-sliced view of the same numbers, not a genuinely
+    // different signal.
     const repeatRows = baseRows.filter(r => r.strikeNum >= 2);
-    const polMap = {}, swMap = {};
+    const swMap = {};
     repeatRows.forEach(r => {
-        if(!polMap[r.pol]) polMap[r.pol] = { pol:r.pol, active:0, watch:0, hist:0, reviewers:new Set(), months:{} };
-        const p = polMap[r.pol];
-        if(r.strikeDecay==='active') p.active++; else if(r.strikeDecay==='watch') p.watch++; else p.hist++;
-        p.reviewers.add(r.reviewer); p.months[r.month] = (p.months[r.month]||0)+1;
-
-        if(r.sw) {
-            if(!swMap[r.sw]) swMap[r.sw] = { sw:r.sw, active:0, watch:0, hist:0, reviewers:new Set(), months:{} };
-            const s = swMap[r.sw];
-            if(r.strikeDecay==='active') s.active++; else if(r.strikeDecay==='watch') s.watch++; else s.hist++;
-            s.reviewers.add(r.reviewer); s.months[r.month] = (s.months[r.month]||0)+1;
-        }
+        if(!r.sw) return;
+        if(!swMap[r.sw]) swMap[r.sw] = { sw:r.sw, active:0, watch:0, hist:0, reviewers:new Set(), months:{} };
+        const s = swMap[r.sw];
+        if(r.strikeDecay==='active') s.active++; else if(r.strikeDecay==='watch') s.watch++; else s.hist++;
+        s.reviewers.add(r.reviewer); s.months[r.month] = (s.months[r.month]||0)+1;
     });
-    const polList = Object.values(polMap).sort((a,b)=>(b.active*3+b.watch)-(a.active*3+a.watch));
     const swList  = Object.values(swMap) .sort((a,b)=>(b.active*3+b.watch)-(a.active*3+a.watch));
 
-    // ── Decay pills (multi-select, shared for both risk tables) ────────────────
+    // ── Decay pills (multi-select, for the SW risk table) ──────────────────────
     const decayOpts = [['all','All'],['active','Active'],['watch','Watch'],['hist','Historical']];
     makeMultiPills('di-decay-pills', decayOpts, _diPolicyDecaySet, () => {
         syncMultiPillState('di-decay-pills', decayOpts, _diPolicyDecaySet);
-        renderDIRiskTables(polList, swList);
+        renderDIRiskTables(swList);
     });
 
-    renderDIRiskTables(polList, swList);
+    renderDIRiskTables(swList);
     renderDITrajectory(baseRows);
     renderDIDefectLog();
 }
@@ -29366,16 +30233,10 @@ function riskTableHTML(list, keyField, maxRepeats, allMonths) {
     }).join('');
 }
 
-function renderDIRiskTables(polList, swList) {
+function renderDIRiskTables(swList) {
     const allMonths = [...new Set(_diAllRows.map(r=>r.month))].sort().slice(-5);
-    let pList = polList, sList = swList;
+    let sList = swList;
     if(_diPolicyDecaySet.size > 0) {
-        pList = polList.filter(p => {
-            if(_diPolicyDecaySet.has('active') && p.active>0) return true;
-            if(_diPolicyDecaySet.has('watch')  && p.watch>0)  return true;
-            if(_diPolicyDecaySet.has('hist')   && p.hist>0&&p.active===0&&p.watch===0) return true;
-            return false;
-        });
         sList = swList.filter(s => {
             if(_diPolicyDecaySet.has('active') && s.active>0) return true;
             if(_diPolicyDecaySet.has('watch')  && s.watch>0)  return true;
@@ -29383,25 +30244,25 @@ function renderDIRiskTables(polList, swList) {
             return false;
         });
     }
-    const maxPol = Math.max(...(pList.length?pList:[{active:0,watch:0,hist:0}]).map(p=>p.active+p.watch+p.hist),1);
     const maxSW  = Math.max(...(sList.length?sList:[{active:0,watch:0,hist:0}]).map(s=>s.active+s.watch+s.hist),1);
-    const polTbody = document.getElementById('di-policy-tbody');
     const swTbody  = document.getElementById('di-sw-tbody');
-    if(polTbody) polTbody.innerHTML = riskTableHTML(pList, 'pol', maxPol, allMonths);
     if(swTbody)  swTbody.innerHTML  = riskTableHTML(sList, 'sw',  maxSW,  allMonths);
 }
 
 function renderDIReviewerTable(filtered) {
+    // v97.7: pills now break down which SUB-WORKFLOWS a reviewer is
+    // active/watch on, not which policies (Karl's explicit full-replace
+    // call — strike counting is SW-only).
     const activeRows = filtered.filter(r => r.strikeDecay === 'active');
     const watchRows  = filtered.filter(r => r.strikeDecay === 'watch');
     const rvMap = {};
     activeRows.forEach(r => {
-        if(!rvMap[r.reviewer]) rvMap[r.reviewer] = { rv:r.reviewer, active:0, watch:0, polCounts:{} };
+        if(!rvMap[r.reviewer]) rvMap[r.reviewer] = { rv:r.reviewer, active:0, watch:0, swCounts:{} };
         rvMap[r.reviewer].active++;
-        rvMap[r.reviewer].polCounts[r.pol] = (rvMap[r.reviewer].polCounts[r.pol]||0)+1;
+        rvMap[r.reviewer].swCounts[r.sw] = (rvMap[r.reviewer].swCounts[r.sw]||0)+1;
     });
     watchRows.forEach(r => {
-        if(!rvMap[r.reviewer]) rvMap[r.reviewer] = { rv:r.reviewer, active:0, watch:0, polCounts:{} };
+        if(!rvMap[r.reviewer]) rvMap[r.reviewer] = { rv:r.reviewer, active:0, watch:0, swCounts:{} };
         rvMap[r.reviewer].watch++;
     });
     const rvList = Object.values(rvMap).sort((a,b)=>b.active-a.active);
@@ -29412,9 +30273,9 @@ function renderDIReviewerTable(filtered) {
         return;
     }
     tbody.innerHTML = rvList.map(r => {
-        const pills = Object.entries(r.polCounts).sort((a,b)=>b[1]-a[1]).map(([pol,cnt]) =>
+        const pills = Object.entries(r.swCounts).sort((a,b)=>b[1]-a[1]).map(([sw,cnt]) =>
             `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:1px 6px;border-radius:var(--pill);background:var(--csec);color:var(--coral);margin:1px 2px 1px 0">
-                ${pol}<span style="background:var(--coral);color:#fff;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0">${cnt}</span>
+                ${sw}<span style="background:var(--coral);color:#fff;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0">${cnt}</span>
             </span>`
         ).join('');
         return `<tr>
@@ -29427,30 +30288,33 @@ function renderDIReviewerTable(filtered) {
 }
 
 function renderDITrajectory(filtered) {
+    // v97.7: trajectory now tracks top active SUB-WORKFLOWS, not policies
+    // (Karl's explicit full-replace call — strike counting is SW-only).
     const allDataMonths = [...new Set(_diAllRows.map(r=>r.month))].sort();
     const last6Months   = allDataMonths.slice(-6);
     const repeatRows    = filtered.filter(r => r.strikeNum >= 2 && last6Months.includes(r.month));
-    const polMap = {};
+    const swMap = {};
     filtered.filter(r=>r.strikeNum>=2).forEach(r => {
-        if(!polMap[r.pol]) polMap[r.pol] = { pol:r.pol, active:0 };
-        if(r.strikeDecay==='active') polMap[r.pol].active++;
+        if(!r.sw) return;
+        if(!swMap[r.sw]) swMap[r.sw] = { sw:r.sw, active:0 };
+        if(r.strikeDecay==='active') swMap[r.sw].active++;
     });
-    const topPols = Object.values(polMap).sort((a,b)=>b.active-a.active).slice(0,5).map(p=>p.pol);
+    const topSWs = Object.values(swMap).sort((a,b)=>b.active-a.active).slice(0,5).map(s=>s.sw);
     const TRAJ_COLORS = ['#D85A30','#7F77DD','#1D9E75','#BA7517','#D4537E'];
-    const datasets = topPols.map((pol,i) => ({
-        label: pol,
-        data: last6Months.map(m => repeatRows.filter(r=>r.pol===pol&&r.month===m).length || null),
+    const datasets = topSWs.map((sw,i) => ({
+        label: sw,
+        data: last6Months.map(m => repeatRows.filter(r=>r.sw===sw&&r.month===m).length || null),
         borderColor: TRAJ_COLORS[i], backgroundColor:'transparent',
         borderWidth:2, pointRadius:3, tension:0.3, spanGaps:true
     }));
     const legendEl = document.getElementById('di-legend');
-    if(legendEl) legendEl.innerHTML = topPols.map((pol,i)=>
-        `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:3px;background:${TRAJ_COLORS[i]};display:inline-block;border-radius:2px"></span>${pol}</span>`
+    if(legendEl) legendEl.innerHTML = topSWs.map((sw,i)=>
+        `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:3px;background:${TRAJ_COLORS[i]};display:inline-block;border-radius:2px"></span>${sw}</span>`
     ).join('');
     if(charts['di-traj-chart']) { charts['di-traj-chart'].destroy(); delete charts['di-traj-chart']; }
     const canvas = document.getElementById('di-traj-chart');
     if(!canvas) return;
-    if(!datasets.length) { canvas.parentElement.innerHTML='<div style="text-align:center;padding:2rem;color:var(--tm);font-size:13px">No active repeat policies in the selected period.</div>'; return; }
+    if(!datasets.length) { canvas.parentElement.innerHTML='<div style="text-align:center;padding:2rem;color:var(--tm);font-size:13px">No active repeat sub-workflows in the selected period.</div>'; return; }
     const trajLabel = document.getElementById('di-traj-period');
     if(trajLabel && last6Months.length) trajLabel.textContent=`${fmtMonth(last6Months[0])} – ${fmtMonth(last6Months[last6Months.length-1])} (last 6 months)`;
     charts['di-traj-chart'] = new Chart(canvas.getContext('2d'), {
@@ -29505,21 +30369,26 @@ function renderDIDefectLog() {
 // Intelligence's own call site (applyDILogFilters) is left untouched so this
 // doesn't change behavior there.
 function _buildGroupedDefectRows(rows, latestWkOverride, msDOverride, addRcaLink) {
+    // v97.7: restructured from reviewer+POLICY to reviewer+SW grouping
+    // (Karl's explicit call — same restructure as the other 5 strike-
+    // counting implementations). This function is shared across 3 call
+    // sites (renderDefectLogTable, renderTIDefectLogTable, applyDILogFilters)
+    // so fixing it here fixes all three.
     const latestWk = latestWkOverride || (WEEKS.length ? WEEKS[WEEKS.length-1] : rows.map(r=>r.week).sort().pop());
     const msD = msDOverride || 86400000;
     const grpMap = {};
     rows.forEach(r => {
-        if(!r.pol) return;
-        const key = (r.reviewer||'') + '|||' + r.pol;
-        if(!grpMap[key]) grpMap[key] = { reviewer: r.reviewer||'', pol: r.pol, sws: new Set(), fp: 0, fn: 0, active: 0, watch: 0, hist: 0, lastWk: null, _hasStamp: r.polActive !== undefined };
+        if(!r.sw) return;
+        const key = (r.reviewer||'') + '|||' + r.sw;
+        if(!grpMap[key]) grpMap[key] = { reviewer: r.reviewer||'', sw: r.sw, pols: new Set(), fp: 0, fn: 0, active: 0, watch: 0, hist: 0, lastWk: null, _hasStamp: r.polActive !== undefined };
         const g = grpMap[key];
-        if(r.sw) g.sws.add(r.sw);
+        if(r.pol) g.pols.add(r.pol);
         g.fp += r.fpa||0;
         g.fn += r.fna||0;
     });
-    // Compute Active/Watch/Hist AND lastWk from RAW_ROWS (all-time) per reviewer+policy
+    // Compute Active/Watch/Hist AND lastWk from RAW_ROWS (all-time) per reviewer+SW
     Object.values(grpMap).forEach(g => {
-        RAW_ROWS.filter(r => r.reviewer === g.reviewer && r.pol === g.pol && (r.fpa+r.fna)>0).forEach(r => {
+        RAW_ROWS.filter(r => r.reviewer === g.reviewer && r.sw === g.sw && (r.fpa+r.fna)>0).forEach(r => {
             const days = (new Date(latestWk) - new Date(r.week)) / msD;
             if(days <= 60) g.active++; else if(days <= 120) g.watch++; else g.hist++;
             if(!g.lastWk || r.week > g.lastWk) g.lastWk = r.week;
@@ -29538,22 +30407,20 @@ function _buildGroupedDefectRows(rows, latestWkOverride, msDOverride, addRcaLink
         if(g.hist   > 0) strikeParts.push(`<span style="background:var(--sa);color:var(--tm);border-radius:var(--pill);font-size:10px;font-weight:700;padding:1px 7px">Hist ${g.hist}</span>`);
         if(!strikeParts.length) strikeParts.push(`<span style="background:var(--sa);color:var(--tm);border-radius:var(--pill);font-size:10px;font-weight:700;padding:1px 7px">Resolved</span>`);
         const strikeBadge = `<div style="display:flex;gap:3px;flex-wrap:wrap">${strikeParts.join('')}</div>`;
-        // Routing link (Team Insights only) — scoped to this reviewer + the
-        // first SW in the group (a policy can span multiple SWs; picking one
-        // is enough to land the TL in the right neighborhood of RCA
-        // Explorer) + the latest month present in RAW_ROWS, since the
-        // Defect Log itself is "All Time" and has no single MTD month.
+        // Routing link (Team Insights only) — scoped to this reviewer + this
+        // SW (the grouping key itself now) + the latest month present in
+        // RAW_ROWS, since the Defect Log itself is "All Time" and has no
+        // single MTD month.
         const rcaLinkHtml = addRcaLink
           ? (() => {
-              const swForLink = [...g.sws][0] || '';
               const linkMonth = [...new Set(RAW_ROWS.map(r=>r.month).filter(Boolean))].sort().pop() || '';
-              return `<span onclick="event.stopPropagation();goToPriorityCardTarget('rca-explorer','.t-rca','${(g.reviewer||'').replace(/'/g,"\\'")}','${swForLink.replace(/'/g,"\\'")}','${linkMonth}')" title="Investigate in RCA Explorer" style="cursor:pointer;font-size:11px;color:var(--tm);padding:0 4px" onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color='var(--tm)'">\u2192</span>`;
+              return `<span onclick="event.stopPropagation();goToPriorityCardTarget('rca-explorer','.t-rca','${(g.reviewer||'').replace(/'/g,"\\'")}','${g.sw.replace(/'/g,"\\'")}','${linkMonth}')" title="Investigate in RCA Explorer" style="cursor:pointer;font-size:11px;color:var(--tm);padding:0 4px" onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color='var(--tm)'">\u2192</span>`;
             })()
           : '';
         return `<tr style="border-bottom:${isLast ? 'none' : '0.5px solid var(--divider)'}">
             <td style="padding:7px 10px;font-size:12px;font-weight:600;color:var(--text)">${sn(g.reviewer)||'—'}</td>
-            <td style="padding:7px 10px;font-size:12px;font-weight:500;color:var(--text)">${g.pol}</td>
-            <td style="padding:7px 10px;font-size:11px;color:var(--ts)">${[...g.sws].join(' · ')||'—'}</td>
+            <td style="padding:7px 10px;font-size:12px;font-weight:500;color:var(--text)">${g.sw}</td>
+            <td style="padding:7px 10px;font-size:11px;color:var(--ts)">${[...g.pols].join(' · ')||'—'}</td>
             <td style="padding:7px 8px;text-align:center;font-family:var(--m);font-weight:500;color:${tot>0?'var(--coral)':'var(--tm)'}">${tot}</td>
             <td style="padding:7px 10px" colspan="3">${strikeBadge}</td>
             <td style="padding:7px 10px;font-size:11px;color:var(--ts);white-space:nowrap">${g.lastWk ? fmtLastWk(g.lastWk) : '—'}${rcaLinkHtml}</td>
@@ -31200,17 +32067,28 @@ function nrtCopyTable(cardId, btnEl) {
     if(!btn) return;
     const orig = btn.textContent;
     btn.textContent = 'Capturing...';
-    if(typeof html2canvas === 'undefined') {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = () => nrtDoCapture(card, btn, orig);
-        document.head.appendChild(s);
-    } else { nrtDoCapture(card, btn, orig); }
+    // v97.8: uses the shared _fetchHtml2CanvasOnce() loader so a click that
+    // lands mid-idle-preload awaits the same in-flight request instead of
+    // triggering a second, redundant ~200KB download.
+    _fetchHtml2CanvasOnce().then(() => nrtDoCapture(card, btn, orig)).catch(() => { btn.textContent = orig; });
 }
 
 function nrtDoCapture(wrap, btn, orig) {
+    // v97.6 fix: previously captured `wrap` directly with no clipping fix,
+    // which silently cut off any content beyond what overflow:hidden/auto
+    // ancestors (e.g. nrt-tbl-err-wrap, nrt-explorer-wrap — both set
+    // overflow:hidden inline) were currently showing — exactly Karl's
+    // "doesn't capture the entire table" report. Now reuses the same
+    // _uncapClipping() helper already proven correct elsewhere in the app
+    // (_captureElementFull), which walks up from wrap, temporarily forces
+    // every clipping ancestor to its full natural scroll size, captures,
+    // then restores every touched style — even on error, via try/finally.
+    // Also dropped scale from 2 -> 1.5, matching _captureElementFull's own
+    // tuning (noticeably faster on large tables, minor sharpness tradeoff
+    // at normal zoom) — addresses the "slow" half of the same report.
+    const restore = typeof _uncapClipping === 'function' ? _uncapClipping(wrap) : () => {};
     html2canvas(wrap, {
-        scale:2,
+        scale:1.5,
         backgroundColor:'#ffffff',
         useCORS:true,
         logging:false,
@@ -31218,6 +32096,7 @@ function nrtDoCapture(wrap, btn, orig) {
         width:wrap.scrollWidth,
         height:wrap.scrollHeight
     }).then(canvas=>{
+        restore();
         canvas.toBlob(blob=>{
             try {
                 navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).then(()=>{
@@ -31231,7 +32110,7 @@ function nrtDoCapture(wrap, btn, orig) {
                 btn.textContent=orig;
             }
         });
-    }).catch(()=>{btn.textContent=orig;});
+    }).catch(()=>{restore();btn.textContent=orig;});
 }
 
 function nrtRenderQALeaderboard(rows, theadId, tbodyId, dateSpanId) {
@@ -32214,14 +33093,8 @@ function nahtCopyImg(wrapId, btn) {
     if(!wrap || !btn) return;
     const orig = btn.textContent;
     btn.textContent = 'Capturing...';
-    if(typeof html2canvas === 'undefined') {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = () => nrtDoCapture(wrap, btn, orig);
-        document.head.appendChild(s);
-    } else {
-        nrtDoCapture(wrap, btn, orig);
-    }
+    // v97.8: uses the shared _fetchHtml2CanvasOnce() loader — see nrtCopyTable.
+    _fetchHtml2CanvasOnce().then(() => nrtDoCapture(wrap, btn, orig)).catch(() => { btn.textContent = orig; });
 }
 function nahtRenderLeaderboards(filtered) {
     const TH  = 'padding:5px 8px;text-align:right;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--tm);border-bottom:1px solid var(--border);white-space:nowrap';
@@ -34484,13 +35357,10 @@ function gpDecReqExpand(open) {
     const orig = btnElem.innerHTML;
     btnElem.innerHTML = '⏳ Rendering...';
     btnElem.disabled = true;
-    const loadLib = () => new Promise((res, rej) => {
-      if (window.html2canvas) return res();
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
+    // v97.8: uses the shared _fetchHtml2CanvasOnce() loader so a click that
+    // lands mid-idle-preload awaits the same in-flight request instead of
+    // triggering a second, redundant ~200KB download.
+    const loadLib = () => _fetchHtml2CanvasOnce();
     try {
       await loadLib();
       // Build a tight off-screen container: heading + table only, natural width
@@ -34504,7 +35374,7 @@ function gpDecReqExpand(open) {
       const captureW = container.scrollWidth;
       const captureH = container.scrollHeight;
       const canvas = await html2canvas(container, {
-        scale: 2, useCORS: true, backgroundColor: '#ffffff',
+        scale: 1.5, useCORS: true, backgroundColor: '#ffffff',
         logging: false, scrollX: 0, scrollY: 0,
         windowWidth: captureW, width: captureW, height: captureH
       });
@@ -34739,14 +35609,14 @@ const CMDK_TABS = [
     { id: 'incentive', sel: '.t-inc', label: 'Incentive' },
     { id: 'team', sel: '.t-ti', label: 'Team Insights' },
     { id: 'drill', sel: '.t-dr', label: 'Reviewer Deep-Dive' },
-    { id: 'sme', sel: '.t-sme', label: 'SME Deep Drive' },
+    { id: 'sme', sel: '.t-sme', label: 'SME Deep Dive' },
     { id: 'rca-explorer', sel: '.t-rca', label: 'RCA Explorer' },
     { id: 'jobdetail', sel: '.t-jd', label: 'Job Detail Explorer' },
     { id: 'spotcheck', sel: '.t-spot', label: 'Spotcheck' },
     { id: 'defint', sel: '.t-defint', label: 'Defect Intelligence' },
     { id: 'cp', sel: '.t-cp', label: 'Coaching Priorities' },
     { id: 'outlier', sel: '.t-outlier', label: 'Outlier Review' },
-    { id: 'control', sel: '.t-ctrl', label: 'Improve & Control' },
+    { id: 'control', sel: '.t-ctrl', label: 'Control Charts' },
     { id: 'psp', sel: '.t-psp', label: 'PSP Tracker' },
     { id: 'guide', sel: '.t-guide', label: 'TL Guide' },
     { id: 'nrt', sel: '.t-nrt', label: 'NRT QA' },
@@ -34906,6 +35776,22 @@ document.addEventListener('input', e => {
     </div>
 
     <div id="psp-hist-expand-wrap" style="display:none;padding:8px 4px"></div>
+  </div>
+</div>
+
+<!-- Month-End Forecast popup (v97.2) — click-to-open modal replacing the
+     hover tooltip, which was getting clipped by ancestor overflow:hidden
+     containers (.snap-kpi-col, kcard borders, etc.) across every surface it
+     appeared on. Single shared modal, content injected per-click via
+     openForecastModal(); closes via × button or backdrop click, matching
+     the #chart-expand-modal pattern already used elsewhere in the app. -->
+<div id="fc-modal-overlay" class="fc-modal-overlay" onclick="if(event.target===this)closeForecastModal()">
+  <div class="fc-modal">
+    <div class="fc-modal-hdr">
+      <div class="fc-modal-title" id="fc-modal-title">🔮 Forecast</div>
+      <button class="fc-modal-close" onclick="closeForecastModal()">✕</button>
+    </div>
+    <div class="fc-modal-body" id="fc-modal-body"></div>
   </div>
 </div>
 
@@ -40901,6 +41787,22 @@ function buildOutput(){
   if(!node) return;
   goStep('output');
   setProgress(6,6);
+
+  // ─── MYRCA -> INTERVENTION LOG (pending item) ───────────────────────────
+  // This is the genuine completion event: buildOutput() only runs once an L4
+  // node exists, meaning a real case was carried through the flow, whether
+  // via the validated "Generate output" button or "Skip this step". Logged
+  // once per output build, using the same diwLogAuto() write path as Command
+  // Center's Done button and the PSP row Log button.
+  try {
+    const rvEl = document.getElementById('pkt-reviewer-name');
+    const swEl = document.getElementById('pkt-subworkflow');
+    const rcaReviewer = rvEl ? rvEl.value : '';
+    const rcaSw = swEl ? swEl.value : '';
+    if (rcaReviewer && typeof diwLogAuto === 'function') {
+      diwLogAuto(rcaReviewer, rcaSw, node.label || 'RCA', 'RCA', 'Completed via MyRCA');
+    }
+  } catch (e) { console.warn('[myrca] intervention log hook failed', e); }
 
   // Confidence
   const conf=RCA.confidenceDeductions===0?'High':RCA.confidenceDeductions===1?'Medium':'Low';
