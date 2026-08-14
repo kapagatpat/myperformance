@@ -3474,15 +3474,6 @@ tr:hover td{background:#F8F9FB}
     <section id="tab-upload" class="section on">
       <div class="ph"><h1>Load Dataset</h1></div>
 
-      <!-- Block 1 Session B: cached dataset status cards -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="font-size:11px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em">Cached datasets</div>
-        <button class="cache-btn cache-btn-warn" style="flex:0 0 auto" onclick="clearAllCachedData()">Clear all cached data</button>
-      </div>
-      <div id="cache-status-cards"></div>
-
-
-
       <!-- ONE-ROW UPLOAD STRIP -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:1.25rem;align-items:stretch">
 
@@ -3612,6 +3603,16 @@ tr:hover td{background:#F8F9FB}
         </div>
 
       </div>
+
+      <!-- v98: Cached datasets moved here, below the Load Dataset upload
+           boxes, per Karl — was previously above the upload strip, which
+           read as visual clutter competing for attention with the actual
+           drop targets. Same grid layout, same functions, position only. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;margin-top:1.25rem">
+        <div style="font-size:11px;font-weight:800;color:var(--tm);text-transform:uppercase;letter-spacing:.07em">Cached datasets</div>
+        <button class="cache-btn cache-btn-warn" style="flex:0 0 auto" onclick="clearAllCachedData()">Clear all cached data</button>
+      </div>
+      <div id="cache-status-cards"></div>
 
       <!-- DATA HEALTH PANEL -->
       <div id="data-health-panel" style="display:none;text-align:left"></div>
@@ -19094,19 +19095,23 @@ function deAgg(rows) {
 
 // ── Skip/Transfer site-wide MTD threshold (v98) ──────────────────────────────
 // Karl: no fixed target exists for Skip/Transfer counts, so flag outliers
-// against the site rather than a static number — mean + 1 stdev of each
-// reviewer's own MTD (current-month) total, computed across all reviewers
-// site-wide. Cached per month since RAW_ROWS doesn't change within a render
-// pass; call skipTransferThresholds() to get {skip:{mean,std,cutoff}, transferOut:{...}}.
-let _stThreshCacheMonth = null, _stThreshCache = null;
-function skipTransferThresholds() {
+// against the site rather than a static number — mean + 1 stdev (amber) and
+// mean + 2 stdev (red) of each reviewer's own MTD (current-month) total,
+// computed across all reviewers site-wide. `month` is optional — omit for the
+// current/latest month (default used everywhere except the coaching modal,
+// which can be opened for a past month and needs that same month's threshold —
+// Karl confirmed the comparison must use the same period being evaluated,
+// not always current MTD). Cached per month; call skipTransferThresholds() to
+// get {skip:{mean,std,cutoff,cutoff2}, transferOut:{...}}.
+const _stThreshCache = {};
+function skipTransferThresholds(month) {
     const allMonths = [...new Set((typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).map(r=>r.month).filter(Boolean))].sort();
-    const currMonth = allMonths[allMonths.length-1];
-    if (_stThreshCacheMonth === currMonth && _stThreshCache) return _stThreshCache;
+    const targetMonth = month || allMonths[allMonths.length-1];
+    if (_stThreshCache[targetMonth]) return _stThreshCache[targetMonth];
 
     const perRv = {}; // reviewer -> {skip, transferOut}
     (typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).forEach(r => {
-        if (r.month !== currMonth || !r.reviewer) return;
+        if (r.month !== targetMonth || !r.reviewer) return;
         if (!perRv[r.reviewer]) perRv[r.reviewer] = { skip: 0, transferOut: 0 };
         perRv[r.reviewer].skip += r.skip || 0;
         perRv[r.reviewer].transferOut += r.transferOut || 0;
@@ -19114,43 +19119,49 @@ function skipTransferThresholds() {
     const vals = Object.values(perRv);
     const stat = (key) => {
         const arr = vals.map(v => v[key]);
-        if (!arr.length) return { mean: null, std: null, cutoff: null };
+        if (!arr.length) return { mean: null, std: null, cutoff: null, cutoff2: null };
         const mean = arr.reduce((a,b)=>a+b, 0) / arr.length;
         const variance = arr.reduce((a,b)=>a + Math.pow(b-mean, 2), 0) / arr.length;
         const std = Math.sqrt(variance);
-        return { mean, std, cutoff: mean + std };
+        return { mean, std, cutoff: mean + std, cutoff2: mean + 2*std };
     };
-    _stThreshCache = { skip: stat('skip'), transferOut: stat('transferOut') };
-    _stThreshCacheMonth = currMonth;
-    return _stThreshCache;
+    const result = { skip: stat('skip'), transferOut: stat('transferOut') };
+    _stThreshCache[targetMonth] = result;
+    return result;
 }
-// Returns a {bg,c,fw} style object for a Skip/Transfer count cell — red if
-// the value exceeds site-wide MTD mean+1stdev for that metric, else neutral.
-function skipTransferCellStyle(value, metricKey) {
-    if (value === null || value === undefined) return { bg: undefined, c: 'var(--tm)', fw: '400' };
-    const th = skipTransferThresholds()[metricKey];
-    if (!th || th.cutoff === null || value <= 0) return { bg: undefined, c: 'var(--ts)', fw: '400' };
-    if (value > th.cutoff) return { bg: '#FEF2F2', c: 'var(--coral)', fw: '700' };
-    return { bg: undefined, c: 'var(--ts)', fw: '400' };
+// Returns a {bg,c,fw,tier} style object for a Skip/Transfer count cell —
+// three-tier: neutral (<=mean+1std), amber (mean+1std < v <=mean+2std),
+// red (>mean+2std). tier is 'none'|'amber'|'red' for callers that need it
+// (e.g. the coaching-modal auto-flag trigger, which fires on 'amber' or 'red').
+// `month` optional — see skipTransferThresholds() for the default behavior.
+function skipTransferCellStyle(value, metricKey, month) {
+    if (value === null || value === undefined) return { bg: undefined, c: 'var(--tm)', fw: '400', tier: 'none' };
+    const th = skipTransferThresholds(month)[metricKey];
+    if (!th || th.cutoff === null || value <= 0) return { bg: undefined, c: 'var(--ts)', fw: '400', tier: 'none' };
+    if (value > th.cutoff2) return { bg: '#FEF2F2', c: 'var(--coral)', fw: '700', tier: 'red' };
+    if (value > th.cutoff)  return { bg: '#FEF3C7', c: 'var(--amber)', fw: '700', tier: 'amber' };
+    return { bg: undefined, c: 'var(--ts)', fw: '400', tier: 'none' };
 }
 
 // ── NHT% same-role MTD threshold (v98) ───────────────────────────────────────
-// Same mean+1stdev mechanic as Skip/Transfer, but scoped to reviewers sharing
+// Same mean+1/2stdev mechanic as Skip/Transfer, but scoped to reviewers sharing
 // the same Role (e.g. Agent vs SME) as the reviewer being evaluated, instead
 // of everyone site-wide — Karl's instruction. NHT% per reviewer is computed
 // as nht/(dht+nht) summed across their current-month rows, matching the
-// formula used on the Deep-Dive card (cNhtPct). Cached per {role|month} pair.
+// formula used on the Deep-Dive card (cNhtPct). `month` optional, same
+// same-period-as-evaluated rule as skipTransferThresholds(). Cached per
+// {role|month} pair.
 const _nhtThreshCache = {};
-function nhtThresholdsForRole(role) {
+function nhtThresholdsForRole(role, month) {
     const roleKey = role || '(blank)';
     const allMonths = [...new Set((typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).map(r=>r.month).filter(Boolean))].sort();
-    const currMonth = allMonths[allMonths.length-1];
-    const cacheKey = roleKey + '|' + currMonth;
+    const targetMonth = month || allMonths[allMonths.length-1];
+    const cacheKey = roleKey + '|' + targetMonth;
     if (_nhtThreshCache[cacheKey]) return _nhtThreshCache[cacheKey];
 
     const perRv = {}; // reviewer -> {dht, nht}
     (typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).forEach(r => {
-        if (r.month !== currMonth || !r.reviewer) return;
+        if (r.month !== targetMonth || !r.reviewer) return;
         if ((r.role || '(blank)') !== roleKey) return;
         if (!perRv[r.reviewer]) perRv[r.reviewer] = { dht: 0, nht: 0 };
         perRv[r.reviewer].dht += r.dht || 0;
@@ -19161,40 +19172,43 @@ function nhtThresholdsForRole(role) {
         .filter(v => v !== null);
     let result;
     if (!pcts.length) {
-        result = { mean: null, std: null, cutoff: null };
+        result = { mean: null, std: null, cutoff: null, cutoff2: null };
     } else {
         const mean = pcts.reduce((a,b)=>a+b, 0) / pcts.length;
         const variance = pcts.reduce((a,b)=>a + Math.pow(b-mean, 2), 0) / pcts.length;
         const std = Math.sqrt(variance);
-        result = { mean, std, cutoff: mean + std };
+        result = { mean, std, cutoff: mean + std, cutoff2: mean + 2*std };
     }
     _nhtThreshCache[cacheKey] = result;
     return result;
 }
-// Returns a {bg,c,fw} style object for an NHT% value, red if it exceeds
-// same-role site-wide MTD mean+1stdev, else neutral. `role` is the reviewer's
-// own Role value (e.g. rows[0]?.role) — pass null/undefined to skip flagging.
-function nhtCellStyle(value, role) {
-    if (value === null || value === undefined) return { bg: undefined, c: 'var(--tm)', fw: '400' };
-    const th = nhtThresholdsForRole(role);
-    if (!th || th.cutoff === null) return { bg: undefined, c: 'var(--ts)', fw: '400' };
-    if (value > th.cutoff) return { bg: '#FEF2F2', c: 'var(--coral)', fw: '700' };
-    return { bg: undefined, c: 'var(--ts)', fw: '400' };
+// Returns a {bg,c,fw,tier} style object for an NHT% value, three-tier against
+// same-role site-wide MTD mean+1/2stdev. `role` is the reviewer's own Role
+// value (e.g. rows[0]?.role) — pass null/undefined to skip flagging. `month`
+// optional — see nhtThresholdsForRole().
+function nhtCellStyle(value, role, month) {
+    if (value === null || value === undefined) return { bg: undefined, c: 'var(--tm)', fw: '400', tier: 'none' };
+    const th = nhtThresholdsForRole(role, month);
+    if (!th || th.cutoff === null) return { bg: undefined, c: 'var(--ts)', fw: '400', tier: 'none' };
+    if (value > th.cutoff2) return { bg: '#FEF2F2', c: 'var(--coral)', fw: '700', tier: 'red' };
+    if (value > th.cutoff)  return { bg: '#FEF3C7', c: 'var(--amber)', fw: '700', tier: 'amber' };
+    return { bg: undefined, c: 'var(--ts)', fw: '400', tier: 'none' };
 }
 
-// Site-wide (no role split) NHT% MTD mean+1stdev — used by the Data Explorer,
+// Site-wide (no role split) NHT% MTD mean+1/2stdev — used by the Data Explorer,
 // where a row can represent any grouping (SW, TL, week, etc.), not just a
 // single reviewer/role. Same underlying per-reviewer NHT% math as
 // nhtThresholdsForRole(), just pooled across every reviewer regardless of role.
-let _nhtThreshSitewideCacheMonth = null, _nhtThreshSitewideCache = null;
-function nhtThresholdsSitewide() {
+// `month` optional, same default-to-latest behavior as the other threshold fns.
+const _nhtThreshSitewideCache = {};
+function nhtThresholdsSitewide(month) {
     const allMonths = [...new Set((typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).map(r=>r.month).filter(Boolean))].sort();
-    const currMonth = allMonths[allMonths.length-1];
-    if (_nhtThreshSitewideCacheMonth === currMonth && _nhtThreshSitewideCache) return _nhtThreshSitewideCache;
+    const targetMonth = month || allMonths[allMonths.length-1];
+    if (_nhtThreshSitewideCache[targetMonth]) return _nhtThreshSitewideCache[targetMonth];
 
     const perRv = {};
     (typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).forEach(r => {
-        if (r.month !== currMonth || !r.reviewer) return;
+        if (r.month !== targetMonth || !r.reviewer) return;
         if (!perRv[r.reviewer]) perRv[r.reviewer] = { dht: 0, nht: 0 };
         perRv[r.reviewer].dht += r.dht || 0;
         perRv[r.reviewer].nht += r.nht || 0;
@@ -19204,24 +19218,27 @@ function nhtThresholdsSitewide() {
         .filter(v => v !== null);
     let result;
     if (!pcts.length) {
-        result = { mean: null, std: null, cutoff: null };
+        result = { mean: null, std: null, cutoff: null, cutoff2: null };
     } else {
         const mean = pcts.reduce((a,b)=>a+b, 0) / pcts.length;
         const variance = pcts.reduce((a,b)=>a + Math.pow(b-mean, 2), 0) / pcts.length;
         const std = Math.sqrt(variance);
-        result = { mean, std, cutoff: mean + std };
+        result = { mean, std, cutoff: mean + std, cutoff2: mean + 2*std };
     }
-    _nhtThreshSitewideCache = result;
-    _nhtThreshSitewideCacheMonth = currMonth;
+    _nhtThreshSitewideCache[targetMonth] = result;
     return result;
 }
 // deClass()-compatible class name for an NHT% value against the site-wide
-// MTD mean+1stdev cutoff — used by the Data Explorer only.
-function nhtSitewideClass(v) {
+// MTD mean+1/2stdev cutoff — used by the Data Explorer only. Three-tier:
+// de-good (<=mean+1std), de-warn (mean+1std < v <=mean+2std), de-bad (>mean+2std).
+// `month` optional — see nhtThresholdsSitewide().
+function nhtSitewideClass(v, month) {
     if (v === null || v === undefined || isNaN(v)) return 'de-muted';
-    const th = nhtThresholdsSitewide();
+    const th = nhtThresholdsSitewide(month);
     if (!th || th.cutoff === null) return '';
-    return v > th.cutoff ? 'de-bad' : 'de-good';
+    if (v > th.cutoff2) return 'de-bad';
+    if (v > th.cutoff)  return 'de-warn';
+    return 'de-good';
 }
 
 function deAggWfm(rows) {
@@ -19376,25 +19393,30 @@ function deFmt(v, type) {
     return String(v);
 }
 
-function deClass(v, type, tgt) {
+function deClass(v, type, tgt, rowDim) {
     if(v===null||v===undefined||isNaN(v)) return 'de-muted';
     if(type==='pct'&&tgt) return v>=tgt?'de-good':v>=tgt*0.97?'de-warn':'de-bad';
     if(type==='sec')  return (tgt===null||tgt===undefined)?'':(v<=tgt?'de-good':v<=tgt*1.1?'de-warn':'de-bad');
     if(type==='util') return v>=0.88?'de-good':v>=0.80?'de-warn':'de-bad';
     if(type==='occ')  return v>=0.95?'de-good':v>=0.88?'de-warn':'de-bad';
     if(type==='abs')  return v<=0.05?'de-good':v<=0.12?'de-warn':'de-bad';
-    // v98: NHT% now flagged against site-wide MTD mean+1stdev (no fixed 5%
-    // target — see nhtThresholdsSitewide()) instead of the old flat rule.
-    if(type==='nht')  return (typeof nhtSitewideClass==='function') ? nhtSitewideClass(v) : (v<0.05?'de-good':'de-bad');
+    // v98: NHT% flagged against site-wide MTD mean+1/2stdev (nhtThresholdsSitewide()),
+    // but ONLY when this row represents a single reviewer — Karl: grouping by
+    // SW/TL/week/etc. blends multiple reviewers into one total, which isn't
+    // comparable to a reviewer-derived cutoff, so those rows stay uncolored.
+    if(type==='nht')  return rowDim==='reviewer' ? ((typeof nhtSitewideClass==='function') ? nhtSitewideClass(v) : '') : '';
     if(type==='sla')  return v>=0.95?'de-good':'de-bad';  // SLA%: green >=95%, red <95%
-    // v98: Skip/Transfer — no fixed target, flag red when above site-wide
-    // MTD mean+1stdev for that metric (skipTransferThresholds()/tgt carries
-    // 'skip' or 'transferOut' as the metric key for this type).
+    // v98: Skip/Transfer — no fixed target, three-tier (amber/red) against
+    // site-wide MTD mean+1/2stdev for that metric (skipTransferThresholds()/tgt
+    // carries 'skip' or 'transferOut' as the metric key for this type). Colors
+    // regardless of grouping dimension — Karl confirmed this stays as-is.
     if(type==='skiptransfer') {
         if(!v) return 'de-muted';
         const th = (typeof skipTransferThresholds==='function') ? skipTransferThresholds()[tgt] : null;
         if(!th || th.cutoff===null) return '';
-        return v > th.cutoff ? 'de-bad' : '';
+        if(v > th.cutoff2) return 'de-bad';
+        if(v > th.cutoff)  return 'de-warn';
+        return '';
     }
     return '';
 }
@@ -19463,8 +19485,8 @@ function deGroupCols(grp, colDefs, compDefs) {
     return { head1, head2, count };
 }
 
-function deCells(s, includeWfm, ahtTgt, includeTs) {
-    const n = function(v,t,tgt,isSecondary){ return `<td class="de-n ${deClass(v,t,tgt)}${isSecondary?' de-secondary':''}" data-t="${t}">${deFmt(v,t)}</td>`; };
+function deCells(s, includeWfm, ahtTgt, includeTs, rowDim) {
+    const n = function(v,t,tgt,isSecondary){ return `<td class="de-n ${deClass(v,t,tgt,rowDim)}${isSecondary?' de-secondary':''}" data-t="${t}">${deFmt(v,t)}</td>`; };
     const A = 0.96;
     // AR-gating: AR>=10% → Precision+Recall are primary, Accuracy secondary;
     // AR<10% → Accuracy is primary, Precision+Recall secondary. Both still
@@ -19819,7 +19841,7 @@ function renderDataExplorer() {
             // Emit the data row itself
             html += '<tr class="' + rowCls + '"><td class="' + dimCls + '">' +
                 prefixes[Math.min(level,3)] + g.label + '</td>' +
-                deCells(g.stats, showWfm, rowAhtTgt, showTs) + '</tr>';
+                deCells(g.stats, showWfm, rowAhtTgt, showTs, g.dim) + '</tr>';
 
             // Emit children
             if(hasKids) {
@@ -23233,6 +23255,10 @@ function _generateCoachingDocInner(mcdConfig) {
             } else if(_wPrecMiss || _wRecMiss) {
                 const _missLbl = (_wPrecMiss && _wRecMiss) ? 'P&R' : _wPrecMiss ? 'Precision' : 'Recall';
                 _pillHtml = `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;background:#FFF7ED;color:${amber};border:1px solid #FDBA74;white-space:nowrap">⚠ Missed ${_missLbl} MTD</span>`;
+            } else if(mcdConfig.effOutlier && mcdConfig.effOutlier.flagged) {
+                // v98: NHT%/Skip/Transfer 1stdev outlier — same combined single-pill
+                // pattern, only shown when PSP and P&R-miss are both absent.
+                _pillHtml = `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;background:#FFF7ED;color:${amber};border:1px solid #FDBA74;white-space:nowrap">⚠ ${mcdConfig.effOutlier.label}</span>`;
             }
             return rvSecHead('What happens next', purple, false, _pillHtml);
         })()}
@@ -23520,11 +23546,23 @@ function buildReviewerSnapshotTables(rv) {
             const v=safeAHT(wkStats[wk]?.dht||0,wkStats[wk]?.nht||0,wkStats[wk]?.dec||0);
             return v!==null?plainCell(String(v)):{txt:'—',c:textMuted,fw:'400'};
         }), (()=>{ const v=safeAHT(mtd.dht,mtd.nht,mtd.dec); return v!==null?plainCell(String(v)):{txt:'—',c:textMuted,fw:'400'}; })()];
+        // NHT% — v98: no fixed target, flag against role-scoped site-wide MTD
+        // mean+1/2stdev (nhtThresholdsForRole()) — WPR is a single-reviewer
+        // document, so role-scoping (Agent vs SME, etc.) is meaningful here,
+        // matching the Deep-Dive card's approach.
+        const _wprRole = allRvRows[0]?.role || null;
+        const nhtCell = (dht,nht) => {
+            const t = (dht+nht)>0 ? nht/(dht+nht) : null;
+            if(t===null) return {txt:'—',c:textMuted,fw:'400'};
+            const st = (typeof nhtCellStyle==='function') ? nhtCellStyle(t,_wprRole) : {c:textSec,fw:'400'};
+            return {txt:(t*100).toFixed(1)+'%', ...st};
+        };
+        const nhtVals = [...displayWks.map(wk=>nhtCell(wkStats[wk]?.dht||0,wkStats[wk]?.nht||0)), nhtCell(mtd.dht,mtd.nht)];
         const decVals = [...displayWks.map(wk=>{ const v=wkStats[wk]?.dec||0; return {txt:v>0?v.toLocaleString():'—',c:textMuted,fw:'400'}; }), {txt:mtd.dec>0?mtd.dec.toLocaleString():'—',c:textMuted,fw:'400'}];
         const msvVals = [...displayWks.map(wk=>msvCell(safeMSV(wkMSV[wk]?.n||0,wkMSV[wk]?.d||0))), msvCell(safeMSV(mtdMSV.n,mtdMSV.d))];
-        // Skip / Transfer — v98: no fixed target exists, so flag red when a
-        // week's or MTD's count exceeds the site-wide MTD mean+1stdev for
-        // that metric (computed across all reviewers via skipTransferThresholds()).
+        // Skip / Transfer — v98: no fixed target exists, so flag against
+        // site-wide MTD mean+1/2stdev for that metric (three-tier: neutral,
+        // amber >1stdev, red >2stdev — see skipTransferThresholds()).
         const skipCell = (v) => { if(!v) return {txt:'—',c:textMuted,fw:'400'}; const st=skipTransferCellStyle(v,'skip'); return {txt:v.toLocaleString(),...st}; };
         const transferCell = (v) => { if(!v) return {txt:'—',c:textMuted,fw:'400'}; const st=skipTransferCellStyle(v,'transferOut'); return {txt:v.toLocaleString(),...st}; };
         const skipVals = [...displayWks.map(wk=>skipCell(wkStats[wk]?.skip||0)), skipCell(mtd.skip)];
@@ -23532,6 +23570,7 @@ function buildReviewerSnapshotTables(rv) {
 
         rows.push({lbl:'Action rate',vals:arVals});
         rows.push({lbl:'AHT (s)',vals:ahtVals});
+        rows.push({lbl:'NHT %',vals:nhtVals});
         rows.push({lbl:'Decisions',vals:decVals});
         rows.push({lbl:'MSV',vals:msvVals});
         rows.push({lbl:'Skip',vals:skipVals});
@@ -23959,7 +23998,17 @@ function buildReviewerMonthlySnapshotTables(rv) {
               return {bg:'#FEF2F2',c:red,fw:'700'};
           }
         },
-        { lbl:'NHT %',       fn: s=>s.dht+s.nht>0?s.nht/(s.dht+s.nht):null, fmt: pct, tgt:null, higher:null, arGate:null },
+        // v98: NHT% — no fixed target, flag against role-scoped site-wide MTD
+        // mean+1/2stdev (nhtThresholdsForRole()) — MPR is a single-reviewer
+        // document, so role-scoping (Agent vs SME, etc.) is meaningful here,
+        // matching the Deep-Dive card's approach.
+        { lbl:'NHT %',       fn: s=>s.dht+s.nht>0?s.nht/(s.dht+s.nht):null, fmt: pct, tgt:null, higher:null, arGate:null,
+          cellFn: (v) => {
+              if(v===null) return {bg:'transparent',c:textMuted,fw:'400'};
+              const st = (typeof nhtCellStyle==='function') ? nhtCellStyle(v, allRvRows[0]?.role||null) : {c:textSec,fw:'400'};
+              return {bg:st.bg||'transparent',c:st.c,fw:st.fw};
+          }
+        },
         { lbl:'MSV',         fn: (s,mo)=>moMSV[mo]??null, fmt: v=>(v*100).toFixed(1)+'%', tgt:0.98, higher:true, arGate:null,
           cellFn: (v) => {
               if(v===null) return {bg:'transparent',c:textMuted,fw:'400'};
@@ -36400,8 +36449,8 @@ function openMonthlyCoachingModal(){
   if(!currRows.length){alert('No data found for this reviewer in the selected period.');return;}
 
   // ── Core quality totals ───────────────────────────────────────────────────
-  var tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0;
-  currRows.forEach(function(r){tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;});
+  var tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0,skipTot=0,transferTot=0;
+  currRows.forEach(function(r){tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;skipTot+=r.skip||0;transferTot+=r.transferOut||0;});
   var tot=tpa+fpa+fna+tna;
   var acc=tot>0?(tpa+tna)/tot:null;
   var totalErrors=fpa+fna;
@@ -36487,16 +36536,41 @@ function openMonthlyCoachingModal(){
   _mcd.absStr=absStr;_mcd.absFailing=absFailing;_mcd.overAHT=overAHT;_mcd.swQuality=swQuality;
   _mcd.overallPrec=overallPrec;_mcd.overallRec=overallRec;_mcd.allPolStr=allPolStr;
 
+  // v98: NHT%/Skip/Transfer 1stdev outlier check — same combined single-flag
+  // pattern as the PSP/P&R checks above, computed for currMonth specifically
+  // (this modal can target a past month via the on-screen filter, and the
+  // threshold must match that same period — Karl confirmed). Stored on _mcd
+  // so both the header badge below and the generated doc (mcdGenerate →
+  // config.effOutlier) can use the same computed result.
+  (function(){
+    var _rvRoleForFlag = currRows[0] && currRows[0].role ? currRows[0].role : null;
+    var _nhtPctForFlag = (dht+nht)>0 ? nht/(dht+nht) : null;
+    var _nhtBreach = (typeof nhtCellStyle==='function') ? nhtCellStyle(_nhtPctForFlag,_rvRoleForFlag,currMonth).tier!=='none' : false;
+    var _skipBreach = (typeof skipTransferCellStyle==='function') ? skipTransferCellStyle(skipTot,'skip',currMonth).tier!=='none' : false;
+    var _transferBreach = (typeof skipTransferCellStyle==='function') ? skipTransferCellStyle(transferTot,'transferOut',currMonth).tier!=='none' : false;
+    var _names=[];
+    if(_nhtBreach) _names.push('NHT%');
+    if(_skipBreach) _names.push('Skip');
+    if(_transferBreach) _names.push('Transfer');
+    _mcd.effOutlier = _names.length ? { flagged:true, names:_names, label:_names.join('/')+' Outlier' } : { flagged:false, names:[], label:'' };
+  })();
+
   var fmtM=typeof fmtMonth==='function'?fmtMonth(currMonth):currMonth;
   var rvShort=typeof sn==='function'?sn(rv):rv;
   var _docLabel = _mcd._mode==='weekly' ? 'Weekly coaching doc' : 'Monthly coaching doc';
   document.getElementById('mcd-title').textContent=_docLabel+' \u2014 '+rvShort;
 
   // ── Header flag — compact badge beside the name ──────────────────────────
-  // Shows when the reviewer is PSP (accuracy below target) or has missed
+  // Shows when the reviewer is PSP (accuracy below target), has missed
   // Precision/Recall MTD (using the same overall P&R already computed for
-  // the Quality card below). Separate from the full PSP banner further down
-  // — this is a glance-level indicator visible without scrolling.
+  // the Quality card below), or — v98 — has breached the 1stdev outlier
+  // threshold on NHT%, Skip, or Transfer for the period being viewed. Only
+  // one badge shows at a time (priority: PSP > P&R miss > efficiency outlier)
+  // and the efficiency case is a single combined flag naming whichever
+  // metric(s) breached, not one line per KPI. Thresholds are computed for
+  // `currMonth` specifically (not always current MTD) since this modal can
+  // be opened for a past month via the on-screen filter — Karl confirmed the
+  // threshold must match the period actually being evaluated.
   (function(){
     var flagEl = document.getElementById('mcd-header-flag');
     if(!flagEl) return;
@@ -36510,6 +36584,10 @@ function openMonthlyCoachingModal(){
       flagEl.style.background='#FFF7ED'; flagEl.style.color='#92400E'; flagEl.style.border='1px solid #FDBA74';
       var missLbl = (overallPrec!==null&&overallPrec<0.96&&overallRec!==null&&overallRec<0.96) ? 'P&R' : (overallPrec!==null&&overallPrec<0.96) ? 'Precision' : 'Recall';
       flagEl.textContent='⚠ Missed '+missLbl+' MTD';
+    } else if(_mcd.effOutlier && _mcd.effOutlier.flagged){
+      flagEl.style.display='';
+      flagEl.style.background='#FFF7ED'; flagEl.style.color='#92400E'; flagEl.style.border='1px solid #FDBA74';
+      flagEl.textContent='⚠ '+_mcd.effOutlier.label;
     } else {
       flagEl.style.display='none';
     }
@@ -36867,7 +36945,8 @@ function mcdGenerate(){
     curA:document.getElementById('mcd-cur-a')?document.getElementById('mcd-cur-a').textContent:_mcd.absStr,
     notes:document.getElementById('mcd-notes').value.trim(),
     isPSP:_mcd.isPSP,pspTraj:_mcd.pspTraj,accStr:_mcd.accStr,
-    swQuality:_mcd.swQuality,overAHT:_mcd.overAHT,absFailing:_mcd.absFailing,absStr:_mcd.absStr
+    swQuality:_mcd.swQuality,overAHT:_mcd.overAHT,absFailing:_mcd.absFailing,absStr:_mcd.absStr,
+    effOutlier:_mcd.effOutlier||{flagged:false,names:[],label:''}
   };
   closeMcdModal();
   if(_mcd._mode === 'weekly') {
