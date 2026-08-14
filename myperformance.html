@@ -3539,7 +3539,7 @@ tr:hover td{background:#F8F9FB}
           <div style="font-size:13px;font-weight:800;color:var(--text)">Drop Non-Decision CSV here</div>
           <div style="font-size:11px;color:var(--tm);margin-top:3px;text-align:center">Skip / No Handle event export &middot; job_id, actor_id, event, handle_time_sec</div>
           <div id="nondecision-load-status" style="margin-top:6px;font-size:11px;color:var(--tm)">No file loaded</div>
-          <input type="file" id="nondecision-file-input" accept=".csv" onchange="nonDecisionHandleUpload(this)" style="display:none">
+          <input type="file" id="nondecision-file-input" accept=".csv" multiple onchange="nonDecisionHandleUpload(this)" style="display:none">
           <div id="nondecision-up-ok"  style="margin-top:8px;font-size:12px;color:var(--teal);font-weight:700;display:none"></div>
           <div id="nondecision-up-err" style="margin-top:8px;font-size:12px;color:var(--coral);font-weight:700;display:none"></div>
         </div>
@@ -11505,6 +11505,11 @@ function renderDrillDown(){
             const _escRv = String(rv).replace(/'/g, "\\'");
             const _skipPill = _sSkip>0 ? `<span class="opp-spotcheck-pill" onclick="event.stopPropagation();if(typeof ndjdJumpToReviewerSW==='function') ndjdJumpToReviewerSW('${_escRv}','','skip')" title="Open Non-Decision Job Detail — Skip events">Spotcheck</span>` : '';
             const _transferPill = _sTransfer>0 ? `<span class="opp-spotcheck-pill" onclick="event.stopPropagation();if(typeof ndjdJumpToReviewerSW==='function') ndjdJumpToReviewerSW('${_escRv}','','transfer_out')" title="Open Non-Decision Job Detail — Transfer Out events">Spotcheck</span>` : '';
+            // v98: Skip/Transfer flagged red when above site-wide MTD avg+1stdev
+            // (no fixed target exists for these — skipTransferCellStyle() derives
+            // the cutoff dynamically from RAW_ROWS via skipTransferThresholds()).
+            const _skipSt = (typeof skipTransferCellStyle==='function') ? skipTransferCellStyle(_sSkip,'skip') : {c:'inherit'};
+            const _transferSt = (typeof skipTransferCellStyle==='function') ? skipTransferCellStyle(_sTransfer,'transferOut') : {c:'inherit'};
             return `<div class="snap-kpi-col">
               <div class="snap-kpi-col-head">Efficiency <span style="font-weight:400;color:var(--tm);font-size:9px">· ${_aPassSW}/${_aElig} SW passing</span></div>
               <div class="snap-kpi-row">
@@ -11528,12 +11533,12 @@ function renderDrillDown(){
               </div>
               <div class="snap-kpi-row">
                 <span class="snap-kpi-label">Skip</span>
-                <span class="snap-kpi-val">${_sSkip>0?_sSkip.toLocaleString():'—'}</span>
+                <span class="snap-kpi-val" style="color:${_skipSt.c}">${_sSkip>0?_sSkip.toLocaleString():'—'}</span>
                 ${_skipPill}
               </div>
               <div class="snap-kpi-row">
                 <span class="snap-kpi-label">Transfer</span>
-                <span class="snap-kpi-val">${_sTransfer>0?_sTransfer.toLocaleString():'—'}</span>
+                <span class="snap-kpi-val" style="color:${_transferSt.c}">${_sTransfer>0?_sTransfer.toLocaleString():'—'}</span>
                 ${_transferPill}
               </div>
             </div>`;
@@ -19081,6 +19086,48 @@ function deAgg(rows) {
     return Object.assign({}, deAggQuality(rows), deAggEff(rows));
 }
 
+// ── Skip/Transfer site-wide MTD threshold (v98) ──────────────────────────────
+// Karl: no fixed target exists for Skip/Transfer counts, so flag outliers
+// against the site rather than a static number — mean + 1 stdev of each
+// reviewer's own MTD (current-month) total, computed across all reviewers
+// site-wide. Cached per month since RAW_ROWS doesn't change within a render
+// pass; call skipTransferThresholds() to get {skip:{mean,std,cutoff}, transferOut:{...}}.
+let _stThreshCacheMonth = null, _stThreshCache = null;
+function skipTransferThresholds() {
+    const allMonths = [...new Set((typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).map(r=>r.month).filter(Boolean))].sort();
+    const currMonth = allMonths[allMonths.length-1];
+    if (_stThreshCacheMonth === currMonth && _stThreshCache) return _stThreshCache;
+
+    const perRv = {}; // reviewer -> {skip, transferOut}
+    (typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).forEach(r => {
+        if (r.month !== currMonth || !r.reviewer) return;
+        if (!perRv[r.reviewer]) perRv[r.reviewer] = { skip: 0, transferOut: 0 };
+        perRv[r.reviewer].skip += r.skip || 0;
+        perRv[r.reviewer].transferOut += r.transferOut || 0;
+    });
+    const vals = Object.values(perRv);
+    const stat = (key) => {
+        const arr = vals.map(v => v[key]);
+        if (!arr.length) return { mean: null, std: null, cutoff: null };
+        const mean = arr.reduce((a,b)=>a+b, 0) / arr.length;
+        const variance = arr.reduce((a,b)=>a + Math.pow(b-mean, 2), 0) / arr.length;
+        const std = Math.sqrt(variance);
+        return { mean, std, cutoff: mean + std };
+    };
+    _stThreshCache = { skip: stat('skip'), transferOut: stat('transferOut') };
+    _stThreshCacheMonth = currMonth;
+    return _stThreshCache;
+}
+// Returns a {bg,c,fw} style object for a Skip/Transfer count cell — red if
+// the value exceeds site-wide MTD mean+1stdev for that metric, else neutral.
+function skipTransferCellStyle(value, metricKey) {
+    if (value === null || value === undefined) return { bg: undefined, c: 'var(--tm)', fw: '400' };
+    const th = skipTransferThresholds()[metricKey];
+    if (!th || th.cutoff === null || value <= 0) return { bg: undefined, c: 'var(--ts)', fw: '400' };
+    if (value > th.cutoff) return { bg: '#FEF2F2', c: 'var(--coral)', fw: '700' };
+    return { bg: undefined, c: 'var(--ts)', fw: '400' };
+}
+
 function deAggWfm(rows) {
     // Dedupe per reviewer+week (or reviewer+date, see below) then pull from WFM_LOOKUP /
     // WFM_LOOKUP_DAILY (correctly summed across all shifts). Use the lookup keys directly —
@@ -23229,11 +23276,12 @@ function buildReviewerSnapshotTables(rv) {
 
     const wkStats = {};
     const wkMSV = {};
-    displayWks.forEach(wk => { wkStats[wk]={tpa:0,fpa:0,fna:0,tna:0,dec:0,dht:0,nht:0,enfTpa:0,enfFpa:0,enfFna:0,enfTna:0,labTpa:0,labFpa:0,labFna:0,labTna:0}; wkMSV[wk]={n:0,d:0}; });
+    displayWks.forEach(wk => { wkStats[wk]={tpa:0,fpa:0,fna:0,tna:0,dec:0,dht:0,nht:0,enfTpa:0,enfFpa:0,enfFna:0,enfTna:0,labTpa:0,labFpa:0,labFna:0,labTna:0,skip:0,transferOut:0}; wkMSV[wk]={n:0,d:0}; });
     allRvRows.filter(r=>displayWks.includes(r.week)).forEach(r=>{
         const s=wkStats[r.week]; if(!s) return;
         s.tpa+=r.tpa||0; s.fpa+=r.fpa||0; s.fna+=r.fna||0; s.tna+=r.tna||0;
         s.dec+=r.decisions||0; s.dht+=r.dht||0; s.nht+=r.nht||0;
+        s.skip+=r.skip||0; s.transferOut+=r.transferOut||0;
         const rt=(r.reviewType||'').trim();
         if(rt==='Enforcement'){s.enfTpa+=r.tpa||0;s.enfFpa+=r.fpa||0;s.enfFna+=r.fna||0;s.enfTna+=r.tna||0;}
         else if(rt==='Labeling'){s.labTpa+=r.tpa||0;s.labFpa+=r.fpa||0;s.labFna+=r.fna||0;s.labTna+=r.tna||0;}
@@ -23246,11 +23294,12 @@ function buildReviewerSnapshotTables(rv) {
     });
 
     const mtdRows = allRvRows.filter(r=>r.month===currMonth);
-    const mtd={tpa:0,fpa:0,fna:0,tna:0,dec:0,dht:0,nht:0,enfTpa:0,enfFpa:0,enfFna:0,enfTna:0,labTpa:0,labFpa:0,labFna:0,labTna:0};
+    const mtd={tpa:0,fpa:0,fna:0,tna:0,dec:0,dht:0,nht:0,enfTpa:0,enfFpa:0,enfFna:0,enfTna:0,labTpa:0,labFpa:0,labFna:0,labTna:0,skip:0,transferOut:0};
     const mtdMSV={n:0,d:0};
     mtdRows.forEach(r=>{
         mtd.tpa+=r.tpa||0; mtd.fpa+=r.fpa||0; mtd.fna+=r.fna||0; mtd.tna+=r.tna||0;
         mtd.dec+=r.decisions||0; mtd.dht+=r.dht||0; mtd.nht+=r.nht||0;
+        mtd.skip+=r.skip||0; mtd.transferOut+=r.transferOut||0;
         const rt=(r.reviewType||'').trim();
         if(rt==='Enforcement'){mtd.enfTpa+=r.tpa||0;mtd.enfFpa+=r.fpa||0;mtd.enfFna+=r.fna||0;mtd.enfTna+=r.tna||0;}
         else if(rt==='Labeling'){mtd.labTpa+=r.tpa||0;mtd.labFpa+=r.fpa||0;mtd.labFna+=r.fna||0;mtd.labTna+=r.tna||0;}
@@ -23366,11 +23415,20 @@ function buildReviewerSnapshotTables(rv) {
         }), (()=>{ const v=safeAHT(mtd.dht,mtd.nht,mtd.dec); return v!==null?plainCell(String(v)):{txt:'—',c:textMuted,fw:'400'}; })()];
         const decVals = [...displayWks.map(wk=>{ const v=wkStats[wk]?.dec||0; return {txt:v>0?v.toLocaleString():'—',c:textMuted,fw:'400'}; }), {txt:mtd.dec>0?mtd.dec.toLocaleString():'—',c:textMuted,fw:'400'}];
         const msvVals = [...displayWks.map(wk=>msvCell(safeMSV(wkMSV[wk]?.n||0,wkMSV[wk]?.d||0))), msvCell(safeMSV(mtdMSV.n,mtdMSV.d))];
+        // Skip / Transfer — v98: no fixed target exists, so flag red when a
+        // week's or MTD's count exceeds the site-wide MTD mean+1stdev for
+        // that metric (computed across all reviewers via skipTransferThresholds()).
+        const skipCell = (v) => { if(!v) return {txt:'—',c:textMuted,fw:'400'}; const st=skipTransferCellStyle(v,'skip'); return {txt:v.toLocaleString(),...st}; };
+        const transferCell = (v) => { if(!v) return {txt:'—',c:textMuted,fw:'400'}; const st=skipTransferCellStyle(v,'transferOut'); return {txt:v.toLocaleString(),...st}; };
+        const skipVals = [...displayWks.map(wk=>skipCell(wkStats[wk]?.skip||0)), skipCell(mtd.skip)];
+        const transferVals = [...displayWks.map(wk=>transferCell(wkStats[wk]?.transferOut||0)), transferCell(mtd.transferOut)];
 
         rows.push({lbl:'Action rate',vals:arVals});
         rows.push({lbl:'AHT (s)',vals:ahtVals});
         rows.push({lbl:'Decisions',vals:decVals});
         rows.push({lbl:'MSV',vals:msvVals});
+        rows.push({lbl:'Skip',vals:skipVals});
+        rows.push({lbl:'Transfer',vals:transferVals});
         return rows;
     })();
 
@@ -23395,7 +23453,7 @@ function buildReviewerSnapshotTables(rv) {
           <td colspan="${2+displayWks.length}" style="padding:5px 10px;font-size:9px;color:${textMuted}">
             <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#DCFCE7;border:0.5px solid #86EFAC;vertical-align:middle;margin-right:2px"></span>Met</span>
             <span style="margin-right:8px"><span style="display:inline-block;width:6px;height:6px;border-radius:1px;background:#FEF2F2;border:0.5px solid #FCA5A5;vertical-align:middle;margin-right:2px"></span>Below</span>
-            <span>AR ≥10%: P &amp; R colored · AR &lt;10%: Acc colored · thick border = new month</span>
+            <span>AR ≥10%: P &amp; R colored · AR &lt;10%: Acc colored · Skip/Transfer flagged above site MTD avg+1σ · thick border = new month</span>
           </td>
         </tr></tfoot>
       </table>
@@ -23737,10 +23795,10 @@ function buildReviewerMonthlySnapshotTables(rv) {
     const divSection = `<div style="height:0.5px;background:${divider};margin:20px 0"></div>`;
 
     const sumStats = rows => {
-        let tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0,aud=0;
-        rows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;aud+=r.audits||0;});
+        let tpa=0,fpa=0,fna=0,tna=0,dht=0,nht=0,dec=0,aud=0,skip=0,transferOut=0;
+        rows.forEach(r=>{tpa+=r.tpa||0;fpa+=r.fpa||0;fna+=r.fna||0;tna+=r.tna||0;dht+=r.dht||0;nht+=r.nht||0;dec+=r.decisions||0;aud+=r.audits||0;skip+=r.skip||0;transferOut+=r.transferOut||0;});
         const tot=tpa+fpa+fna+tna;
-        return {tpa,fpa,fna,tna,dht,nht,dec,tot,aud,
+        return {tpa,fpa,fna,tna,dht,nht,dec,tot,aud,skip,transferOut,
             acc: tot>0?(tpa+tna)/tot:null,
             prec:(tpa+fpa)>0?tpa/(tpa+fpa):null,
             rec: (tpa+fna)>0?tpa/(tpa+fna):null,
@@ -23801,6 +23859,22 @@ function buildReviewerMonthlySnapshotTables(rv) {
               if(v>=0.98) return {bg:'#DCFCE7',c:green,fw:'700'};
               if(v>=0.95) return {bg:'#FEF3C7',c:amber,fw:'700'};
               return {bg:'#FEF2F2',c:red,fw:'700'};
+          }
+        },
+        // v98: Skip / Transfer — no fixed target, flag red when a month's
+        // total exceeds the site-wide MTD mean+1stdev for that metric.
+        { lbl:'Skip',        fn: s=>s.skip, fmt: v=>v>0?Math.round(v).toLocaleString():'—', tgt:null, higher:null, arGate:null,
+          cellFn: (v) => {
+              if(!v) return {bg:'transparent',c:textMuted,fw:'400'};
+              const st=skipTransferCellStyle(v,'skip');
+              return {bg:st.bg||'transparent',c:st.c,fw:st.fw};
+          }
+        },
+        { lbl:'Transfer',    fn: s=>s.transferOut, fmt: v=>v>0?Math.round(v).toLocaleString():'—', tgt:null, higher:null, arGate:null,
+          cellFn: (v) => {
+              if(!v) return {bg:'transparent',c:textMuted,fw:'400'};
+              const st=skipTransferCellStyle(v,'transferOut');
+              return {bg:st.bg||'transparent',c:st.c,fw:st.fw};
           }
         },
         { lbl:'Absent %',    fn: (s,mo)=>moAbsRate[mo]??null, fmt: v=>(v*100).toFixed(1)+'%', tgt:0.05, higher:false, arGate:null,
@@ -28817,36 +28891,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.nonDecisionHandleUpload = function(input) {
-        const file = input.files[0];
-        if (!file) return;
+        const files = Array.from(input.files || []);
+        if (!files.length) return;
         const okEl = document.getElementById('nondecision-up-ok');
         const errEl = document.getElementById('nondecision-up-err');
         okEl.style.display = errEl.style.display = 'none';
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const rows = ndjdParseCSV(e.target.result);
-                if (!rows.length) throw new Error('No rows found. Check that the file is the Non-Decision export.');
-                NONDECISION_ROWS = rows;
-                NDJD_PAGE = 1;
-                NDJD_FILTERS = { jid: '', tl: '', reviewer: '', sw: '', event: '', swContains: '' };
-                const statusEl = document.getElementById('nondecision-load-status');
-                if (statusEl) statusEl.innerHTML = `<span style="color:var(--teal);font-weight:700">\u2713 ${rows.length.toLocaleString()} event${rows.length !== 1 ? 's' : ''} loaded</span>`;
-                okEl.textContent = `\u2713 Loaded ${rows.length.toLocaleString()} event${rows.length !== 1 ? 's' : ''}`;
-                okEl.style.display = 'block';
-                if (document.getElementById('tab-jobdetail') && document.getElementById('tab-jobdetail').classList.contains('on') && typeof renderJobDetail === 'function') {
-                    renderJobDetail();
-                } else {
-                    ndjdRenderTable();
+
+        // v98: multi-file support — reads every selected file, concatenates
+        // parsed rows across all of them, and replaces NONDECISION_ROWS once
+        // all files have finished loading (order-independent via counter).
+        let remaining = files.length;
+        let combinedRows = [];
+        let lastRawText = '';
+        let lastFileName = files[0].name;
+        let anyError = null;
+
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const rows = ndjdParseCSV(e.target.result);
+                    if (!rows.length) throw new Error(`No rows found in "${file.name}". Check that the file is the Non-Decision export.`);
+                    combinedRows = combinedRows.concat(rows);
+                    lastRawText = e.target.result;
+                    lastFileName = file.name;
+                } catch (err) {
+                    anyError = err;
+                } finally {
+                    remaining--;
+                    if (remaining === 0) finalize();
                 }
-                cacheStore('nondecision', e.target.result, file.name, rows.length);
-                renderDependencyDots(); renderCacheStatusCards();
-            } catch (err) {
-                errEl.textContent = '\u2715 Parse error: ' + err.message;
+            };
+            reader.onerror = function() {
+                anyError = anyError || new Error(`Failed to read "${file.name}"`);
+                remaining--;
+                if (remaining === 0) finalize();
+            };
+            reader.readAsText(file, 'utf-8');
+        });
+
+        function finalize() {
+            if (!combinedRows.length) {
+                errEl.textContent = '\u2715 Parse error: ' + (anyError ? anyError.message : 'No rows found across selected file(s).');
                 errEl.style.display = 'block';
+                return;
             }
-        };
-        reader.readAsText(file, 'utf-8');
+            NONDECISION_ROWS = combinedRows;
+            NDJD_PAGE = 1;
+            NDJD_FILTERS = { jid: '', tl: '', reviewer: '', sw: '', event: '', swContains: '' };
+            const statusEl = document.getElementById('nondecision-load-status');
+            const fileNote = files.length > 1 ? ` from ${files.length} files` : '';
+            if (statusEl) statusEl.innerHTML = `<span style="color:var(--teal);font-weight:700">\u2713 ${combinedRows.length.toLocaleString()} event${combinedRows.length !== 1 ? 's' : ''} loaded${fileNote}</span>`;
+            if (anyError) {
+                okEl.textContent = `\u26a0 Loaded ${combinedRows.length.toLocaleString()} event${combinedRows.length !== 1 ? 's' : ''}${fileNote} — one or more files had errors (${anyError.message})`;
+            } else {
+                okEl.textContent = `\u2713 Loaded ${combinedRows.length.toLocaleString()} event${combinedRows.length !== 1 ? 's' : ''}${fileNote}`;
+            }
+            okEl.style.display = 'block';
+            if (document.getElementById('tab-jobdetail') && document.getElementById('tab-jobdetail').classList.contains('on') && typeof renderJobDetail === 'function') {
+                renderJobDetail();
+            } else {
+                ndjdRenderTable();
+            }
+            cacheStore('nondecision', lastRawText, lastFileName, combinedRows.length);
+            renderDependencyDots(); renderCacheStatusCards();
+        }
     };
 
     function ndjdRosterMap() {
@@ -34568,10 +34677,14 @@ function gpDecReqExpand(open) {
     return Math.max(0, (s - a) / s);
   }
   function calcAnniversaryBonus(reviewerRows, reviewerName) {
-    // Attendance gate is scoped to the coverage window only — independent of
-    // the base absenteeism bonus, which still covers the full selected month.
+    // v98: absenteeism NO LONGER gates these points, per Karl's August 2026
+    // instruction — if a reviewer doesn't hit the 5% attendance target, only
+    // the separate base Absenteeism bonus (+1%) goes away; it must not zero
+    // out these quality-based Anniversary Conversion points too. Attendance
+    // is still computed and shown for context in the detail string, but no
+    // longer blocks scoring. calcAnniversaryAttendance() is retained (still
+    // used for display) but its result no longer participates in the gate.
     const absRate = calcAnniversaryAttendance(reviewerName);
-    const absOk = absRate !== null && absRate <= 0.05;
     const bySw = {};
     let totalPts = 0;
     ANNIV_BONUS_SWS.forEach(sw => {
@@ -34582,8 +34695,8 @@ function gpDecReqExpand(open) {
       const hasRecDen  = (tpa+fna) > 0;
       const tot = tpa+fpa+fna+tna;
       let pts = 0, detail = '—';
-      if(!absOk || !rows.length) {
-        detail = !rows.length ? 'no data' : 'absenteeism >5%';
+      if(!rows.length) {
+        detail = 'no data';
       } else if(!hasPrecDen && !hasRecDen) {
         // No P&R at all -> fall back to Accuracy vs 97%, same rule as July
         const acc = tot > 0 ? (tpa+tna)/tot : null;
