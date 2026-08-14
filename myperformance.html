@@ -11477,6 +11477,12 @@ function renderDrillDown(){
             const _ddExp = _jt.expected!==null ? Math.round(_jt.expected) : null;
             const _ddC   = _jt.expected!==null ? jobGapColor(_jt.gap,_jt.expected) : 'var(--ts)';
             const _nhtCls = cNhtPct!==null ? (cNhtPct<=0.15?'c-good':cNhtPct<=0.25?'c-warn':'c-bad') : '';
+            // v98: NHT% outlier flag — red when this reviewer's MTD NHT%
+            // exceeds the mean+1stdev of same-Role reviewers site-wide
+            // (nhtThresholdsForRole derives the cutoff fresh from RAW_ROWS,
+            // scoped to rows[0]?.role so Agents are compared to Agents, etc).
+            const _rvRole = rows[0]?.role || null;
+            const _nhtSt = (typeof nhtCellStyle==='function') ? nhtCellStyle(cNhtPct,_rvRole) : {c:'inherit'};
             // AHT SW pass-rate — same >=5 decisions gate used elsewhere.
             const _aSwAgg = {};
             rows.forEach(r => {
@@ -11524,7 +11530,7 @@ function renderDrillDown(){
               </div>
               <div class="snap-kpi-row ${_nhtCls}">
                 <span class="snap-kpi-label">No Handle %</span>
-                <span class="snap-kpi-val">${cNhtPct!==null?(cNhtPct*100).toFixed(1)+'%':'—'}</span>
+                <span class="snap-kpi-val" style="color:${_nhtSt.c}">${cNhtPct!==null?(cNhtPct*100).toFixed(1)+'%':'—'}</span>
                 <span class="snap-kpi-dim">${sNht>0?Math.round(sNht).toLocaleString()+'s':''}</span>
               </div>
               <div class="snap-kpi-row">
@@ -19128,6 +19134,96 @@ function skipTransferCellStyle(value, metricKey) {
     return { bg: undefined, c: 'var(--ts)', fw: '400' };
 }
 
+// ── NHT% same-role MTD threshold (v98) ───────────────────────────────────────
+// Same mean+1stdev mechanic as Skip/Transfer, but scoped to reviewers sharing
+// the same Role (e.g. Agent vs SME) as the reviewer being evaluated, instead
+// of everyone site-wide — Karl's instruction. NHT% per reviewer is computed
+// as nht/(dht+nht) summed across their current-month rows, matching the
+// formula used on the Deep-Dive card (cNhtPct). Cached per {role|month} pair.
+const _nhtThreshCache = {};
+function nhtThresholdsForRole(role) {
+    const roleKey = role || '(blank)';
+    const allMonths = [...new Set((typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).map(r=>r.month).filter(Boolean))].sort();
+    const currMonth = allMonths[allMonths.length-1];
+    const cacheKey = roleKey + '|' + currMonth;
+    if (_nhtThreshCache[cacheKey]) return _nhtThreshCache[cacheKey];
+
+    const perRv = {}; // reviewer -> {dht, nht}
+    (typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).forEach(r => {
+        if (r.month !== currMonth || !r.reviewer) return;
+        if ((r.role || '(blank)') !== roleKey) return;
+        if (!perRv[r.reviewer]) perRv[r.reviewer] = { dht: 0, nht: 0 };
+        perRv[r.reviewer].dht += r.dht || 0;
+        perRv[r.reviewer].nht += r.nht || 0;
+    });
+    const pcts = Object.values(perRv)
+        .map(v => (v.dht + v.nht) > 0 ? v.nht / (v.dht + v.nht) : null)
+        .filter(v => v !== null);
+    let result;
+    if (!pcts.length) {
+        result = { mean: null, std: null, cutoff: null };
+    } else {
+        const mean = pcts.reduce((a,b)=>a+b, 0) / pcts.length;
+        const variance = pcts.reduce((a,b)=>a + Math.pow(b-mean, 2), 0) / pcts.length;
+        const std = Math.sqrt(variance);
+        result = { mean, std, cutoff: mean + std };
+    }
+    _nhtThreshCache[cacheKey] = result;
+    return result;
+}
+// Returns a {bg,c,fw} style object for an NHT% value, red if it exceeds
+// same-role site-wide MTD mean+1stdev, else neutral. `role` is the reviewer's
+// own Role value (e.g. rows[0]?.role) — pass null/undefined to skip flagging.
+function nhtCellStyle(value, role) {
+    if (value === null || value === undefined) return { bg: undefined, c: 'var(--tm)', fw: '400' };
+    const th = nhtThresholdsForRole(role);
+    if (!th || th.cutoff === null) return { bg: undefined, c: 'var(--ts)', fw: '400' };
+    if (value > th.cutoff) return { bg: '#FEF2F2', c: 'var(--coral)', fw: '700' };
+    return { bg: undefined, c: 'var(--ts)', fw: '400' };
+}
+
+// Site-wide (no role split) NHT% MTD mean+1stdev — used by the Data Explorer,
+// where a row can represent any grouping (SW, TL, week, etc.), not just a
+// single reviewer/role. Same underlying per-reviewer NHT% math as
+// nhtThresholdsForRole(), just pooled across every reviewer regardless of role.
+let _nhtThreshSitewideCacheMonth = null, _nhtThreshSitewideCache = null;
+function nhtThresholdsSitewide() {
+    const allMonths = [...new Set((typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).map(r=>r.month).filter(Boolean))].sort();
+    const currMonth = allMonths[allMonths.length-1];
+    if (_nhtThreshSitewideCacheMonth === currMonth && _nhtThreshSitewideCache) return _nhtThreshSitewideCache;
+
+    const perRv = {};
+    (typeof RAW_ROWS!=='undefined'?RAW_ROWS:[]).forEach(r => {
+        if (r.month !== currMonth || !r.reviewer) return;
+        if (!perRv[r.reviewer]) perRv[r.reviewer] = { dht: 0, nht: 0 };
+        perRv[r.reviewer].dht += r.dht || 0;
+        perRv[r.reviewer].nht += r.nht || 0;
+    });
+    const pcts = Object.values(perRv)
+        .map(v => (v.dht + v.nht) > 0 ? v.nht / (v.dht + v.nht) : null)
+        .filter(v => v !== null);
+    let result;
+    if (!pcts.length) {
+        result = { mean: null, std: null, cutoff: null };
+    } else {
+        const mean = pcts.reduce((a,b)=>a+b, 0) / pcts.length;
+        const variance = pcts.reduce((a,b)=>a + Math.pow(b-mean, 2), 0) / pcts.length;
+        const std = Math.sqrt(variance);
+        result = { mean, std, cutoff: mean + std };
+    }
+    _nhtThreshSitewideCache = result;
+    _nhtThreshSitewideCacheMonth = currMonth;
+    return result;
+}
+// deClass()-compatible class name for an NHT% value against the site-wide
+// MTD mean+1stdev cutoff — used by the Data Explorer only.
+function nhtSitewideClass(v) {
+    if (v === null || v === undefined || isNaN(v)) return 'de-muted';
+    const th = nhtThresholdsSitewide();
+    if (!th || th.cutoff === null) return '';
+    return v > th.cutoff ? 'de-bad' : 'de-good';
+}
+
 function deAggWfm(rows) {
     // Dedupe per reviewer+week (or reviewer+date, see below) then pull from WFM_LOOKUP /
     // WFM_LOOKUP_DAILY (correctly summed across all shifts). Use the lookup keys directly —
@@ -19273,7 +19369,7 @@ function deFmt(v, type) {
     if(v===null||v===undefined||isNaN(v)) return '—';
     if(type==='pct'||type==='util'||type==='occ'||type==='abs') return (v*100).toFixed(2)+'%';
     if(type==='sec')  return v.toFixed(2)+'s';
-    if(type==='int')  return Math.round(v).toLocaleString();
+    if(type==='int'||type==='skiptransfer')  return Math.round(v).toLocaleString();
     if(type==='hrs')  return (v/60).toFixed(2);
     if(type==='nht'||type==='sla') return (v*100).toFixed(2)+'%';
     if(type==='tput') return v.toFixed(2);
@@ -19287,8 +19383,19 @@ function deClass(v, type, tgt) {
     if(type==='util') return v>=0.88?'de-good':v>=0.80?'de-warn':'de-bad';
     if(type==='occ')  return v>=0.95?'de-good':v>=0.88?'de-warn':'de-bad';
     if(type==='abs')  return v<=0.05?'de-good':v<=0.12?'de-warn':'de-bad';
-    if(type==='nht')  return v<0.05?'de-good':'de-bad';   // NHT%: green <5%, red >=5%
+    // v98: NHT% now flagged against site-wide MTD mean+1stdev (no fixed 5%
+    // target — see nhtThresholdsSitewide()) instead of the old flat rule.
+    if(type==='nht')  return (typeof nhtSitewideClass==='function') ? nhtSitewideClass(v) : (v<0.05?'de-good':'de-bad');
     if(type==='sla')  return v>=0.95?'de-good':'de-bad';  // SLA%: green >=95%, red <95%
+    // v98: Skip/Transfer — no fixed target, flag red when above site-wide
+    // MTD mean+1stdev for that metric (skipTransferThresholds()/tgt carries
+    // 'skip' or 'transferOut' as the metric key for this type).
+    if(type==='skiptransfer') {
+        if(!v) return 'de-muted';
+        const th = (typeof skipTransferThresholds==='function') ? skipTransferThresholds()[tgt] : null;
+        if(!th || th.cutoff===null) return '';
+        return v > th.cutoff ? 'de-bad' : '';
+    }
     return '';
 }
 
@@ -19374,7 +19481,7 @@ function deCells(s, includeWfm, ahtTgt, includeTs) {
                               + (DE_COLS.comp_raw  ? n(s.tp,'int',null)+n(s.fp,'int',null)+n(s.fn,'int',null)+n(s.tn,'int',null) : '') : '';
     const eff  = DE_COLS.eff  ? n(s.aht,'sec',ahtTgt!==undefined?ahtTgt:null)+n(s.nht_pct,'nht',null)+n(s.dec,'int',null)
                               + (includeWfm && s.throughput!==undefined ? n(s.throughput,'tput',null) : '<td class="de-n de-muted">—</td>')
-                              + (DE_COLS.comp_eff  ? n(s.dht,'int',null)+n(s.nhCount,'int',null)+n(s.wfmNht,'int',null)+n(s.transferOut,'int',null)+n(s.transferHt,'int',null)+n(s.skip,'int',null)+n(s.skipHt,'int',null) : '') : '';
+                              + (DE_COLS.comp_eff  ? n(s.dht,'int',null)+n(s.nhCount,'int',null)+n(s.wfmNht,'int',null)+n(s.transferOut,'skiptransfer','transferOut')+n(s.transferHt,'int',null)+n(s.skip,'skiptransfer','skip')+n(s.skipHt,'int',null) : '') : '';
     // AR%/Prod AR%: green cell+text if >=10%, muted otherwise (no red)
     const arCell  = v => v===null||v===undefined ? '<td class="de-n de-muted" data-t="pct">—</td>'
                        : v>=0.10 ? `<td class="de-n de-good" data-t="pct">${deFmt(v,'pct')}</td>`
