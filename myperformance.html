@@ -20,7 +20,7 @@ html[data-theme="dark"] body{background:var(--bg)!important;color:var(--text)}
 </style>
 <script data-mp="0">
 /* v3.63 · shared helpers: app version, local "today", quiet error log for handled errors */
-window.MP_VERSION = 'v3.101';
+window.MP_VERSION = 'v3.101a';
 window.mpToday = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 window.__mpQ = [];
 window.mpQ = function(e){ try { var m = String(e && e.message || e).slice(0, 300), L = window.__mpQ, l = L[L.length - 1]; if(l && l.m === m){ l.n++; return; } L.push({ t: Date.now(), m: m, n: 1, s: String(e && e.stack || '').split('\n').slice(0, 4).join('\n') }); if(L.length > 200) L.shift(); } catch(_){ window.mpQ && window.mpQ(_);  } };
@@ -43,7 +43,7 @@ window.mpHook = function(name, when, fn){
 };
 </script>
 <script data-mp="2">try{if(localStorage.getItem('mp319-theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){ window.mpQ && window.mpQ(e); }</script>
-<title>MyPerformance | MVIO v3.101</title>
+<title>MyPerformance | MVIO v3.101a</title>
 <style>
 /* CORE CSS */
 /* v3.66: local pickers (Job Detail week/day, RCA Explorer) wear the universal filter's look */
@@ -89649,7 +89649,7 @@ function TN(C){
     if(!clean(ST.anc)) p.push('Anchor');
     if(ST.type === 'inq'){
       if(!ST.sw) p.push('Sub-workflow');
-      if(!/^\d{10,18}$/.test(clean(ST.jid))) p.push('Job ID (10 to 18 digits)');
+      if(!/^\d{10,20}$/.test(clean(ST.jid))) p.push('Job ID (10 to 20 digits)');
       if(!clean(ST.qn)) p.push('Question');
     }
     return p;
@@ -89672,7 +89672,7 @@ function TN(C){
   function pasteJid(){
     var w = win();
     var use = function(s){
-      var m = String(s || '').match(/\d{10,18}/);
+      var m = String(s || '').match(/\d{10,20}/);
       if(m){ ST.jid = m[0]; start(); UI.err = ''; persist(); paint(); }
       else { UI.err = 'No Job ID on the clipboard. Type it or paste it in the box.'; paint(); }
     };
@@ -89735,7 +89735,7 @@ function TN(C){
       + '<div class="row"><button type="button" class="bt" data-a="' + (ST.tm.run ? 'pause' : 'start') + '">' + (ST.tm.run ? 'Pause' : 'Start') + '</button><button type="button" class="bt" data-a="reset">Reset</button>' + sw + '</div>'
       + (over2 && !inq ? '<div class="ban">Name the Signal, Policy and Anchor and submit, or raise a Simple Question.<button type="button" class="bt sm" data-a="toinq">Make this an Inquiry</button></div>' : '')
       + '<div class="seg" role="group" aria-label="Type">' + '<button type="button" class="' + (!inq ? 'on' : '') + '" data-a="type" data-v="note" aria-pressed="' + !inq + '">Note</button><button type="button" class="' + (inq ? 'on' : '') + '" data-a="type" data-v="inq" aria-pressed="' + inq + '">Inquiry</button></div>'
-      + (inq ? '<label class="lb">Job ID</label><div class="row"><input data-f="jid" inputmode="numeric" autocomplete="off" placeholder="16 digits" value="' + E(ST.jid) + '" style="flex:1"><button type="button" class="bt" data-a="paste">Paste</button></div>' : '')
+      + (inq ? '<label class="lb">Job ID</label><div class="row"><input data-f="jid" inputmode="numeric" autocomplete="off" placeholder="Job ID (15 to 19 digits)" value="' + E(ST.jid) + '" style="flex:1"><button type="button" class="bt" data-a="paste">Paste</button></div>' : '')
       + '<label class="lb">Policy</label>'
       + (ST.pol ? '<div class="pol"><span>' + E(ST.pol) + '</span><button type="button" class="lk" data-a="pick">Change</button></div>' : '')
       + '<div class="chs">' + (ST.pol !== 'Non-Violating' ? chip('Non-Violating', false, 'pol', 'Non-Violating') : '') + rec.map(function(x){ return chip(x, false, 'pol', x); }).join('') + '<button type="button" class="ch dash" data-a="pick">' + (ST.pol ? 'Search all 193' : 'Pick a Policy · search 193') + '</button></div>'
@@ -89845,7 +89845,7 @@ function TN(C){
     persist(); paint();
   }
   function onInput(f, val){
-    if(f === 'jid'){ ST.jid = val.replace(/\D/g, '').slice(0, 18); if(ST.jid.length >= 10) start(); }
+    if(f === 'jid'){ ST.jid = val.replace(/\D/g, '').slice(0, 20); if(ST.jid.length >= 10) start(); }
     else if(f === 'anc'){ ST.anc = val; }
     else if(f === 'qn'){ ST.qn = val; }
     else if(f === 'qy'){ UI.qy = val; persist(); return paint(); }
