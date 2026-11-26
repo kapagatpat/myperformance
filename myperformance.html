@@ -20,7 +20,7 @@ html[data-theme="dark"] body{background:var(--bg)!important;color:var(--text)}
 </style>
 <script data-mp="0">
 /* v3.63 · shared helpers: app version, local "today", quiet error log for handled errors */
-window.MP_VERSION = 'v3.101a';
+window.MP_VERSION = 'v3.101b';
 window.mpToday = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 window.__mpQ = [];
 window.mpQ = function(e){ try { var m = String(e && e.message || e).slice(0, 300), L = window.__mpQ, l = L[L.length - 1]; if(l && l.m === m){ l.n++; return; } L.push({ t: Date.now(), m: m, n: 1, s: String(e && e.stack || '').split('\n').slice(0, 4).join('\n') }); if(L.length > 200) L.shift(); } catch(_){ window.mpQ && window.mpQ(_);  } };
@@ -43,7 +43,7 @@ window.mpHook = function(name, when, fn){
 };
 </script>
 <script data-mp="2">try{if(localStorage.getItem('mp319-theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){ window.mpQ && window.mpQ(e); }</script>
-<title>MyPerformance | MVIO v3.101a</title>
+<title>MyPerformance | MVIO v3.101b</title>
 <style>
 /* CORE CSS */
 /* v3.66: local pickers (Job Detail week/day, RCA Explorer) wear the universal filter's look */
@@ -89624,10 +89624,12 @@ function TN(C){
   var FW = null, tick = null;
   function persist(){ save(KS, ST); }
 
-  function secs(){ var t = ST.tm; return Math.max(0, Math.floor((t.acc || 0) + (t.run ? (Date.now() - t.t0) / 1000 : 0))); }
+  var CAPS = 3600; /* v3.101b: the timer stops at one hour (a timer left running over lunch must not read as a long job) */
+  function rawSecs(){ var t = ST.tm; return Math.max(0, Math.floor((t.acc || 0) + (t.run ? (Date.now() - t.t0) / 1000 : 0))); }
+  function secs(){ return Math.min(CAPS, rawSecs()); }
   function mmss(s){ return ('0' + Math.floor(s / 60)).slice(-2) + ':' + ('0' + (s % 60)).slice(-2); }
   function target(){ return ST.sw && TGT[ST.sw] ? TGT[ST.sw] : 0; }
-  function start(){ if(!ST.tm.run){ ST.tm.run = true; ST.tm.t0 = Date.now(); persist(); } }
+  function start(){ if(rawSecs() >= CAPS){ UI.msg = 'Timer stopped at 60:00. Press Reset to start again.'; return; } if(!ST.tm.run){ ST.tm.run = true; ST.tm.t0 = Date.now(); persist(); } }
   function pause(){ if(ST.tm.run){ ST.tm.acc = secs(); ST.tm.run = false; persist(); } }
   function reset(run){ ST.tm = { run: !!run, t0: Date.now(), acc: 0 }; persist(); }
 
@@ -89740,11 +89742,11 @@ function TN(C){
       + (ST.pol ? '<div class="pol"><span>' + E(ST.pol) + '</span><button type="button" class="lk" data-a="pick">Change</button></div>' : '')
       + '<div class="chs">' + (ST.pol !== 'Non-Violating' ? chip('Non-Violating', false, 'pol', 'Non-Violating') : '') + rec.map(function(x){ return chip(x, false, 'pol', x); }).join('') + '<button type="button" class="ch dash" data-a="pick">' + (ST.pol ? 'Search all 193' : 'Pick a Policy · search 193') + '</button></div>'
       + '<label class="lb">Signal <span class="mut">tap all that apply</span></label>'
-      + '<div class="chs">' + sigs.map(function(x){ return chip(x, ST.sig.indexOf(x) > -1, 'sig', x); }).join('') + '<input data-f="own" class="own" placeholder="Type my own, then Enter" aria-label="Type my own signal"></div>'
+      + '<div class="chs">' + sigs.map(function(x){ return chip(x, ST.sig.indexOf(x) > -1, 'sig', x); }).join('') + '<input data-f="own" class="own" maxlength="80" placeholder="Type my own, then Enter" aria-label="Type my own signal"></div>'
       + lineStrip()
-      + '<label class="lb">Anchor</label><textarea data-f="anc" rows="2" placeholder="What in the job meets the policy line">' + E(ST.anc) + '</textarea>'
+      + '<label class="lb">Anchor</label><textarea data-f="anc" rows="2" maxlength="500" placeholder="What in the job meets the policy line (max 500 characters)">' + E(ST.anc) + '</textarea>'
       + (ST.pol && ST.myanc[ST.pol] && ST.myanc[ST.pol] !== ST.anc ? '<div class="chs"><button type="button" class="ch soft" data-a="lastanc">Use my last anchor for this policy</button></div>' : '')
-      + (inq ? '<label class="lb q">Question</label><textarea data-f="qn" rows="2" placeholder="What you need the SME to answer">' + E(ST.qn) + '</textarea>' : '')
+      + (inq ? '<label class="lb q">Question</label><textarea data-f="qn" rows="2" maxlength="500" placeholder="What you need the SME to answer (max 500 characters)">' + E(ST.qn) + '</textarea>' : '')
       + '<div class="pv"><b>Copies:</b> <span id="pvt">' + E(textOf(draft()).replace(/\t/g, '  ⇥  ')) + '</span> <span class="mut">' + (inq ? 'One row for the tracker, column E.' : 'One line. No Job ID.') + '</span></div>'
       + (UI.err ? '<div class="err" role="alert">' + E(UI.err) + '</div>' : '')
       + (UI.msg ? '<div class="ok" role="status">' + E(UI.msg) + '</div>' : '')
@@ -89794,6 +89796,7 @@ function TN(C){
     paintBtn();
   }
   function paintTick(){
+    if(ST.tm.run && rawSecs() >= CAPS){ ST.tm.acc = CAPS; ST.tm.run = false; persist(); UI.msg = 'Timer paused at 60:00 (one hour). Press Reset to start again.'; paint(); return; }
     paintBtn();
     var r = root(); if(!r || UI.view !== 'form') return;
     var s = secs(), tg = target(), over2 = tg && s >= 2 * tg, over = tg && s > tg;
@@ -89826,7 +89829,7 @@ function TN(C){
     else if(a === 'pick'){ UI.view = 'pick'; UI.fam = ST.pol && ST.pol !== 'Non-Violating' ? fam(ST.pol) : UI.fam; }
     else if(a === 'fam'){ UI.fam = UI.fam === v ? '' : v; }
     else if(a === 'sig'){ var i = ST.sig.indexOf(v); if(i > -1) ST.sig.splice(i, 1); else ST.sig.push(v); }
-    else if(a === 'line'){ var L = LR[v] || {}, ref = L.r || v; if(String(ST.anc).indexOf(ref) < 0) ST.anc = clean((ST.anc ? ST.anc + ' ' : '') + '[' + ref + ']'); }
+    else if(a === 'line'){ var L = LR[v] || {}, ref = L.r || v; if(String(ST.anc).indexOf(ref) < 0) ST.anc = clean((ST.anc ? ST.anc + ' ' : '') + '[' + ref + ']').slice(0, 500); }
     else if(a === 'lastanc'){ ST.anc = ST.myanc[ST.pol] || ST.anc; }
     else if(a === 'saved'){ UI.view = 'saved'; }
     else if(a === 'back'){ UI.view = 'form'; UI.qy = ''; }
@@ -89846,8 +89849,8 @@ function TN(C){
   }
   function onInput(f, val){
     if(f === 'jid'){ ST.jid = val.replace(/\D/g, '').slice(0, 20); if(ST.jid.length >= 10) start(); }
-    else if(f === 'anc'){ ST.anc = val; }
-    else if(f === 'qn'){ ST.qn = val; }
+    else if(f === 'anc'){ ST.anc = String(val).slice(0, 500); }
+    else if(f === 'qn'){ ST.qn = String(val).slice(0, 500); }
     else if(f === 'qy'){ UI.qy = val; persist(); return paint(); }
     else return;
     persist(); refreshPreview();
@@ -89861,7 +89864,7 @@ function TN(C){
     rootNode.addEventListener('change', function(e){ var f = e.target.getAttribute && e.target.getAttribute('data-f'); if(f === 'sw'){ ST.sw = e.target.value; persist(); paint(); } });
     rootNode.addEventListener('keydown', function(e){
       var f = e.target.getAttribute && e.target.getAttribute('data-f');
-      if(f === 'own' && e.key === 'Enter'){ e.preventDefault(); var v = clean(e.target.value); if(v && ST.sig.indexOf(v) < 0) ST.sig.push(v); e.target.value = ''; persist(); paint(); return; }
+      if(f === 'own' && e.key === 'Enter'){ e.preventDefault(); var v = clean(e.target.value).slice(0, 80); if(v && ST.sig.indexOf(v) < 0) ST.sig.push(v); e.target.value = ''; persist(); paint(); return; }
       if(f === 'qy' && e.key === 'Enter'){ e.preventDefault(); var hit = P.filter(function(p){ return p.toLowerCase().indexOf(UI.qy.toLowerCase().trim()) > -1; }); if(hit.length === 1) act('setpol', hit[0]); return; }
       if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); if(UI.view === 'form') act('save'); return; }
       if(e.key === 'Enter' && f === 'jid'){ e.preventDefault(); act('save'); }
@@ -89890,6 +89893,7 @@ function TN(C){
     + '.fbw{display:flex;flex-direction:column;gap:5px;font-size:12px}.lst{display:flex;flex-direction:column;border:1px solid #E3E7EE;border-radius:10px;overflow:hidden}.it{border:0;border-top:1px solid #E3E7EE;background:#fff;text-align:left;padding:8px 11px;font:13px inherit;font-family:inherit;cursor:pointer;color:#1F2430}.it:first-child{border-top:0}.it:hover{background:#F7F5FD}.it.on{background:#EFEBFB;color:#4D3293;font-weight:700}'
     + '.sv{display:flex;flex-direction:column;gap:7px}.rec{border:1px solid #E3E7EE;border-radius:10px;padding:8px 10px;background:#fff;text-align:left;font:inherit;cursor:pointer;color:#1F2430}.rec:hover{border-color:#4D3293}.rh{display:flex;gap:8px;align-items:center}'
     + '.tg{font-size:11px;font-weight:700;border-radius:999px;padding:1px 8px}.tg.inq{color:#8A5A00;background:#FFF3D6}.tg.note{color:#4D3293;background:#EFEBFB}'
+    + '.pol span{min-width:0;overflow-wrap:anywhere}.lk{flex-shrink:0}.ch,.it{overflow-wrap:anywhere;max-width:100%}.chs>*{min-width:0}.rh b{min-width:0;overflow-wrap:anywhere}.rh .tg,.rh .mut{flex-shrink:0}.rec .mut{overflow-wrap:anywhere}#pvt{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;vertical-align:top}'
     + '.tnl{border:1px solid #D9D2F2;background:#F8F6FE;border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px}.tnlh{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#4D3293}.tnlh .mut{text-transform:none;letter-spacing:0;font-weight:400}'
     + '.tnli{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid #E3E7EE;background:#fff;border-radius:8px;padding:6px 8px;font:12px inherit;font-family:inherit;color:#1F2430;cursor:pointer}.tnli:hover{border-color:#4D3293}.tnli b{color:#4D3293;font-size:12px}.tnli span{color:#3B4458;overflow-wrap:anywhere}'
     + '.tnlv{font-size:12px;font-weight:600;border-radius:8px;padding:5px 8px}.tnlv.ok{background:#E7F6EE;color:#17794B}.tnlv.no{background:#FFF3D6;color:#8A5A00}.tnlv.dq{background:#FDECEA;color:#7A1F16}'
@@ -89921,7 +89925,7 @@ function TN(C){
   }
   function open(){
     if(FW){ try { FW.win.focus(); } catch(e){} return; }
-    var W = 400, H = 640;
+    var W = 420, H = 640; try { H = Math.max(600, Math.min(900, Math.round((screen.availHeight || 800) * 0.9))); } catch(_){}
     var popup = function(){
       var pw = null;
       try { var left = (screen.availLeft || 0) + screen.availWidth - W - 24, top = (screen.availTop || 0) + screen.availHeight - H - 48;
@@ -89941,7 +89945,7 @@ function TN(C){
     var st = document.createElement('style'); st.id = 'tn3100-css';
     st.textContent = '#tn3100-btn{position:fixed;right:20px;bottom:20px;z-index:9990;display:flex;align-items:center;gap:8px;background:#4D3293;color:#fff;border:0;border-radius:999px;padding:10px 16px;font:700 13px "Noto Sans",system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(35,31,32,.22)}'
       + '#tn3100-btn span{font-variant-numeric:tabular-nums;font-weight:400;opacity:.9}#tn3100-btn.run span{opacity:1;font-weight:700}#tn3100-btn:focus-visible{outline:3px solid #F0B500;outline-offset:2px}'
-      + '#tn3100-dock{position:fixed;right:20px;bottom:70px;width:400px;max-height:80vh;overflow:auto;z-index:9991;background:#fff;border:1px solid #CBD2DF;border-radius:14px;box-shadow:0 10px 30px rgba(35,31,32,.25)}';
+      + '#tn3100-dock{position:fixed;right:20px;bottom:70px;width:420px;max-height:80vh;overflow:auto;z-index:9991;background:#fff;border:1px solid #CBD2DF;border-radius:14px;box-shadow:0 10px 30px rgba(35,31,32,.25)}';
     document.head.appendChild(st);
     var b = document.createElement('button'); b.type = 'button'; b.id = 'tn3100-btn'; b.title = 'Timer and notes: a small window that stays on top while you review';
     b.innerHTML = 'Timer and notes · <span>00:00</span>'; b.addEventListener('click', open);
