@@ -20,7 +20,7 @@ html[data-theme="dark"] body{background:var(--bg)!important;color:var(--text)}
 </style>
 <script data-mp="0">
 /* v3.63 · shared helpers: app version, local "today", quiet error log for handled errors */
-window.MP_VERSION = 'v3.103';
+window.MP_VERSION = 'v3.103a';
 window.mpToday = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 window.__mpQ = [];
 window.mpQ = function(e){ try { var m = String(e && e.message || e).slice(0, 300), L = window.__mpQ, l = L[L.length - 1]; if(l && l.m === m){ l.n++; return; } L.push({ t: Date.now(), m: m, n: 1, s: String(e && e.stack || '').split('\n').slice(0, 4).join('\n') }); if(L.length > 200) L.shift(); } catch(_){ window.mpQ && window.mpQ(_);  } };
@@ -43,7 +43,7 @@ window.mpHook = function(name, when, fn){
 };
 </script>
 <script data-mp="2">try{if(localStorage.getItem('mp319-theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){ window.mpQ && window.mpQ(e); }</script>
-<title>MyPerformance | MVIO v3.103</title>
+<title>MyPerformance | MVIO v3.103a</title>
 <style>
 /* CORE CSS */
 /* v3.66: local pickers (Job Detail week/day, RCA Explorer) wear the universal filter's look */
@@ -90107,7 +90107,7 @@ M.X[U + 'Implicit Admission'] = ['Nodded or gestured to confirm age', 'Said yes 
 M.X[U + 'ASL Format'] = ['Age in age/sex/location format', 'Age among other self-descriptors', 'Single number, no context (not an admission)'];
 })();
 </script>
-<script data-mp="133">/* v3.103 DRAFT · Policy line map, all remaining families (Sonnet draft; Opus check pending). Data only: extends window.mp3101map.
+<script data-mp="133">/* v3.103a · Policy line map, all remaining families (Sonnet draft, Opus check 27 Nov). Data only: extends window.mp3101map.
    Pointer lines only (ref plus short paraphrase). No signal chips, no verdict. Source: Policies_2026_1. */
 (function(){
 var M = window.mp3101map; if(!M || !M.L) return;
@@ -90202,7 +90202,7 @@ var R = {
  },
  "rgDrC": {
   "r": "RGRG 3.a › Conduct: non-legal drugs",
-  "t": "Non-legal drugs and illegal or abused prescription drugs, virtual or real. Exception: a condemning or educational context."
+  "t": "Promotion of non-legal drugs and illegal or abused prescription drugs, virtual or real. Exception: a condemning or educational context."
  },
  "rgNmC": {
   "r": "RGRG 3.a › Conduct: non-medical drugs",
@@ -90278,7 +90278,7 @@ var R = {
  },
  "doiTx": {
   "r": "DOI 4.b › Names, text and obfuscation",
-  "t": "Examples: obfuscated names of a DOI (\"HdolfAitler1938\") violate; a DOI name with a lookalike photo violates; the same text with no other context, or clear humor, is non-violating."
+  "t": "Examples: obfuscated names of a DOI (\"HdolfAitler1938\") violate; a DOI name with a lookalike photo violates; the same text with no other context, or clear humor, is non-violating. When it is unclear whether it is obfuscation or humor, default to violating."
  },
  "doiNv": {
   "r": "DOI 4.b › Non-violating context",
@@ -90298,7 +90298,7 @@ var R = {
  },
  "doiGl": {
   "r": "DOI 5.b.i.B › Glorification",
-  "t": "Known question defining glorification."
+  "t": "Legitimising or defending a designated entity's violent or hateful acts, celebrating them as an achievement, or an aspirational statement of membership (\"I wish I could join ISIS\")."
  },
  "doiRp": {
   "r": "DOI 5.b.i.C › Representation",
@@ -90313,84 +90313,140 @@ var R = {
   "t": "What a violating and a non-violating Profile Review looks like."
  },
  "wrRt": {
-  "r": "World Rating 1 › The three ratings",
-  "t": "10+: mild language, minimal suggestive themes, cartoon or mild violence. 13+: violence, suggestive themes, crude humour, minimal blood, simulated gambling, infrequent strong language. 18+: intense violence, sexual content, strong language, regulated goods."
+  "r": "World Rating › The three ratings",
+  "t": "10+: mild language, minimal suggestive themes, cartoon or mild violence. 13+: violence, suggestive themes, crude humour, minimal blood, simulated gambling, infrequent strong language. 18+: intense violence, sexual content, strong language, regulated goods. Pick the higher label when several apply."
  },
  "wrVb": {
   "r": "World Rating › Violence and/or blood",
-  "t": "Category 1 of 5. Violence in any graphical style. Known questions define dismemberment, gore, blood, minimal vs excessive blood, mild violence, defenseless characters and war zones."
+  "t": "Known questions define dismemberment, gore, blood, minimal vs excessive blood, mild violence, defenseless characters and war zones."
  },
  "wrVbG": {
-  "r": "World Rating 5.a › Gore and excessive blood",
-  "t": "Excessive blood and gore: dismemberment and decapitation with blood, visible innards with blood, charred or burning flesh. Known questions: how to define gore, excessive blood, and minimal vs excessive."
+  "r": "World Rating label table › Excessive Blood/Gore (18+)",
+  "t": "Depicts excessive and realistic blood or gore; dismemberment and decapitation."
  },
  "wrVbV": {
-  "r": "World Rating 5.a › Excessive violence",
-  "t": "Explicit or prominent violence: throat slitting or strangulation resulting in death, violence toward defenseless characters in sensitive locations (schools, places of worship, terror or shooting sites, polling stations), violence in a war zone with blood and dismemberment."
+  "r": "World Rating label table › Excessive violence (18+)",
+  "t": "Depicts explicit or prominent violence that is realistic, for example throat slitting or strangulation resulting in death."
  },
  "wrVbM": {
-  "r": "World Rating 5.a › Mild violence",
-  "t": "Violence against other players or in-game characters at 13+ level. Known question defines mild violence."
+  "r": "World Rating label table › Mild violence (13+)",
+  "t": "Violence against another player or in-game character with minimal blood."
  },
  "wrVbB": {
-  "r": "World Rating 5.a › Minimal blood",
-  "t": "Minimal blood, including red marks only in the context of violence. Minimal blood alone with no wounds or weapon should not be labelled. Known question: minimal vs excessive blood."
+  "r": "World Rating label table › Minimal blood (13+)",
+  "t": "Depicts minimal blood, such as red marks in a violence scenario. Minimal blood alone, with no wound or weapon, is not labelled."
  },
  "wrSn": {
   "r": "World Rating › Sexual activities and nudity",
-  "t": "Category 2 of 5. Sexual references must always stay below the level of the prohibited Adult Nudity policy. Known questions define nudity, near nudity, sexually suggestive pose, sexual references and romantic venues."
+  "t": "Sexual content must stay below the prohibited Adult Nudity policy. Known questions define nudity, near nudity, 13+ vs 18+ kissing, suggestive pose, sexual references and romantic venues."
  },
  "wrSnN": {
-  "r": "World Rating 5.b › Adult nudity (18+)",
-  "t": "Nudity definition and near-nudity definition from the known questions. Prohibited nudity is handled under the Adult Nudity policy."
+  "r": "World Rating label table › Adult Nudity (18+)",
+  "t": "Depicts or promotes any adult nudity content."
+ },
+ "wrSnS": {
+  "r": "World Rating label table › Sexual Theme (18+)",
+  "t": "Depicts or promotes any 18+ sexual item other than nudity, including kissing on the lips with visible tongue, with moaning, or in sexual content."
+ },
+ "wrSnG": {
+  "r": "World Rating label table › Suggestive Theme (13+)",
+  "t": "Lip-to-lip kiss without visible tongue; licking or sucking a non-sexualised body part."
  },
  "wrSnP": {
-  "r": "World Rating 5.b › Partial nudity (13+)",
-  "t": "Near nudity and 13+ kissing vs 18+ kissing known questions apply."
+  "r": "World Rating label table › Partial nudity (13+)",
+  "t": "Depicts or promotes clothing that shows near nudity in a relevant context."
  },
- "wrSnT": {
-  "r": "World Rating 5.b › Sexual theme and suggestive theme",
-  "t": "Sexually suggestive pose and sexually suggested reference known questions, plus romantic or sexy venues (13+)."
+ "wrSnR": {
+  "r": "World Rating label table › Sexual Reference (13+)",
+  "t": "A venue that could be romantic or sexy, without near nudity or descriptive details of sexual activity."
  },
- "wrLg": {
-  "r": "World Rating › Language",
-  "t": "Category 3 of 5. Coarse, vulgar or crude language, crude humor and expressions. Known question: do proxy terms violate."
+ "wrLgE": {
+  "r": "World Rating label table › Explicit Language (18+)",
+  "t": "Depicts explicit language, or frequent mild language."
  },
- "wrRg": {
-  "r": "World Rating › Regulated goods",
-  "t": "Category 4 of 5. References, themes or depictions of drug use (legal, medicinal and illegal), plus alcohol, tobacco and gambling. Known questions define gambling, age-regulated venues, drinking game, non-medical drugs, marijuana slang."
+ "wrLgM": {
+  "r": "World Rating label table › Mild Language (13+)",
+  "t": "Depicts infrequent mild language or swearing."
  },
- "wrRgG": {
-  "r": "World Rating 5.d › Gambling",
-  "t": "Definition of gambling or betting. Simulated gambling is 13+ and real-money gambling is prohibited."
+ "wrLgL": {
+  "r": "World Rating label table › Mild Language in Lyrics (13+)",
+  "t": "Music or written lyrics with frequent mild language, infrequent explicit language, or mention of drug use or sexual activity."
  },
- "wrRgT": {
-  "r": "World Rating 5.d › Tobacco vs drug promotion",
-  "t": "Known question: when to label Tobacco Promotion vs Drug Promotion (marijuana)."
+ "wrLgC": {
+  "r": "World Rating label table › Crude/Vulgar Humor (13+)",
+  "t": "Crude humor or jokes that refer to excretory organs or activities."
  },
- "wrHf": {
-  "r": "World Rating › Horror and fear",
-  "t": "Category 5 of 5. A sinister atmosphere or tension that could trigger anxiety in younger children. Known question: what a jump-scare is."
+ "wrAl": {
+  "r": "World Rating label table › Alcohol Promotion (18+)",
+  "t": "Promotion and use of alcohol: a world replicating an age-regulated venue with alcohol sale or consumption, explicit drinking games, text encouraging buying or drinking, or a world dedicated to alcohol."
+ },
+ "wrTb": {
+  "r": "World Rating label table › Tobacco Reference/Promotion (18+)",
+  "t": "Depiction or promotion of any tobacco or vapes, including paraphernalia."
+ },
+ "wrDr": {
+  "r": "World Rating label table › Drug Promotion (18+)",
+  "t": "Depicts any marijuana or digital non-medical drug. Known question: tobacco vs drug promotion (marijuana)."
+ },
+ "wrSg": {
+  "r": "World Rating label table › Simulated Gambling (13+)",
+  "t": "Depicts simulated gambling without real-world money or digital currency. The table rates this 13+, but the dropdown lists it under Mature 18+. Confirm with an SME."
+ },
+ "wrGp": {
+  "r": "World Rating › Prohibited: gambling with money",
+  "t": "Gambling with real-world money or digital currency is Prohibited, not 18+. No 18+ gambling label was found. Confirm with an SME."
+ },
+ "wrGt": {
+  "r": "World Rating 13+ › Simulated gambling examples",
+  "t": "Simulated gambling without money (slot machine with pick-up lives, daily check-in credits), money or credit only to reserve a table, or a \"Casino\" world name with no sign of real money."
+ },
+ "wrHs": {
+  "r": "World Rating label table › Scary moments (18+)",
+  "t": "Depicts repetitive and multiple horrifying elements."
+ },
+ "wrHk": {
+  "r": "World Rating label table › Spooky moments (13+)",
+  "t": "Moderate horror: a tense or suspenseful atmosphere meant to cause some fear, without gore or psychological terror."
  },
  "wrSr": {
-  "r": "World Rating › User self-rating",
-  "t": "No separate rule for a user's self-rating was found in this document. Confirm with an SME."
+  "r": "World Review SOP › User self-rating",
+  "t": "Be mindful of the user's self-rating: if the owner rated the world 18+ or 13+, we do not change the rating."
  },
- "diV": {
-  "r": "Digital items 2.a › Violence and blood",
-  "t": "Hyperrealistic weapons (firearms and parts, air guns, fireworks, explosives) with gore or human remains need the Mature label; without blood the Teen label. Excessive gore is Mature."
+ "diV18": {
+  "r": "Digital items 2.a.i › Violence 18+",
+  "t": "Hyperrealistic explosives, firearms and parts, air guns, fireworks, pepper spray or melee weapons that also include gore or human remains; gore (dismemberment, visible innards, charred flesh). Excessive blood without dismemberment, wounds or weapons is not violating."
  },
- "diN": {
-  "r": "Digital items 2.b › Nudity and sexual activity",
-  "t": "Revealing outfits, such as sheer or translucent outfits, and partial or adult nudity. Check the examples in the digital items section."
+ "diV13": {
+  "r": "Digital items 2.a.ii › Violence 13+",
+  "t": "Hyperrealistic explosives, firearms and parts, air guns, pepper spray or melee weapons, without gore. Cartoonish versions are 10+."
  },
- "diL": {
-  "r": "Digital items 2.c › Language",
-  "t": "Explicit language with proxies included (strong profanity) and obscene gestures such as the middle finger."
+ "diN18": {
+  "r": "Digital items 2.b.i › Nudity 18+",
+  "t": "Sheer or translucent outfits revealing the genitalia, nipple or butt area. Showing genitalia, nipples or butt themselves is prohibited."
+ },
+ "diS18": {
+  "r": "Digital items 2.b.i › Sexual 18+",
+  "t": "Sexually suggestive imagery, movements or references; implied sexual acts without nudity; porn site names or logos; sex toys not in use."
+ },
+ "diN13": {
+  "r": "Digital items 2.b.ii › Partial nudity 13+",
+  "t": "Mesh or sheer outfits revealing underwear, cutouts revealing cleavage, underwear, lingerie or bikinis. If unsure whether it is underwear or shorts, assume underwear."
+ },
+ "diS13": {
+  "r": "Digital items 2.b.ii › Sexual reference 13+",
+  "t": "Two people kissing, sexual dancing that does not resemble a sex act, or references that could be read as sexy without descriptive detail."
+ },
+ "diL18": {
+  "r": "Digital items 2.c.i › Language 18+",
+  "t": "Explicit language, proxies included, and obscene gestures such as the middle finger."
+ },
+ "diL13": {
+  "r": "Digital items 2.c.ii › Language 13+",
+  "t": "Mild language or light swearing, proxies included; lyrics with mild language, suggestive drug or sexual language, or crude humor about bodily functions."
  },
  "diR": {
-  "r": "Digital items 2.d › Regulated goods",
-  "t": "Reference or use of alcohol, tobacco, marijuana or drugs, and any gambling paraphernalia (dice, slot machines). Digital items must show no depiction of these."
+  "r": "Digital items 2.d.i › Regulated goods 18+",
+  "t": "Reference to or use of alcohol, tobacco, marijuana or drugs, and any gambling paraphernalia (dice, slot machines). 10+ items show none of these."
  },
  "faRt": {
   "r": "Fantastical Avatars › Age rating",
@@ -90401,12 +90457,12 @@ var R = {
   "t": "Unacceptable: living politicians, religious figures, hate/criminal/terror groups, explicit or illegal objects, overtly sexual attributes, impersonation, and licensed professionals (unless compliant). Review full geometry, not only textures."
  },
  "faPol": {
-  "r": "Studio policy › Living politicians",
-  "t": "Known question Q1 defines a living politician; historical figures more than 100 years old are acceptable."
+  "r": "AI Studio policies › Q1 Living politicians",
+  "t": "Known question Q1 defines a living politician. Historical figures who lived more than 100 years ago are acceptable."
  },
  "faLp": {
-  "r": "Studio policy › Licensed professional",
-  "t": "Known question Q2: only NPCs presenting themselves as a licensed professional (doctor, lawyer, financial advisor, therapist) are flagged. General advice without claiming a license is fine."
+  "r": "AI Studio policies › Q2 Licensed professional",
+  "t": "Only NPCs that identify as a licensed professional (doctor, lawyer, financial advisor, therapist) are flagged. General advice without claiming a license is fine."
  },
  "ansTc": {
   "r": "ANSA 3.a › Conduct: sexual touching",
@@ -90457,15 +90513,15 @@ var R = {
   "t": "Known question: how consent is defined and how a lack of consent can show up in the metaverse."
  },
  "anNu": {
-  "r": "Adult Nudity 5.b.i.C › Nudity",
+  "r": "Adult Nudity 4.b.i.C › Nudity",
   "t": "Nudity includes visible genitalia (including genitalia obscured only by pubic hair). Avatars hacked or modified to expose genitalia or female nipples are violating."
  },
  "anNp": {
-  "r": "Adult Nudity 5.b.i.F › Visible female nipples",
+  "r": "Adult Nudity 4.b.i.F › Visible female nipples",
   "t": "A nipple (excluding the areola) not obscured by an opaque object, clothing, body part or overlay, or visible through transparent material. Seen under see-through clothing or paint counts as near nudity, not a visible nipple."
  },
  "anSa": {
-  "r": "Adult Nudity 5.b.i.D › Adult sexual activity",
+  "r": "Adult Nudity 4.b.i.D › Adult sexual activity",
   "t": "Depicting sexual intercourse, real, cartoonish or digital; erections; reenacting sexual positions; simulating sex or oral sex; worlds depicting sex acts or sex noises."
  },
  "anAn": {
@@ -90473,7 +90529,7 @@ var R = {
   "t": "Animal sexual activity, including sexual intercourse, erections, and content edited to resemble human genitalia."
  },
  "anFt": {
-  "r": "Adult Nudity 5.b.i.E › Fetish content",
+  "r": "Adult Nudity 4.b.i.E › Fetish content",
   "t": "Sexual interest in a specific object, act, body part or state of the body. Acts likely to lead to death (crushing, erotic asphyxiation) are listed."
  },
  "anSw": {
@@ -90485,24 +90541,20 @@ var R = {
   "t": "Sexual fluid, or the presence of by-products of sexual activity."
  },
  "anSc": {
-  "r": "Adult Nudity 5.b.i.A › Strip clubs",
+  "r": "Adult Nudity 4.b.i.A › Strip clubs",
   "t": "A strip club is violating even if no nudity or implied sex is visible. Indicators: more than one pole with seating around it; the whole world built for watching striptease; avatars on the poles; a club name plus one indicator. Bars with strip poles are checked separately."
  },
  "anLe": {
-  "r": "Adult Nudity 5.a.ii.B › Sexually explicit language",
+  "r": "Adult Nudity 4.a.ii.B › Sexually explicit language",
   "t": "Explicit or graphic detail (adverbs, adjectives) describing genitals, states of arousal or sexual encounters. The known question lists examples with reasons."
  },
  "anLs": {
-  "r": "Adult Nudity 5.a.ii.C › Sexually suggestive language",
+  "r": "Adult Nudity 4.a.ii.C › Sexually suggestive language",
   "t": "Language that implies or hints at a sexual meaning: double entendres, sexual or suggestive metaphors. Check the known question for the full list."
  },
  "anMo": {
   "r": "Adult Nudity 3.a › Sex noises",
   "t": "Worlds that describe or depict sex acts, including sex noises (listed with a duration threshold of more than 10 seconds in the text)."
- },
- "anTy": {
-  "r": "Adult Nudity 5.a.i › Sex toys",
-  "t": "Sex toys are permitted in mature spaces. In-use sex toys, or realistic genitalia-shaped ones, can be violating. A toy simply displayed in a public world is marked Mature."
  },
  "ansEx": {
   "r": "ANSA 1.b.i.1 › Explicit solicitation",
@@ -90553,19 +90605,19 @@ var R = {
   "t": "Insults (character, mental characteristics, and others), disgust, cursing and exclusion, targeting a person or group on the basis of a protected characteristic. Quasi-protected characteristics are not covered by Tier 2."
  },
  "hbIn": {
-  "r": "Hateful 5.k.i › Insults",
-  "t": "Which insults violate: character, mental characteristics such as stupidity or mental illness, unsupported inherent intellectual comparisons. Statements of superiority, weakness, sin and task ability are covered with examples."
+  "r": "Hateful 4.k.i › Insults",
+  "t": "Which insults violate: character, mental characteristics such as stupidity or mental illness, unsupported inherent intellectual comparisons. Statements of superiority, and insults about weakness, sin or ability at a specific task, are listed as not violating."
  },
  "hbDi": {
-  "r": "Hateful 5.k.ii › Disgust",
+  "r": "Hateful 4.k.ii › Disgust",
   "t": "Statements that suggest the target causes sickness, and similar disgust statements."
  },
  "hbCu": {
-  "r": "Hateful 5.k.iii › Cursing",
+  "r": "Hateful 4.k.iii › Cursing",
   "t": "Which forms of profanity are removed when aimed at a protected characteristic group."
  },
  "hbEx": {
-  "r": "Hateful 5.k.iv › Exclusion",
+  "r": "Hateful 4.k.iv › Exclusion",
   "t": "General, political, economic and social exclusion, with allowed limited inclusion and gender exclusion in support groups."
  },
  "hbSl": {
@@ -90573,28 +90625,28 @@ var R = {
   "t": "Slurs are violating except when mocking or condemning, discussing, used self-referentially, or in an explicitly positive context. Known questions J1 to J7 cover designation, use, verbs, variations and alternative meanings."
  },
  "hbSlM": {
-  "r": "Hateful 5.j.vi › Slur with no target",
+  "r": "Hateful 4.j.vi › Slur with no target",
   "t": "How slurs that are not targeting a person or group are treated. Check known question J6."
  },
  "hbNw": {
-  "r": "Hateful 5.j.ii › Slur: N word",
-  "t": "When use of a slur is violating, with the N-word example list. Check known question J2."
+  "r": "Hateful 4.j.ii › Slur: N word",
+  "t": "Known question J2: when use of a slur is violating, with violating and non-violating examples (self-referential use is allowed)."
  },
  "hbPx": {
-  "r": "Hateful 5.e › Proxies",
+  "r": "Hateful 4.e › Proxies",
   "t": "Attacks on proxy terms for a protected group (\"brown people\", \"skittles\") violate. Known question E2 covers when \"Zionist\" is a proxy."
  },
  "hbSb": {
-  "r": "Hateful 5.d › Subsets",
+  "r": "Hateful 4.d › Subsets",
   "t": "Which attacks subsets are protected against: fully protected subsets (PC + PC, PC + age, \"most Muslims\") for all tiers, non-protected subsets for none. Known questions D1 to D7."
  },
  "hbPc": {
-  "r": "Hateful 5.l › Permissible contexts",
+  "r": "Hateful 4.l › Permissible contexts",
   "t": "Mocking, condemning, discussing, self-referential, explicitly positive use and reporting of hateful behavior and slurs. Known questions L1 to L7."
  },
  "heCs": {
   "r": "Human Exploitation 3.a › Coordinated commercial sexual activity",
-  "t": "Recruiting for, facilitating or exploiting people through commercial sexual activity: escort services, erotic massage, pornographic activities, live nudity to stimulate an audience, live-streamed sex for money, paid sex chats, paid nude photos, temporary marriage for money."
+  "t": "Recruiting for, facilitating or exploiting people through commercial sexual activity: escort services, prostitution, erotic massage, pornographic activities, live nudity to stimulate an audience, live-streamed sex for money, paid sex chats, paid nude photos, temporary marriage for money."
  },
  "heVi": {
   "r": "Human Exploitation 3.a › Victims",
@@ -90610,7 +90662,7 @@ var R = {
  },
  "heLb": {
   "r": "Human Exploitation 3.a › Labor exploitation",
-  "t": "Exploiting people for labor or services through deception or coercion: illegitimate jobs, work that does not meet local labor regulations, offering to sell or purchase laborers, domestic servitude, organ trafficking, forced criminal activity, child soldiers."
+  "t": "Exploiting people for labor or services, often through deception or coercion: illegitimate jobs, work that does not meet local labor regulations, offering to sell or purchase laborers. Domestic servitude, organ trafficking, forced criminal activity and child soldiers are labelled Human Trafficking."
  },
  "heMs": {
   "r": "Human Exploitation 3.a › Minor sex trafficking",
@@ -90701,7 +90753,7 @@ var R = {
   "t": "A guaranteed real-money reward in exchange for registering at an off-site link, sharing PII, contacting off-platform or by private message, or a temporary or soon-to-expire offer."
  },
  "frInd": {
-  "r": "Fraud 5.a.i.A-C › Indicators",
+  "r": "Fraud 4.a.i.A-C › Indicators",
   "t": "Primary indicators for fraud and scams, secondary indicators for selling, buying or trading, and secondary indicators of attempts at abuse."
  },
  "csCn": {
@@ -90737,11 +90789,11 @@ var R = {
   "t": "Asking for, offering, admitting possession of or trying to obtain CSAM, nude or sexualized imagery of children, or soliciting or arranging in-person sexual encounters with a child. Escalate possible CSAM solicitation through the Team Lead."
  },
  "csPose": {
-  "r": "CSEAN 5.b.C › Sexualized pose",
+  "r": "CSEAN 5.a.ii.C › Sexualized pose",
   "t": "Imagery shows a minor in a sexualized pose but no genitalia or anus is visible. Known question defines what a sexualized pose is."
  },
  "csBkt": {
-  "r": "CSEAN 5.a.A › Age bucket",
+  "r": "CSEAN 5.a.i.A › Age bucket",
   "t": "Known question on the age bucket for applying the policy."
  },
  "bhTg": {
@@ -90750,19 +90802,19 @@ var R = {
  },
  "bhTgC": {
   "r": "B&H 5.a.i › Target by conversational context",
-  "t": "Target identified from the conversation around the statement. See the target identification known question."
+  "t": "Engaging in a back-and-forth conversation with one or more users. In Messaging, if only two users are in the chat, the recipient is the implicit target."
  },
  "bhTgG": {
   "r": "B&H 5.a.i › Target by gestures or cues",
-  "t": "Target identified from a physical gesture, pointing, facing or other cue. See the target identification known question."
+  "t": "Directly pointing at a user, following or facing them. Inactive users in coin mode are not a valid target for physical harm."
  },
  "bhTgV": {
   "r": "B&H 5.a.i › Target by verbal cues",
-  "t": "Target identified from a name, username or other verbal cue. See the target identification known question."
+  "t": "Using someone's name or alias, or describing their avatar. In Messaging this needs a reporter match, a match with a chat participant, or 2nd or 3rd person pronouns."
  },
  "bhTgS": {
   "r": "B&H 5.a.i › Target by visual cues",
-  "t": "Target identified from a visual cue such as an avatar, label or position. See the target identification known question."
+  "t": "No separate visual-cues rule was found. Closest: the target can be set by context even if the avatar is off camera; in Messaging, sending real pictures or videos of the target. Confirm with an SME."
  },
  "bhCl": {
   "r": "B&H 4.a › Claims about a user",
@@ -91086,13 +91138,12 @@ var L = {
  },
  "World Rating > Mark Mature 18+ > Alcohol Promotion": {
   "p": [
-   "wrRg"
+   "wrAl"
   ]
  },
  "World Rating > Mark Mature 18+ > Drug Promotion": {
   "p": [
-   "wrRg",
-   "wrRgT"
+   "wrDr"
   ]
  },
  "World Rating > Mark Mature 18+ > Excessive Blood/Gore": {
@@ -91109,36 +91160,36 @@ var L = {
  },
  "World Rating > Mark Mature 18+ > Explicit Language": {
   "p": [
-   "wrLg"
+   "wrLgE"
   ]
  },
  "World Rating > Mark Mature 18+ > Gambling": {
   "p": [
-   "wrRgG",
-   "wrRg"
+   "wrGp",
+   "wrSg"
   ]
  },
  "World Rating > Mark Mature 18+ > Scary moments": {
   "p": [
-   "wrHf"
+   "wrHs"
   ]
  },
  "World Rating > Mark Mature 18+ > Sexual Theme": {
   "p": [
-   "wrSnT",
+   "wrSnS",
    "wrSn"
   ]
  },
  "World Rating > Mark Mature 18+ > Simulated Gambling": {
   "p": [
-   "wrRgG",
-   "wrRg"
+   "wrSg",
+   "wrGt"
   ]
  },
  "World Rating > Mark Mature 18+ > Tobacco Reference/Promotion": {
   "p": [
-   "wrRgT",
-   "wrRg"
+   "wrTb",
+   "wrDr"
   ]
  },
  "World Rating > Mark Mature 18+ > User's self rate": {
@@ -91149,23 +91200,23 @@ var L = {
  },
  "World Rating > Mark Teen 13+ > Crude/Vulgar Humor": {
   "p": [
-   "wrLg"
+   "wrLgC"
   ]
  },
  "World Rating > Mark Teen 13+ > Gambling": {
   "p": [
-   "wrRgG",
-   "wrRg"
+   "wrSg",
+   "wrGt"
   ]
  },
  "World Rating > Mark Teen 13+ > Mild Language": {
   "p": [
-   "wrLg"
+   "wrLgM"
   ]
  },
  "World Rating > Mark Teen 13+ > Mild Language in Lyrics": {
   "p": [
-   "wrLg"
+   "wrLgL"
   ]
  },
  "World Rating > Mark Teen 13+ > Mild Violence": {
@@ -91188,18 +91239,18 @@ var L = {
  },
  "World Rating > Mark Teen 13+ > Sexual Reference": {
   "p": [
-   "wrSnT",
+   "wrSnR",
    "wrSn"
   ]
  },
  "World Rating > Mark Teen 13+ > Spooky moments": {
   "p": [
-   "wrHf"
+   "wrHk"
   ]
  },
  "World Rating > Mark Teen 13+ > Suggestive Theme": {
   "p": [
-   "wrSnT",
+   "wrSnG",
    "wrSn"
   ]
  },
@@ -91211,7 +91262,7 @@ var L = {
  },
  "DigiGoods > Mark Mature 18+ > Adult nudity": {
   "p": [
-   "diN"
+   "diN18"
   ]
  },
  "DigiGoods > Mark Mature 18+ > Alcohol depiction/promotion": {
@@ -91231,22 +91282,22 @@ var L = {
  },
  "DigiGoods > Mark Mature 18+ > Excessive blood/gore": {
   "p": [
-   "diV"
+   "diV18"
   ]
  },
  "DigiGoods > Mark Mature 18+ > Explicit language": {
   "p": [
-   "diL"
+   "diL18"
   ]
  },
  "DigiGoods > Mark Mature 18+ > Hyperrealistic weapon with blood": {
   "p": [
-   "diV"
+   "diV18"
   ]
  },
  "DigiGoods > Mark Mature 18+ > Sexually suggestive reference": {
   "p": [
-   "diN"
+   "diS18"
   ]
  },
  "DigiGoods > Mark Mature 18+ > Tobacco depiction/promotion": {
@@ -91256,32 +91307,32 @@ var L = {
  },
  "DigiGoods > Mark Teen 13+ > Crude/vulgar humor": {
   "p": [
-   "diL"
+   "diL13"
   ]
  },
  "DigiGoods > Mark Teen 13+ > Hyperrealistic weapon without blood": {
   "p": [
-   "diV"
+   "diV13"
   ]
  },
  "DigiGoods > Mark Teen 13+ > Mild language": {
   "p": [
-   "diL"
+   "diL13"
   ]
  },
  "DigiGoods > Mark Teen 13+ > Non-descriptive sexual reference": {
   "p": [
-   "diN"
+   "diS13"
   ]
  },
  "DigiGoods > Mark Teen 13+ > Partial nudity": {
   "p": [
-   "diN"
+   "diN13"
   ]
  },
  "Fantastical Avatars > Mark Mature 18+ > Adult nudity": {
   "p": [
-   "diN",
+   "diN18",
    "faRt"
   ]
  },
@@ -91305,25 +91356,25 @@ var L = {
  },
  "Fantastical Avatars > Mark Mature 18+ > Excessive blood/gore": {
   "p": [
-   "diV",
+   "diV18",
    "faRt"
   ]
  },
  "Fantastical Avatars > Mark Mature 18+ > Explicit language": {
   "p": [
-   "diL",
+   "diL18",
    "faRt"
   ]
  },
  "Fantastical Avatars > Mark Mature 18+ > Hyperrealistic weapon with blood": {
   "p": [
-   "diV",
+   "diV18",
    "faRt"
   ]
  },
  "Fantastical Avatars > Mark Mature 18+ > Sexually suggestive reference": {
   "p": [
-   "diN",
+   "diS18",
    "faRt"
   ]
  },
@@ -91335,31 +91386,31 @@ var L = {
  },
  "Fantastical Avatars > Mark Teen 13+ > Crude/vulgar humor": {
   "p": [
-   "diL",
+   "diL13",
    "faRt"
   ]
  },
  "Fantastical Avatars > Mark Teen 13+ > Hyperrealistic weapon without blood": {
   "p": [
-   "diV",
+   "diV13",
    "faRt"
   ]
  },
  "Fantastical Avatars > Mark Teen 13+ > Mild language": {
   "p": [
-   "diL",
+   "diL13",
    "faRt"
   ]
  },
  "Fantastical Avatars > Mark Teen 13+ > Non-descriptive sexual reference": {
   "p": [
-   "diN",
+   "diS13",
    "faRt"
   ]
  },
  "Fantastical Avatars > Mark Teen 13+ > Partial nudity": {
   "p": [
-   "diN",
+   "diN13",
    "faRt"
   ]
  },
@@ -91699,6 +91750,7 @@ var L = {
  "Fraud, Scam & Deception > Loan > Debt Relief / Credit Repair": {
   "p": [
    "frDebt",
+   "frLoan",
    "frRule"
   ]
  },
@@ -91717,7 +91769,8 @@ var L = {
  "Fraud, Scam & Deception > Product or Reward": {
   "p": [
    "frTan",
-   "frAdv"
+   "frIns",
+   "frDebt"
   ]
  },
  "Child Sexual Exploitation, Abuse & Nudity > Child nudity": {
