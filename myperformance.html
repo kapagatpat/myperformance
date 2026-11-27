@@ -20,7 +20,7 @@ html[data-theme="dark"] body{background:var(--bg)!important;color:var(--text)}
 </style>
 <script data-mp="0">
 /* v3.63 · shared helpers: app version, local "today", quiet error log for handled errors */
-window.MP_VERSION = 'v3.107';
+window.MP_VERSION = 'v3.108';
 window.mpToday = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 window.__mpQ = [];
 window.mpQ = function(e){ try { var m = String(e && e.message || e).slice(0, 300), L = window.__mpQ, l = L[L.length - 1]; if(l && l.m === m){ l.n++; return; } L.push({ t: Date.now(), m: m, n: 1, s: String(e && e.stack || '').split('\n').slice(0, 4).join('\n') }); if(L.length > 200) L.shift(); } catch(_){ window.mpQ && window.mpQ(_);  } };
@@ -43,7 +43,7 @@ window.mpHook = function(name, when, fn){
 };
 </script>
 <script data-mp="2">try{if(localStorage.getItem('mp319-theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){ window.mpQ && window.mpQ(e); }</script>
-<title>MyPerformance | MVIO v3.107</title>
+<title>MyPerformance | MVIO v3.108</title>
 <style>
 /* CORE CSS */
 /* v3.66: local pickers (Job Detail week/day, RCA Explorer) wear the universal filter's look */
@@ -92715,6 +92715,142 @@ function ensure(){
 }
 window.mp3107 = { fix: fix, RT: RT, build: build };
 ensure(); [4500, 10000, 15000, 21000, 29000].forEach(function(t){ setTimeout(ensure, t); });
+})();
+
+</script>
+<script data-mp="138">
+/* v3.108 · Merge phases 4 and 5.
+   4 · Tour: the NRT page tour (8 steps) moves into the Team App's Team › Quality and AHT page,
+       with a "? How to use" button in the page header. It starts once by itself on the first visit.
+   5 · Retire the standalone export: "Export as NRT app" is hidden on the main app's NRT tab and a
+       "Team App ↓" button takes its place. The Team App now carries this page (Karl 27 Nov). */
+(function(){
+'use strict';
+var q = function(e){ try { window.mpQ && window.mpQ(e); } catch(_){} };
+
+/* ── 5 · main app: swap the button ── */
+function swap(){
+  if(window.__MP_NRT_ONLY) return;
+  if(!document.getElementById('m3108-css')){
+    var st = document.createElement('style'); st.id = 'm3108-css'; st.textContent = '#mp398-export{display:none!important}'; document.head.appendChild(st);
+  }
+  var ph = document.querySelector('#tab-nrt2 .ph'); if(!ph || document.getElementById('m3108-team')) return;
+  var b = document.createElement('button'); b.id = 'm3108-team'; b.type = 'button'; b.className = 'mp-btn';
+  b.style.cssText = 'order:3;font-size:12px;font-weight:700;padding:6px 12px;border-radius:var(--pill);border:1px solid var(--bbd);background:var(--bbg);color:var(--blue);cursor:pointer;white-space:nowrap';
+  b.textContent = 'Team App ↓';
+  b.title = 'Download the Team App. This page is inside it, under Team › Quality and AHT, with the NRT data you have loaded.';
+  b.onclick = function(e){ e.stopPropagation(); if(typeof window.mp350ExportPreread === 'function') window.mp350ExportPreread(); };
+  ph.appendChild(b);
+}
+var tries = 0;
+(function loop(){ try { swap(); } catch(e){ q(e); } if(++tries < 40) setTimeout(loop, 1500); })();
+if(typeof window.renderNRT2 === 'function' && !window.renderNRT2.__m3108){
+  var R0 = window.renderNRT2, R1 = function(){ var o = R0.apply(this, arguments); try { swap(); } catch(e){ q(e); } return o; };
+  try { Object.keys(R0).forEach(function(k){ if(/^__m\d/.test(k)) R1[k] = R0[k]; }); } catch(_){}
+  R1.__m3108 = true; window.renderNRT2 = R1; try { renderNRT2 = R1; } catch(e){ q(e); }
+}
+
+/* ── 4 · tour inside the Team App ── */
+function RT(){
+  if(window.__q3108) return;
+  var KEY = 'mp3108-tour-v1';
+  var STEPS = [
+    { a: '#q6-bar', t: 'Filters', b: 'Pick the week, workflow, sub-workflow, TL, tenure, language or reviewer. Everything on the page follows them, the job lists too. Reset clears them.', w: 'Start here: choose the week you are looking at.' },
+    { a: '#tab-q6 .q6-cards', t: 'Scores', b: 'Enforcement Precision and Recall, overall and for P1 and P2 to P4, against the 96% goal, with the change from the week before. Red means below goal.', w: 'Check these first to see where the team stands.' },
+    { a: '#tab-q6 .q6-tools', t: 'What the table shows', b: 'Turn on Enforcement, Labelling or AHT. TP · FP · FN · TN adds the counts.', w: 'Turn on AHT to see handle time next to quality.' },
+    { a: '#tab-q6 .q6-seg', t: 'Actual, Meta Adj, Adj', b: 'Actual is the reviewer’s call against the audit. Meta Adj and Adj don’t count errors the RCA found were not the reviewer’s.', w: 'Start on Actual. Switch once the RCAs are in.' },
+    { a: '#tab-q6 .q6-tools + .q6-tools', t: 'Breakdown', b: 'Click Workflow, Sub-workflow, TL, Reviewer and more to group the table; click again to remove. The number shows the order.', w: 'Group by TL then Reviewer to find one person’s row.' },
+    { a: '#tab-q6 .q6-wrap', t: 'Target − AHT and pass rate', b: 'Target − AHT shows seconds under (+) or over (−) target. Pass rate counts the top-10 sub-workflows within AHT target, goal 80%. Rows with fewer than 20 audits say low volume.', w: 'Look for red AHT on the sub-workflows with the most jobs.' },
+    { a: '#q7-host .q7-tabs', t: 'Errors and accurate jobs', b: 'Errors are the jobs the audit disagreed with: the reviewer’s call, the audit call and the notes. Accurate are the jobs it agreed with. Click a column to sort, or a call or note to copy it.', w: 'Learn from each error, then check the accurate jobs for the same policy.' },
+    { a: '#tab-q6 .q6-chips', t: 'How fresh the data is', b: 'Quality and AHT dates show when each file ends. AHT only covers the weeks in the AHT file; the page says so when a week has none.', w: 'Check the dates before you coach from a number.' }
+  ];
+  var css = document.createElement('style'); css.id = 'q8-css'; css.textContent = [
+    '#q8-tour{position:absolute;z-index:100000;width:min(380px,calc(100vw - 24px));background:#fff;color:#1d1b26;border-radius:14px;box-shadow:0 14px 40px rgba(20,12,50,.28),0 2px 6px rgba(20,12,50,.12);padding:20px 22px 18px;font-family:var(--f,inherit)}',
+    '#q8-tour .nt-st{font-size:12px;color:#5f5a72}',
+    '#q8-tour .nt-pg{display:flex;gap:5px;margin:10px 0 14px}#q8-tour .nt-pg i{width:7px;height:7px;border-radius:9px;background:#d9d6e4}#q8-tour .nt-pg i.on{width:26px;background:var(--tp-brand,#4D3293)}#q8-tour .nt-pg i.done{background:#b9aee0}',
+    '#q8-tour h3{margin:0 0 6px;font-size:18px;font-weight:800;color:#1d1b26}',
+    '#q8-tour p{margin:0 0 6px;font-size:14px;line-height:1.5;color:#3d3950}',
+    '#q8-tour .nt-wh{font-size:13px;color:#3d3950;background:#f3f0fb;border-radius:8px;padding:7px 10px;margin:8px 0 14px}#q8-tour .nt-wh b{color:var(--tp-brand,#4D3293)}',
+    '#q8-tour .nt-bt{display:flex;gap:8px;align-items:center}#q8-tour button{font:inherit;font-size:13px;font-weight:700;border-radius:9px;padding:8px 16px;cursor:pointer;border:1px solid #d9d6e4;background:#fff;color:#1d1b26}',
+    '#q8-tour button.nt-pri{background:var(--tp-brand,#4D3293);border-color:var(--tp-brand,#4D3293);color:#fff}#q8-tour button.nt-gh{border-color:transparent;color:#5f5a72;margin-left:auto}#q8-tour button:disabled{opacity:.4;cursor:default}',
+    '#q8-tour button:focus-visible,.q8-help:focus-visible{outline:2px solid var(--tp-brand,#4D3293);outline-offset:2px}',
+    '#q8-tour .nt-ar{position:absolute;width:14px;height:14px;background:#fff;transform:rotate(45deg)}',
+    '.q8-on{outline:3px solid var(--tp-brand,#4D3293)!important;outline-offset:4px;border-radius:10px;position:relative;z-index:2}',
+    '.q8-help{font:inherit;font-size:13px;font-weight:700;padding:6px 14px;border-radius:999px;border:1px solid #CFC6E6;background:#F4F0FC;color:#4D3293;cursor:pointer;white-space:nowrap;align-self:flex-start;margin-left:auto}',
+    '#tab-q6 .ph{display:flex;align-items:flex-start;gap:12px}',
+    '@media (prefers-reduced-motion:no-preference){#q8-tour{transition:top .2s ease-out,left .2s ease-out}}'
+  ].join(''); document.head.appendChild(css);
+  var box = null, cur = 0, lit = null;
+  function ls(k, v){ try { if(v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch(e){ return null; } }
+  function close(done){ if(box){ box.remove(); box = null; } if(lit){ lit.classList.remove('q8-on'); lit = null; } document.removeEventListener('keydown', key); window.removeEventListener('resize', place); if(done) ls(KEY, 'done'); }
+  function key(e){ if(e.key === 'Escape') close(true); else if(e.key === 'ArrowRight') show(cur + 1); else if(e.key === 'ArrowLeft' && cur > 0) show(cur - 1); }
+  function place(){
+    if(!box || !lit) return;
+    var r = lit.getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight, sx = window.scrollX, sy = window.scrollY, vw = document.documentElement.clientWidth;
+    var below = r.bottom + bh + 20 < window.innerHeight || r.top < bh + 20;
+    var top = below ? r.bottom + 14 : r.top - bh - 14;
+    top = Math.min(Math.max(12, top), window.innerHeight - bh - 12);
+    var left = Math.min(Math.max(12, r.left), vw - bw - 12);
+    box.style.top = (top + sy) + 'px'; box.style.left = (left + sx) + 'px';
+    var ar = box.querySelector('.nt-ar'), ax = Math.min(Math.max(18, r.left + Math.min(40, r.width / 2) - left), bw - 30);
+    ar.style.left = ax + 'px'; ar.style.top = below ? '-7px' : ''; ar.style.bottom = below ? '' : '-7px';
+  }
+  function show(i){
+    if(i < 0) i = 0;
+    if(i >= STEPS.length) return close(true);
+    cur = i; var s = STEPS[i], el = document.querySelector(s.a);
+    if(!el || !el.offsetParent) return show(i + 1);
+    if(lit) lit.classList.remove('q8-on'); lit = el; el.classList.add('q8-on');
+    if(!box){ box = document.createElement('div'); box.id = 'q8-tour'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'How to use Quality and AHT'); box.setAttribute('aria-live', 'polite'); document.body.appendChild(box); document.addEventListener('keydown', key); window.addEventListener('resize', place); }
+    var dots = STEPS.map(function(_, k){ return '<i class="' + (k === i ? 'on' : k < i ? 'done' : '') + '"></i>'; }).join('');
+    box.innerHTML = '<span class="nt-ar"></span><div class="nt-st">Step ' + (i + 1) + ' of ' + STEPS.length + '</div><div class="nt-pg">' + dots + '</div><h3></h3><p></p><div class="nt-wh"><b>When to use: </b><span></span></div>'
+      + '<div class="nt-bt"><button type="button" data-k="b"' + (i === 0 ? ' disabled' : '') + '>Back</button><button type="button" class="nt-pri" data-k="n">' + (i === STEPS.length - 1 ? 'Done' : 'Next') + '</button><button type="button" class="nt-gh" data-k="s">Skip tour</button></div>';
+    box.querySelector('h3').textContent = s.t; box.querySelector('p').textContent = s.b; box.querySelector('.nt-wh span').textContent = s.w;
+    box.querySelector('[data-k="b"]').onclick = function(){ show(cur - 1); };
+    box.querySelector('[data-k="n"]').onclick = function(){ show(cur + 1); };
+    box.querySelector('[data-k="s"]').onclick = function(){ close(true); };
+    var r = el.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, r.top + window.scrollY - 140), behavior: 'instant' });
+    setTimeout(function(){ place(); try { box.querySelector('[data-k="n"]').focus({ preventScroll: true }); } catch(_){} }, 30);
+  }
+  function help(){
+    var ph = document.querySelector('#tab-q6 .ph'); if(!ph || ph.querySelector('.q8-help')) return;
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'q8-help'; b.textContent = '? How to use';
+    b.onclick = function(){ close(false); show(0); }; ph.appendChild(b);
+  }
+  var auto = false;
+  function after(){
+    help();
+    if(box && lit && !document.body.contains(lit)){ var i = cur; close(false); show(i); }   /* page redrew under the tour */
+    if(!auto && ls(KEY) !== 'done' && document.getElementById('q7-host') && document.querySelector('#q7-host .q7-tabs')){ auto = true; setTimeout(function(){ if(!box) show(0); }, 400); }
+  }
+  function init(){
+    var A = window.__q3106after;
+    window.__q3106after = function(){ var r = typeof A === 'function' ? A.apply(this, arguments) : undefined; try { after(); } catch(e){ console.error('[v3.108 tour]', e); } return r; };
+    var G = window.__go;
+    window.__go = function(p){ if(p !== 'q6' && box) close(false); return typeof G === 'function' ? G.apply(this, arguments) : undefined; };
+    window.__q3108 = { show: show, close: close, steps: STEPS };
+  }
+  if(document.readyState === 'complete') setTimeout(init, 50); else window.addEventListener('load', function(){ setTimeout(init, 50); });
+}
+function fix(html){
+  if(typeof html !== 'string' || html.indexOf('id="q3106-rt"') < 0 || html.indexOf('id="q3108-rt"') > -1) return html;
+  var b = html.lastIndexOf('</body>'); if(b < 0) return html;
+  window.__m3108x = { ok: true };
+  return html.slice(0, b) + '<script id="q3108-rt">(' + RT.toString() + ')();<\/script>' + html.slice(b);
+}
+function ensure(){
+  if(window.__MP_NRT_ONLY) return;
+  var f = window.mp350PrereadHTML;
+  if(typeof f !== 'function' || f.__m3108) return;
+  var w = function(){ var out, self = this, args = arguments; window.mp350PrereadHTML = f;
+    try { out = f.apply(self, args); } finally { window.mp350PrereadHTML = w; }
+    if(out && typeof out.then === 'function') return out.then(fix);
+    try { return fix(out); } catch(e){ q(e); return out; } };
+  try { Object.keys(f).forEach(function(k){ if(/^__m\d/.test(k)) w[k] = f[k]; }); } catch(_){}
+  w.__m3108 = true; window.mp350PrereadHTML = w;
+}
+window.mp3108 = { fix: fix, RT: RT };
+ensure(); [5000, 10500, 16000, 22000, 30000].forEach(function(t){ setTimeout(ensure, t); });
 })();
 
 </script>
