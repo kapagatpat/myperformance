@@ -20,7 +20,7 @@ html[data-theme="dark"] body{background:var(--bg)!important;color:var(--text)}
 </style>
 <script data-mp="0">
 /* v3.63 · shared helpers: app version, local "today", quiet error log for handled errors */
-window.MP_VERSION = 'v3.105';
+window.MP_VERSION = 'v3.106';
 window.mpToday = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 window.__mpQ = [];
 window.mpQ = function(e){ try { var m = String(e && e.message || e).slice(0, 300), L = window.__mpQ, l = L[L.length - 1]; if(l && l.m === m){ l.n++; return; } L.push({ t: Date.now(), m: m, n: 1, s: String(e && e.stack || '').split('\n').slice(0, 4).join('\n') }); if(L.length > 200) L.shift(); } catch(_){ window.mpQ && window.mpQ(_);  } };
@@ -43,7 +43,7 @@ window.mpHook = function(name, when, fn){
 };
 </script>
 <script data-mp="2">try{if(localStorage.getItem('mp319-theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){ window.mpQ && window.mpQ(e); }</script>
-<title>MyPerformance | MVIO v3.105</title>
+<title>MyPerformance | MVIO v3.106</title>
 <style>
 /* CORE CSS */
 /* v3.66: local pickers (Job Detail week/day, RCA Explorer) wear the universal filter's look */
@@ -92135,6 +92135,373 @@ window.mpNrtParity = function(){
   out.ms = Math.round(performance.now() - t0);
   return out;
 };
+})();
+
+</script>
+<script data-mp="136">
+/* v3.106 · Merge phase 2 · Team › Quality and AHT page in the exported Team App.
+   Built from the v3.105 cube (mpNrtCube / mpNrtCubeRows), so the Team App carries about 0.3 MB of NRT data,
+   not the raw files. Karl 27 Nov: team-wide, Penang only, not filtered by the name picker; reviewer names shown;
+   default view Actual; AHT only for weeks that have AHT data.
+   Switch: the page is added only when window.MP_TEAM_NRT !== false AND mpNrtParity() passes at export time. */
+(function(){
+'use strict';
+var q = function(e){ try { window.mpQ && window.mpQ(e); } catch(_){} };
+
+/* ── main app side: everything the page needs, computed once at export ── */
+function payload(){
+  if(typeof window.mpNrtCube !== 'function' || typeof window.mpNrtParity !== 'function') return { ok: false, why: 'v3.105 cube missing' };
+  try { if(typeof NRT_SITE !== 'undefined') NRT_SITE = 'penang'; } catch(_){}
+  var par = window.mpNrtParity();
+  if(!par || !par.ok) return { ok: false, why: 'parity failed', par: par };
+  var cube = window.mpNrtCube();
+  var sws = {}; cube.k.forEach(function(k){ sws[cube.str[k[2]]] = 1; });
+  var tg = {};
+  Object.keys(sws).forEach(function(sw){
+    var t = typeof nrtGetTarget === 'function' ? nrtGetTarget(sw) : null;
+    var b = typeof nahtGetAHTBandDirect === 'function' ? nahtGetAHTBandDirect(sw) : null;
+    tg[sw] = { P: t && t.Precision ? t.Precision.ach : null, R: t && t.Recall ? t.Recall.ach : null,
+               a: typeof nahtGetTarget === 'function' ? nahtGetTarget(sw) : null, x: b && b.exc != null ? b.exc : null,
+               pri: typeof swPriorityGroup === 'function' ? swPriorityGroup(sw) : (/^(Profile Review|World Review|World Review Reactive|Video Review)$/.test(sw) ? 'P1' : 'P2–P4') };
+  });
+  var gT = typeof nrtGlobalTarget === 'function' ? nrtGlobalTarget() : null;
+  var err = 0, pend = 0, qt = 0, qd = '', ad = '';
+  try {
+    (typeof NRT_ERR_ENRICHED !== 'undefined' ? NRT_ERR_ENRICHED : []).forEach(function(r){
+      var t = Date.parse(r.report_date); if(!isNaN(t) && t > qt) qt = t;
+      if(!r.name || /^ID:/.test(r.name) || r.tl === '(no roster match)') return;
+      var o = window.nrtRawOutcome ? window.nrtRawOutcome(r) : '';
+      if(o === 'FP' || o === 'FN'){ err++; if(!r.rca_l1 || r.rca_l1 === 'Pending RCA' || r.rca_l1 === '(blank)') pend++; }
+    });
+    (typeof NAHT_ROWS !== 'undefined' ? NAHT_ROWS : []).forEach(function(r){ if(r.day && r.day > ad) ad = r.day; });
+    if(qt){ var dq = new Date(qt); qd = dq.getFullYear() + '-' + ('0' + (dq.getMonth() + 1)).slice(-2) + '-' + ('0' + dq.getDate()).slice(-2); }
+  } catch(e){ q(e); }
+  var unm = {};
+  try { (typeof NAHT_ROWS !== 'undefined' ? NAHT_ROWS : []).forEach(function(r){ if(/^\((unmapped|blank)\)$/.test(r.sw)) unm[r.qname] = (unm[r.qname] || 0) + (r.job_count || 0); }); } catch(e){ q(e); }
+  return { ok: true, v: 1, cube: cube, tg: tg,
+           gT: { P: gT && gT.Precision ? gT.Precision.ach : 0.96, R: gT && gT.Recall ? gT.Recall.ach : 0.96 }, T1: window.MP_LEVEL_GOAL || 0.96,
+           pend: { err: err, pend: pend }, asOf: { q: qd, a: ad }, unm: unm,
+           par: { keys: par.keys, diffs: 0, views: par.views }, made: new Date().toISOString().slice(0, 10) };
+}
+window.mp3106Payload = payload;
+
+/* ── runtime inside the exported Team App ── */
+function RT(D){
+  if(window.__q3106) return;
+  var $ = function(id){ return document.getElementById(id); };
+  function E(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function ls(k, d){ try { var v = localStorage.getItem(k); return v == null ? d : v; } catch(e){ return d; } }
+  function lsSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+  var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function day(s){ var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? (+m[3]) + ' ' + MON[+m[2] - 1] : (s || '—'); }
+  function dayY(s){ var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? (+m[3]) + ' ' + MON[+m[2] - 1] + ' ' + m[1] : '—'; }
+  function pc1(v){ return v == null ? '—' : (v * 100).toFixed(1) + '%'; }
+  function pc2(v){ return v == null ? '—' : (v * 100).toFixed(2) + '%'; }
+  function n0(v){ return (v || 0).toLocaleString(); }
+
+  /* rows from the cube, by view */
+  var C = D.cube, TG = D.tg || {}, cache = {};
+  function rowsOf(view){ if(cache[view]) return cache[view];
+    var s = C.str, out = C.k.map(function(k){ var b = k[8], sw = s[k[2]];
+      return { actor: s[k[0]], name: s[k[4]], tl: s[k[5]], tenure: s[k[6]], lang: s[k[7]], sw: sw, week: s[k[1]], workflow: s[k[3]], pri: (TG[sw] || {}).pri || 'P2–P4',
+               enfTp: b[0], enfTn: b[1], enfFp: b[2], enfFn: b[3], labTp: b[4], labTn: b[5], labFp: b[6], labFn: b[7], reviewTime: k[9], nohandleTime: k[10], jobs: k[11] }; });
+    if(C.err){ out.forEach(function(g){ g.enfTp = g.enfTn = g.enfFp = g.enfFn = g.labTp = g.labTn = g.labFp = g.labFn = 0; });
+      var F = ['Tp', 'Tn', 'Fp', 'Fn'];
+      C.q.forEach(function(e){ var g = out[e[0]], o = e[2]; if(o >= 2 && view !== 'actual' && (view === 'adj' ? e[4] : e[3])) o = o === 2 ? 0 : 1; g[(e[1] ? 'lab' : 'enf') + F[o]] += e[5]; }); }
+    return (cache[view] = out); }
+  window.mp3106Rows = rowsOf;
+
+  var VIEWS = [['actual', 'Actual', 'The reviewer’s call against the audit call on every audited job, before any RCA.'],
+               ['meta', 'Meta Adj', 'Errors with an RCA of Policy, Tooling or Protocol (Meta) count as correct.'],
+               ['adj', 'Adj', 'Meta Adj, plus any Protocol and People › Auditor errors count as correct.']];
+  var FK = [['week', 'Week', 'week'], ['workflow', 'Workflow', 'workflow'], ['sw', 'Sub-workflow', 'sw'], ['tl', 'TL', 'tl'], ['tenure', 'Tenure', 'tenure'], ['lang', 'Language', 'lang'], ['reviewer', 'Reviewer', 'actor']];
+  var DIMS = [['workflow', 'Workflow'], ['sw', 'Sub-workflow'], ['tl', 'TL'], ['name', 'Reviewer'], ['pri', 'Priority'], ['tenure', 'Tenure'], ['week', 'Week'], ['lang', 'Language']];
+  var DL = {}; DIMS.forEach(function(d){ DL[d[0]] = d[1]; });
+  var S = { view: /^(actual|meta|adj)$/.test(ls('mp3106.qview', '')) ? ls('mp3106.qview', '') : 'actual',
+            show: { enf: true, lab: false, aht: true, cnt: true }, dims: ['pri', 'sw'], f: {}, open: null };
+  FK.forEach(function(k){ S.f[k[0]] = null; });   /* null = all; [] = none */
+  var base = rowsOf('actual');
+  var hasQ = function(r){ return (r.enfTp + r.enfTn + r.enfFp + r.enfFn + r.labTp + r.labTn + r.labFp + r.labFn) > 0; };
+  var qWeeks = Array.from(new Set(base.filter(hasQ).map(function(r){ return r.week; }))).sort();
+  var allWeeks = Array.from(new Set(base.map(function(r){ return r.week; }))).sort();
+  var ahtWeeks = Array.from(new Set(base.filter(function(r){ return r.jobs > 0; }).map(function(r){ return r.week; }))).sort();
+  S.f.week = [qWeeks.length ? qWeeks[qWeeks.length - 1] : allWeeks[allWeeks.length - 1]];
+
+  function vals(key){
+    var fld = FK.filter(function(k){ return k[0] === key; })[0][2], m = {};
+    base.forEach(function(r){ var v = r[fld]; if(v && !(key === 'sw' && /^\((blank|unmapped)\)$/.test(v))) m[v] = key === 'reviewer' ? (r.name || v) : v; });
+    var ks = Object.keys(m);
+    ks.sort(key === 'reviewer' ? function(a, b){ return String(m[a]).localeCompare(String(m[b])); } : key === 'workflow' ? function(a, b){ return (a === '(Unmapped)') - (b === '(Unmapped)') || a.localeCompare(b); } : function(a, b){ return a.localeCompare(b); });
+    return ks.map(function(k){ return [k, key === 'week' ? 'WE ' + day(k) : m[k]]; });
+  }
+  function filtered(skipWeek){
+    var rows = rowsOf(S.view), f = S.f;
+    for(var i = 0; i < FK.length; i++){ var k = FK[i][0]; if(skipWeek && k === 'week') continue; if(f[k] && !f[k].length) return []; }
+    return rows.filter(function(r){
+      for(var i = 0; i < FK.length; i++){ var k = FK[i][0], s = f[k]; if(skipWeek && k === 'week') continue; if(s && s.indexOf(r[FK[i][2]]) < 0) return false; }
+      return true;
+    });
+  }
+  window.mp3106Filtered = filtered;
+  window.mp3106State = S;
+
+  /* ── maths, same rules as the main app ── */
+  function agg(list, pick){ var a = { tp: 0, fp: 0, fn: 0, tn: 0, ltp: 0, lfp: 0, lfn: 0, ltn: 0, rt: 0, nh: 0, j: 0, rows: [] };
+    list.forEach(function(r){ if(pick && !pick(r)) return; a.tp += r.enfTp; a.fp += r.enfFp; a.fn += r.enfFn; a.tn += r.enfTn; a.ltp += r.labTp; a.lfp += r.labFp; a.lfn += r.labFn; a.ltn += r.labTn; a.rt += r.reviewTime; a.nh += r.nohandleTime; a.j += r.jobs; a.rows.push(r); });
+    return a; }
+  function P(tp, fp){ return tp + fp > 0 ? tp / (tp + fp) : null; }
+  function R(tp, fn){ return tp + fn > 0 ? tp / (tp + fn) : null; }
+  function A(tp, fp, fn, tn){ var t = tp + fp + fn + tn; return t > 0 ? (tp + tn) / t : null; }
+  function aht(a){ return a.j > 0 ? a.rt / a.j : null; }
+  function ahtTgt(a){ var w = 0, s = 0; a.rows.forEach(function(r){ var t = (TG[r.sw] || {}).a; if(r.jobs > 0 && t > 0){ w += r.jobs; s += r.jobs * t; } }); return w ? s / w : null; }
+  function passRate(rows){   /* v3.94 top-10 rule */
+    var by = {}, rvs = {};
+    rows.forEach(function(r){ if(!r.sw || !(r.jobs > 0)) return; if(r.actor) rvs[r.actor] = 1;
+      var m = String(r.week || '').slice(0, 7); if(!/^\d{4}-\d{2}$/.test(m)) m = 'no week';
+      var k = m + '||' + r.sw, o = by[k] || (by[k] = { m: m, sw: r.sw, jobs: 0, rt: 0 }); o.jobs += r.jobs; o.rt += +r.reviewTime || 0; });
+    var one = Object.keys(rvs).length <= 1, min = one ? 5 : 1, pass = 0, elig = 0, det = [];
+    var tg = function(sw){ var t = (TG[sw] || {}).a; return t > 0 ? t : null; };
+    Array.from(new Set(Object.keys(by).map(function(k){ return by[k].m; }))).sort().forEach(function(m){
+      Object.keys(by).filter(function(k){ return by[k].m === m && tg(by[k].sw) && by[k].rt > 0; })
+        .sort(function(a, b){ return by[b].jobs - by[a].jobs; }).slice(0, 10)
+        .forEach(function(k){ var o = by[k], t = tg(o.sw), a = o.rt / o.jobs, d = { sw: o.sw, jobs: o.jobs, aht: a, tgt: t, counted: o.jobs >= min };
+          if(d.counted){ elig++; d.pass = a <= t; if(d.pass) pass++; } det.push(d); });
+    });
+    return { pass: pass, elig: elig, rate: elig ? pass / elig : null, det: det, one: one, min: min };
+  }
+  window.mp3106Pass = passRate;
+
+  /* ── page ── */
+  var CSS = '.q6 .q6-chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}.q6 .q6-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border,#E5E1EE);border-radius:999px;padding:4px 12px;font-size:13px;color:var(--ts,#4B4A5A);background:var(--surface,#fff)}.q6 .q6-chip b{color:var(--text,#1C1B29)}'
+    + '.q6 .q6-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border,#E5E1EE);border-radius:12px;background:var(--surface,#fff);margin:0 0 14px;position:relative}.q6 .q6-bar>span{font-size:13px;font-weight:700;color:var(--ts,#4B4A5A)}'
+    + '.q6 .q6-pill{position:relative}.q6 .q6-pill>button{font:inherit;font-size:13px;border:1px solid var(--border,#E5E1EE);background:var(--surface,#fff);border-radius:999px;padding:4px 12px;cursor:pointer;color:var(--text,#1C1B29)}.q6 .q6-pill>button.on{border-color:#5B3FB0;color:#5B3FB0;font-weight:700;background:#F4F0FC}'
+    + '.q6 .q6-dd{position:absolute;top:calc(100% + 4px);left:0;z-index:50;min-width:220px;max-height:320px;overflow:auto;background:var(--surface,#fff);border:1px solid var(--border,#E5E1EE);border-radius:10px;box-shadow:0 8px 24px rgba(28,27,41,.14);padding:6px}.q6 .q6-dd label{display:flex;gap:8px;align-items:center;padding:5px 8px;font-size:13px;border-radius:6px;cursor:pointer;white-space:nowrap}.q6 .q6-dd label:hover{background:#F4F0FC}.q6 .q6-dd .q6-all{border-bottom:1px solid var(--border,#E5E1EE);margin-bottom:4px;font-weight:700}'
+    + '.q6 .q6-reset{font:inherit;font-size:13px;border:0;background:#E7F6EF;color:#0F7A4D;border-radius:999px;padding:4px 12px;cursor:pointer;font-weight:700}'
+    + '.q6 .q6-hd{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#706398;margin:0 0 8px}'
+    + '.q6 .q6-cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}@media(max-width:1100px){.q6 .q6-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}'
+    + '.q6 .q6-k{border:1px solid var(--border,#E5E1EE);border-top:4px solid #CFC6E6;border-radius:12px;background:var(--surface,#fff);padding:10px 12px;min-width:0}.q6 .q6-k.ok{border-top-color:#15803D}.q6 .q6-k.bad{border-top-color:#B91C1C}'
+    + '.q6 .q6-k .l{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ts,#4B4A5A)}.q6 .q6-k .v{font-size:24px;margin:4px 0 2px;font-variant-numeric:tabular-nums}.q6 .q6-k.bad .v{color:#B91C1C}.q6 .q6-k .s,.q6 .q6-k .c,.q6 .q6-k .n{font-size:12px}.q6 .q6-k .n{color:var(--tm,#77768A);margin-top:4px}'
+    + '.q6 .q6-note{margin:0 0 12px;padding:10px 14px;border-radius:10px;background:#FFFBEB;border:1px solid #FCD34D;font-size:13px;color:#78350F}.q6 .q6-note b{color:#78350F}'
+    + '.q6 .q6-card{border:1px solid var(--border,#E5E1EE);border-radius:12px;background:var(--surface,#fff);padding:12px 14px;margin-bottom:14px}'
+    + '.q6 .q6-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}.q6 .q6-tools .t{font-size:13px;font-weight:700;color:var(--ts,#4B4A5A);margin-right:2px}'
+    + '.q6 .q6-tg{font:inherit;font-size:13px;border:1px solid var(--border,#E5E1EE);background:var(--surface,#fff);border-radius:999px;padding:4px 12px;cursor:pointer;color:var(--ts,#4B4A5A)}.q6 .q6-tg.on{border-color:#5B3FB0;color:#5B3FB0;font-weight:700;background:#F4F0FC}'
+    + '.q6 .q6-seg{display:inline-flex;border:1px solid var(--border,#E5E1EE);border-radius:999px;overflow:hidden;margin-left:auto}.q6 .q6-seg button{font:inherit;font-size:13px;font-weight:700;border:0;background:var(--surface,#fff);color:var(--ts,#4B4A5A);padding:4px 12px;cursor:pointer}.q6 .q6-seg button.on{background:#1C1B29;color:#fff}'
+    + '.q6 .q6-wrap{overflow:auto;max-height:70vh;border:1px solid var(--border,#E5E1EE);border-radius:10px}'
+    + '.q6 table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}.q6 th{position:sticky;top:0;background:#F8F6FC;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ts,#4B4A5A);padding:6px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--border,#E5E1EE);z-index:1}'
+    + '.q6 tr.h2 th{top:29px}.q6 th.d,.q6 td.d{text-align:left;white-space:normal;min-width:180px}.q6 th.g{text-align:center;border-top:3px solid}.q6 td{padding:6px 8px;text-align:right;border-bottom:1px solid #F0EDF6;white-space:nowrap}.q6 .sep{border-left:1px solid var(--border,#E5E1EE)}'
+    + '.q6 tr.grp td{background:#FBFAFD;font-weight:700}.q6 tr.grp td.d{color:#3F2D86}.q6 tr.tot td{background:#F4F0FC;font-weight:800;border-top:2px solid #CFC6E6}.q6 td.l1{padding-left:24px}.q6 td.l2{padding-left:40px}.q6 td.l3{padding-left:56px}'
+    + '.q6 .g{color:#15803D}.q6 .gb{color:#15803D;font-weight:700}.q6 .r{color:#B91C1C;font-weight:700}.q6 .m{color:var(--tm,#77768A)}.q6 .lv{font-size:11px;font-weight:700;color:#8A6D00;background:#FFF4CC;border-radius:999px;padding:1px 7px;margin-left:6px}'
+    + '.q6 td.pr-ok{background:#ECF8F1}.q6 td.pr-bad{background:#FDEEEE}.q6 .q6-foot{font-size:12px;color:var(--tm,#77768A);margin-top:8px}';
+
+  function shell(){
+    var main = document.querySelector('main.main');
+    if(main && !$('tab-q6')){ var sec = document.createElement('section'); sec.id = 'tab-q6'; sec.className = 'section q6'; main.appendChild(sec); }
+    if(!$('q6-css')){ var st = document.createElement('style'); st.id = 'q6-css'; st.textContent = CSS; document.head.appendChild(st); }
+    if(document.querySelector('.sidebar [data-p="q6"]')) return;
+    var look = $('ta-look'), ref = document.querySelector('.sidebar [data-p="targets"]'); if(!ref || !look) return;
+    var g = document.createElement('div'); g.className = 'sb-group'; g.id = 'q6-grp';
+    var lb = look.querySelector('.sb-label'); if(lb){ var l2 = lb.cloneNode(true); l2.textContent = 'Team'; g.appendChild(l2); }
+    var b = ref.cloneNode(true); b.setAttribute('data-p', 'q6'); b.setAttribute('onclick', "__go('q6')"); b.title = 'Quality and AHT'; b.classList.remove('active', 'pr-off');
+    var t = b.querySelector('.mp319-tl'); if(t) t.textContent = 'Quality and AHT';
+    var ic = b.querySelector('.tab-icon'); if(ic) ic.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>';
+    g.appendChild(b); look.parentNode.insertBefore(g, look);
+  }
+  function show(){
+    [].forEach.call(document.querySelectorAll('main .section'), function(s){ s.classList.toggle('on', s.id === 'tab-q6'); });
+    [].forEach.call(document.querySelectorAll('.sidebar .tab[data-p]'), function(b){ b.classList.toggle('active', b.getAttribute('data-p') === 'q6'); });
+    draw(); window.scrollTo(0, 0);
+  }
+
+  function selLabel(key, lbl){ var s = S.f[key]; if(!s) return 'All ' + lbl; if(!s.length) return 'No ' + lbl;
+    if(s.length === 1){ var v = vals(key).filter(function(x){ return x[0] === s[0]; })[0]; return v ? v[1] : s[0]; } return s.length + ' ' + lbl + (lbl === 'TL' ? 's' : ''); }
+  function bar(){
+    var h = '<span>Filter:</span>';
+    FK.forEach(function(k){ h += '<div class="q6-pill" data-k="' + k[0] + '"><button type="button" class="' + (S.f[k[0]] ? 'on' : '') + '" aria-haspopup="true" aria-expanded="' + (S.open === k[0]) + '">' + E(selLabel(k[0], k[1])) + ' ▾</button>';
+      if(S.open === k[0]){ var all = !S.f[k[0]];
+        h += '<div class="q6-dd" role="listbox"><label class="q6-all"><input type="checkbox" data-all="1"' + (all ? ' checked' : '') + '> All</label>';
+        vals(k[0]).forEach(function(v){ var on = all || S.f[k[0]].indexOf(v[0]) > -1; h += '<label><input type="checkbox" data-v="' + E(v[0]) + '"' + (on ? ' checked' : '') + '> ' + E(v[1]) + '</label>'; });
+        h += '</div>'; }
+      h += '</div>'; });
+    return h + '<button type="button" class="q6-reset">Reset</button>';
+  }
+  function card(l, v, goal, prev, pl, n){
+    var bad = v != null && v < goal, st = v == null ? '<span class="m">No audits</span>' : bad ? '<b class="r">▼ ' + ((goal - v) * 100).toFixed(1) + ' pts below ' + Math.round(goal * 100) + '%</b>' : '<b class="g">✓ At goal (' + Math.round(goal * 100) + '%)</b>';
+    var d = v == null || prev == null ? '' : Math.abs(v - prev) < 1e-4 ? '<span class="m">No change vs ' + E(pl) + '</span>' : '<span class="' + (v > prev ? 'g' : 'r') + '">' + (v > prev ? '▲ ' : '▼ ') + (Math.abs(v - prev) * 100).toFixed(1) + ' pts</span> <span class="m">vs ' + E(pl) + '</span>';
+    return '<div class="q6-k ' + (v == null ? '' : bad ? 'bad' : 'ok') + '"><div class="l">' + E(l) + '</div><div class="v">' + pc1(v) + '</div><div class="s">' + st + '</div><div class="c">' + d + '</div><div class="n">' + n + '</div></div>';
+  }
+  function cards(cur){
+    var all = filtered(true), hq = function(r){ return (r.enfTp + r.enfTn + r.enfFp + r.enfFn) > 0; };
+    var wk = Array.from(new Set(cur.filter(hq).map(function(r){ return r.week; }))).sort(), last = wk[wk.length - 1];
+    if(!last) return '<div class="q6-note">No enforcement audits in this selection.</div>';
+    var aw = Array.from(new Set(all.filter(hq).map(function(r){ return r.week; }))).sort(), pw = aw.filter(function(w){ return w < wk[0]; }).pop();
+    var prev = pw ? all.filter(function(r){ return r.week === pw; }) : [];
+    var p1 = function(r){ return r.pri === 'P1'; }, p2 = function(r){ return r.pri !== 'P1'; };
+    var a = [agg(cur), agg(cur, p1), agg(cur, p2)], b = [agg(prev), agg(prev, p1), agg(prev, p2)], pl = pw ? 'WE ' + day(pw) : '';
+    var tP = D.gT.P, tR = D.gT.R, T1 = D.T1;
+    var spec = [['Precision', 0, 'p', tP], ['Recall', 0, 'r', tR], ['P1 Precision', 1, 'p', T1], ['P1 Recall', 1, 'r', T1], ['P2–P4 Precision', 2, 'p', tP], ['P2–P4 Recall', 2, 'r', tR]];
+    var h = spec.map(function(x){ var g = a[x[1]], o = b[x[1]], v = x[2] === 'p' ? P(g.tp, g.fp) : R(g.tp, g.fn), pv = pw ? (x[2] === 'p' ? P(o.tp, o.fp) : R(o.tp, o.fn)) : null;
+      var n = x[2] === 'p' ? n0(g.tp + g.fp + g.fn + g.tn) + ' audits' : n0(g.tp + g.fn) + ' violating';
+      return card(x[0], v, x[3], pv, pl, n); }).join('');
+    var vl = VIEWS.filter(function(v){ return v[0] === S.view; })[0][1];
+    return '<div class="q6-hd">Scores · ' + E(vl) + ' · Enforcement · ' + (wk.length > 1 ? wk.length + ' weeks to ' + day(last) : 'week ending ' + day(last)) + ' · P1 is Profile, World, World Reactive and Video</div><div class="q6-cards">' + h + '</div>';
+  }
+  function notes(cur){
+    var h = '', sel = Array.from(new Set(cur.map(function(r){ return r.week; }))).sort();
+    var noA = sel.filter(function(w){ return ahtWeeks.indexOf(w) < 0; });
+    if(S.show.aht && noA.length) h += '<div class="q6-note"><b>AHT covers ' + (ahtWeeks.length ? ahtWeeks.map(function(w){ return 'WE ' + day(w); }).join(', ') : 'no week') + ' only.</b> ' + (noA.length === sel.length ? 'No AHT file for the selected week' + (sel.length > 1 ? 's' : '') + ', so AHT is blank.' : noA.length + ' of the ' + sel.length + ' selected weeks have no AHT file; AHT here comes from the other ' + (sel.length - noA.length) + '.') + '</div>';
+    var pd = D.pend || {};
+    if(S.view !== 'actual' && pd.err && pd.pend / pd.err > 0.25) h += '<div class="q6-note"><b>RCA pending on ' + Math.round(100 * pd.pend / pd.err) + '% of errors (' + n0(pd.pend) + ' of ' + n0(pd.err) + ').</b> ' + E(VIEWS.filter(function(v){ return v[0] === S.view; })[0][1]) + ' can only move errors that have an RCA, so it is close to Actual for now.</div>';
+    return h;
+  }
+  /* breakdown */
+  function cellPct(v, t, color){ if(v == null) return '<td class="m">—</td>'; return '<td' + (color && t ? ' class="' + (v >= t ? 'g' : 'r') + '"' : '') + '>' + pc2(v) + '</td>'; }
+  function addSep(h){ return h.replace(/^<td( class="([^"]*)")?/, function(_, x, c){ return '<td class="sep' + (c ? ' ' + c : '') + '"'; }); }
+  function cells(a, sw, has){
+    var tg = sw ? (TG[sw] || {}) : {}, tP = tg.P || D.gT.P, tR = tg.R || D.gT.R, h = '', sh = S.show;
+    var cnt = function(n, f){ return '<td class="' + (f ? 'sep ' : '') + 'm">' + n0(n) + '</td>'; };
+    if(sh.enf){ if(!has.enf) h += '<td class="sep m">—</td>';
+      else { h += addSep(cellPct(P(a.tp, a.fp), tP, true))
+        + cellPct(R(a.tp, a.fn), tR, true) + cellPct(A(a.tp, a.fp, a.fn, a.tn), null, false);
+        if(sh.cnt) h += cnt(a.tp) + cnt(a.fp) + cnt(a.fn) + cnt(a.tn); } }
+    if(sh.lab){ if(!has.lab) h += '<td class="sep m">—</td>';
+      else { h += addSep(cellPct(P(a.ltp, a.lfp), tP, true))
+        + cellPct(R(a.ltp, a.lfn), tR, true) + cellPct(A(a.ltp, a.lfp, a.lfn, a.ltn), null, false);
+        if(sh.cnt) h += cnt(a.ltp) + cnt(a.lfp) + cnt(a.lfn) + cnt(a.ltn); } }
+    if(sh.aht){ if(!has.aht) h += '<td class="sep m">—</td>';
+      else { var v = aht(a), t = sw ? (tg.a > 0 ? tg.a : null) : ahtTgt(a);
+        var cls = v == null ? 'm' : !t ? '' : v <= t ? 'g' : 'r';
+        h += '<td class="sep">' + n0(a.j) + '</td><td class="' + cls + '"' + (t && v != null ? ' style="font-weight:700"' : '') + '>' + (v == null ? '—' : v.toFixed(1) + 's') + '</td>';
+        if(v == null || !t) h += '<td class="m">—</td>';
+        else { /* same rounding as the main app: % vs target to 1 decimal, then seconds */
+          var pct = +((v - t) / t * 100).toFixed(1), d = Math.round(v / (1 + pct / 100) - v);
+          h += '<td class="' + (v <= t ? 'g' : 'r') + '" style="font-weight:700" title="Target ' + Math.round(t) + 's' + (sw ? '' : ' (job-weighted across sub-workflows)') + '">' + (d > 0 ? '+' : d < 0 ? '−' : '') + Math.abs(d) + 's</td>'; }
+        if(prOn()){ var pr = passRate(a.rows);
+          if(pr.rate == null) h += '<td class="m" title="' + E(pr.det.length ? 'No top-10 sub-workflow has ' + pr.min + '+ jobs' : 'No jobs with handle time and an AHT target') + '">—</td>';
+          else { var ok = pr.rate >= 0.8;
+            h += '<td class="' + (ok ? 'pr-ok' : 'pr-bad') + '" title="' + E(pr.pass + ' of ' + pr.elig + ' top-10 sub-workflows within AHT target (goal 80%).\n' + pr.det.map(function(d){ return d.sw + ': ' + d.aht.toFixed(0) + 's / ' + Math.round(d.tgt) + 's' + (d.counted ? (d.pass ? ' ✓' : ' ✗') : ' (not counted, ' + d.jobs + ' jobs)'); }).join('\n')) + '"><span class="' + (ok ? 'g' : 'r') + '" style="font-weight:700">' + Math.round(pr.rate * 100) + '%</span> <span class="m" style="font-size:11px">' + pr.pass + '/' + pr.elig + '</span></td>'; } } } }
+    return h;
+  }
+  function prOn(){ var d = S.dims; return d.length > 0 && d.every(function(x){ return ['tl', 'sw', 'pri'].indexOf(x) > -1; }) && (d.indexOf('tl') > -1 || d.indexOf('sw') > -1); }
+  function head(has){
+    var c = S.show.cnt ? 4 : 0, h = '<tr><th rowspan="2" class="d">' + E(S.dims.map(function(d){ return DL[d]; }).join(' › ') || 'All') + '</th>';
+    var g = function(on, ok, n, l, col){ return !on ? '' : '<th class="g sep" colspan="' + (ok ? n : 1) + '" style="color:' + col + ';border-top-color:' + col + '">' + l + '</th>'; };
+    h += g(S.show.enf, has.enf, 3 + c, 'Enforcement', '#0E7C7B') + g(S.show.lab, has.lab, 3 + c, 'Labelling', '#5B3FB0') + g(S.show.aht, has.aht, prOn() ? 4 : 3, 'AHT', '#B45309') + '</tr><tr class="h2">';
+    var qh = function(ok){ return ok ? '<th class="sep">Precision</th><th>Recall</th><th>Accuracy</th>' + (S.show.cnt ? '<th>TP</th><th>FP</th><th>FN</th><th>TN</th>' : '') : '<th class="sep"></th>'; };
+    if(S.show.enf) h += qh(has.enf); if(S.show.lab) h += qh(has.lab);
+    if(S.show.aht) h += has.aht ? '<th class="sep">Jobs</th><th>AHT</th><th title="Seconds under (+) or over (−) the AHT target">Target − AHT</th>' + (prOn() ? '<th title="Top-10 sub-workflows within AHT target ÷ top-10 counted. Goal 80%.">Pass rate</th>' : '') : '<th class="sep"></th>';
+    return h + '</tr>';
+  }
+  function dimVal(r, d){ return d === 'name' ? (r.name || r.actor) : r[d]; }
+  function dimLbl(d, v){ return d === 'week' ? 'WE ' + day(v) : v; }
+  function rowsHtml(list, level, has, swCtx){
+    var d = S.dims[level], out = '';
+    var by = {}; list.forEach(function(r){ var v = dimVal(r, d) || '(blank)'; (by[v] || (by[v] = [])).push(r); });
+    var keys = Object.keys(by).sort(function(a, b){ if(d === 'pri') return a === 'P1' ? -1 : b === 'P1' ? 1 : a.localeCompare(b); return a.localeCompare(b); });
+    keys.forEach(function(k){
+      var a = agg(by[k]), leaf = level === S.dims.length - 1;
+      var sw = d === 'sw' ? k : leaf ? (swCtx || null) : null, aud = a.tp + a.fp + a.fn + a.tn + a.ltp + a.lfp + a.lfn + a.ltn;
+      var sub = !leaf ? ' <span class="m" style="font-weight:400">' + Object.keys(by[k].reduce(function(m, r){ m[dimVal(r, S.dims[level + 1])] = 1; return m; }, {})).length + ' ' + E(DL[S.dims[level + 1]].toLowerCase()) + (Object.keys(by[k].reduce(function(m, r){ m[dimVal(r, S.dims[level + 1])] = 1; return m; }, {})).length === 1 ? '' : 's') + '</span>' : '';
+      var lv = aud > 0 && aud < 20 ? '<span class="lv" title="Fewer than 20 audits: one job moves the rate a lot">low volume</span>' : '';
+      out += '<tr class="' + (leaf ? '' : 'grp') + '"><td class="d l' + level + '">' + E(dimLbl(d, k)) + sub + lv + '</td>' + cells(a, sw, has) + '</tr>';
+      if(!leaf) out += rowsHtml(by[k], level + 1, has, d === 'sw' ? k : swCtx);
+    });
+    return out;
+  }
+  function table(cur){
+    var a = agg(cur), has = { enf: a.tp + a.fp + a.fn + a.tn > 0, lab: a.ltp + a.lfp + a.lfn + a.ltn > 0, aht: a.j > 0 };
+    var body = S.dims.length ? rowsHtml(cur, 0, has) : '';
+    body += '<tr class="tot"><td class="d">Grand total</td>' + cells(a, null, has) + '</tr>';
+    return '<div class="q6-wrap"><table><thead>' + head(has) + '</thead><tbody>' + body + '</tbody></table></div>';
+  }
+  function tools(){
+    var tg = function(k, l){ return '<button type="button" class="q6-tg' + (S.show[k] ? ' on' : '') + '" data-show="' + k + '" aria-pressed="' + S.show[k] + '">' + l + '</button>'; };
+    var h = '<div class="q6-tools"><span class="t">Show</span>' + tg('enf', 'Enforcement') + tg('lab', 'Labelling') + tg('aht', 'AHT') + tg('cnt', 'TP · FP · FN · TN')
+      + '<span class="q6-seg" role="group" aria-label="Score view">' + VIEWS.map(function(v){ return '<button type="button" data-view="' + v[0] + '" class="' + (S.view === v[0] ? 'on' : '') + '" title="' + E(v[2]) + '">' + v[1] + '</button>'; }).join('') + '</span></div>'
+      + '<div class="q6-tools"><span class="t">Group by</span>' + DIMS.map(function(d){ var i = S.dims.indexOf(d[0]); return '<button type="button" class="q6-tg' + (i > -1 ? ' on' : '') + '" data-dim="' + d[0] + '" aria-pressed="' + (i > -1) + '">' + d[1] + (i > -1 ? ' <b>' + (i + 1) + '</b>' : '') + '</button>'; }).join('')
+      + '<span class="m" style="font-size:12px">Click to group, click again to remove</span></div>';
+    return h;
+  }
+  function draw(){
+    var s = $('tab-q6'); if(!s) return;
+    var cur = filtered(false);
+    var chips = '<div class="q6-chips"><span class="q6-chip">Quality as of <b>' + dayY(D.asOf.q) + '</b></span><span class="q6-chip">AHT as of <b>' + dayY(D.asOf.a) + '</b></span><span class="q6-chip">Penang · whole team</span></div>';
+    var unm = Object.keys(D.unm || {}), un = unm.length ? '<div class="q6-foot">' + unm.length + ' queue' + (unm.length === 1 ? '' : 's') + ' (' + n0(unm.reduce(function(t, k){ return t + D.unm[k]; }, 0)) + ' jobs) not in the Queue Map: shown as (unmapped).</div>' : '';
+    s.innerHTML = '<div class="ph mp319-ph"><div><span class="v6-step see">Team</span><h1>Quality and AHT</h1><p>The team’s audit results and handle time, week by week. Everyone in Penang, whichever name is picked.</p></div></div>'
+      + chips + '<div class="q6-bar" id="q6-bar">' + bar() + '</div>'
+      + (cur.length ? cards(cur) + notes(cur) + '<div class="q6-card"><div class="q6-hd">Details</div>' + tools() + table(cur) + '</div>' : '<div class="q6-note">No rows match these filters. Use Reset to start again.</div>')
+      + '<div class="q6-foot">Made ' + dayY(D.made) + ' from MyPerformance. Checked against its NRT: QA and AHT tab at export: 0 differences in Actual, Meta Adj and Adj.</div>' + un;
+  }
+  function onClick(e){
+    var s = $('tab-q6'); if(!s || !s.contains(e.target)) { if(S.open){ S.open = null; draw(); } return; }
+    var t = e.target, b;
+    if((b = t.closest('.q6-pill > button'))){ var k = b.parentNode.getAttribute('data-k'); S.open = S.open === k ? null : k; draw(); return; }
+    if(t.closest('.q6-dd')) return;
+    if(t.closest('.q6-reset')){ FK.forEach(function(k){ S.f[k[0]] = null; }); S.f.week = [qWeeks[qWeeks.length - 1] || allWeeks[allWeeks.length - 1]]; S.open = null; draw(); return; }
+    if((b = t.closest('[data-show]'))){ var k2 = b.getAttribute('data-show'); S.show[k2] = !S.show[k2]; draw(); return; }
+    if((b = t.closest('[data-view]'))){ S.view = b.getAttribute('data-view'); lsSet('mp3106.qview', S.view); draw(); return; }
+    if((b = t.closest('[data-dim]'))){ var d = b.getAttribute('data-dim'), i = S.dims.indexOf(d); if(i > -1) S.dims.splice(i, 1); else S.dims.push(d); draw(); return; }
+    if(S.open){ S.open = null; draw(); }
+  }
+  function onChange(e){
+    var t = e.target, dd = t.closest && t.closest('.q6-dd'); if(!dd) return;
+    var key = dd.parentNode.getAttribute('data-k'), allV = vals(key).map(function(v){ return v[0]; });
+    if(t.getAttribute('data-all')) S.f[key] = t.checked ? null : [];
+    else { var cur = S.f[key] ? S.f[key].slice() : allV.slice(), v = t.getAttribute('data-v'), i = cur.indexOf(v);
+      if(t.checked && i < 0) cur.push(v); if(!t.checked && i > -1) cur.splice(i, 1);
+      S.f[key] = cur.length === allV.length ? null : cur; }
+    draw();
+  }
+  function onKey(e){ if(e.key === 'Escape' && S.open){ S.open = null; draw(); } }
+
+  function init(){
+    shell();
+    var G = window.__go;
+    window.__go = function(p){
+      var r = typeof G === 'function' ? G.apply(this, arguments) : undefined;
+      try { var b = document.querySelector('.sidebar [data-p="q6"]'); if(b) b.classList.remove('pr-off'); if(p === 'q6') show(); } catch(e){ console.error('[v3.106]', e); }
+      return r;
+    };
+    var Pk = window.__pick;
+    window.__pick = function(){
+      var r = typeof Pk === 'function' ? Pk.apply(this, arguments) : undefined;
+      try { var b = document.querySelector('.sidebar [data-p="q6"]'); if(b) b.classList.remove('pr-off'); var s = $('tab-q6'); if(s && s.classList.contains('on')) draw(); } catch(e){}
+      return r;
+    };
+    document.addEventListener('click', onClick); document.addEventListener('change', onChange); document.addEventListener('keydown', onKey);
+    window.__q3106 = { S: S, draw: draw, show: show, rows: rowsOf, filtered: filtered, pass: passRate, D: D };
+  }
+  if(document.readyState === 'complete') setTimeout(init, 0); else window.addEventListener('load', function(){ setTimeout(init, 0); });
+}
+
+function fix(html){
+  if(typeof html !== 'string') return html;
+  if(html.indexOf('id="q3106-rt"') > -1) return html;   /* already added by an earlier copy of this wrapper */
+  if(window.MP_TEAM_NRT === false){ window.__m3106x = { ok: false, why: 'switched off (MP_TEAM_NRT = false)' }; return html; }
+  var P0 = null; try { P0 = payload(); } catch(e){ q(e); P0 = { ok: false, why: String(e) }; }
+  if(!P0 || !P0.ok){ window.__m3106x = { ok: false, why: P0 && P0.why, par: P0 && P0.par }; return html; }
+  var b = html.lastIndexOf('</body>'); if(b < 0){ q(new Error('v3.106 Team App Quality and AHT: </body> not found')); return html; }
+  var j = JSON.stringify(P0).replace(/</g, '\\u003c');
+  var inj = '<script id="q3106-rt">(' + RT.toString() + ')(' + j + ');<\/script>';
+  window.__m3106x = { ok: true, bytes: inj.length, keys: P0.cube.k.length };
+  return html.slice(0, b) + inj + html.slice(b);
+}
+/* Sit outermost on the Team App export (same pattern as v3.100). */
+function ensure(){
+  if(window.__MP_NRT_ONLY) return;
+  var f = window.mp350PrereadHTML;
+  if(typeof f !== 'function' || f.__m3106) return;
+  var w = function(){
+    var out, self = this, args = arguments;
+    window.mp350PrereadHTML = f;
+    try { out = f.apply(self, args); } finally { window.mp350PrereadHTML = w; }
+    if(out && typeof out.then === 'function') return out.then(fix);
+    try { return fix(out); } catch(e){ q(e); return out; }
+  };
+  try { Object.keys(f).forEach(function(k){ if(/^__m\d/.test(k)) w[k] = f[k]; }); } catch(_){}
+  w.__m3106 = true; window.mp350PrereadHTML = w;
+}
+window.mp3106 = { fix: fix, RT: RT, payload: payload };
+ensure(); [4000, 9500, 14000, 20000, 28000].forEach(function(t){ setTimeout(ensure, t); });
 })();
 
 </script>
